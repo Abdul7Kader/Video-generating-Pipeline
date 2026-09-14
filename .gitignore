@@ -1,0 +1,15 @@
+.env
+__pycache__/
+.pytest_cache/
+*.pyc
+node_modules/
+.venv/
+.runtime/
+data/
+out/
+*.mp4
+*.wav
+.cache/
+.remotion/
+:memory:.ses
+.repo/

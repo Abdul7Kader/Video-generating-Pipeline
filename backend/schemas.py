@@ -1,0 +1,37 @@
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator
+
+
+class Scene(BaseModel):
+    narration: str = Field(min_length=2, max_length=1200)
+    visual: str = Field(min_length=2, max_length=500)
+    action: Literal["intro", "stand", "walk", "point", "think", "explain", "celebrate", "outro"] = "explain"
+    accent: str = Field(default="#ff6b4a", pattern=r"^#[0-9a-fA-F]{6}$")
+
+
+class JobCreate(BaseModel):
+    topic: str = Field(min_length=3, max_length=500)
+    language: Literal["de", "en"] = "de"
+    duration_seconds: int = Field(default=60, ge=15, le=600)
+    aspect_ratio: Literal["9:16", "16:9", "1:1"] = "9:16"
+    video_type: Literal["stickman", "explainer", "social", "podcast", "generated"] = "stickman"
+    target_platform: Literal["download", "youtube"] = "download"
+
+    @field_validator("topic")
+    @classmethod
+    def normalize_topic(cls, value: str) -> str:
+        return " ".join(value.split())
+
+
+class ScriptUpdate(BaseModel):
+    expected_version: int = Field(ge=1)
+    title: str = Field(min_length=2, max_length=140)
+    description: str = Field(default="", max_length=5000)
+    scenes: list[Scene] = Field(min_length=1, max_length=30)
+
+
+class VersionAction(BaseModel):
+    expected_version: int = Field(ge=1)

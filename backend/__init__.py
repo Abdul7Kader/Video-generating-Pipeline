@@ -1,0 +1,1 @@
+"""Local automated video pipeline."""
