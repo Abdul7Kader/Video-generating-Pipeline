@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class Scene(BaseModel):
+    scene_id: str = Field(default="", max_length=64)
     narration: str = Field(min_length=2, max_length=1200)
     visual: str = Field(
         min_length=2,
@@ -21,10 +22,13 @@ class Scene(BaseModel):
         "talking_head",
         "waveform",
     ] = "motion_graphics"
+    source_strategy: Literal["generate", "stock", "provided", "procedural", "recorded"] | None = None
+    source_ref: str = Field(default="", max_length=2000)
     asset_prompt: str = Field(default="", max_length=2000)
     on_screen_text: str = Field(default="", max_length=240)
     camera: str = Field(default="", max_length=500)
     transition: Literal["cut", "dissolve", "wipe", "zoom", "match_cut", "none"] = "cut"
+    duration_seconds: float = Field(default=5, gt=0, le=180)
     action: Literal["intro", "stand", "walk", "point", "think", "explain", "celebrate", "outro"] = "explain"
     accent: str = Field(default="#ff6b4a", pattern=r"^#[0-9a-fA-F]{6}$")
 
@@ -71,3 +75,4 @@ class ScriptRevision(BaseModel):
 
 class VersionAction(BaseModel):
     expected_version: int = Field(ge=1)
+    expected_hash: str = Field(pattern=r"^[0-9a-f]{64}$")

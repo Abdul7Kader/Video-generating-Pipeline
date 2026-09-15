@@ -23,8 +23,9 @@ job = call("/api/jobs", "POST", {
 })
 job_id = job["id"]
 version = job["script_version"]
-call(f"/api/jobs/{job_id}/approve-script", "POST", {"expected_version": version})
-call(f"/api/jobs/{job_id}/render", "POST", {"expected_version": version})
+plan_hash = job["script"]["content_hash"]
+call(f"/api/jobs/{job_id}/approve-script", "POST", {"expected_version": version, "expected_hash": plan_hash})
+call(f"/api/jobs/{job_id}/render", "POST", {"expected_version": version, "expected_hash": plan_hash})
 print(f"Smoke-Test-Auftrag: {job_id}")
 print(f"Status: {base}/api/jobs/{job_id}")
 PY

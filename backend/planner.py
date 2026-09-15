@@ -7,6 +7,7 @@ import urllib.request
 from typing import Any
 
 from .config import settings
+from .plan import finalize_scene_plan
 from .schemas import JobCreate, ScriptDraft
 
 
@@ -43,16 +44,20 @@ STYLE_DIRECTIONS = {
 
 def _response_schema() -> dict[str, Any]:
     scene_properties: dict[str, Any] = {
+        "scene_id": {"type": "string", "description": "Stable id such as scene-a1b2c3; preserve it when revising the same scene."},
         "narration": {"type": "string", "description": "Only the naturally spoken voice-over for this scene."},
         "visual": {"type": "string", "description": "A concrete description of what is visibly on screen."},
         "visual_type": {
             "type": "string",
             "enum": ["stickman", "generated_image", "generated_video", "stock_video", "motion_graphics", "talking_head", "waveform"],
         },
+        "source_strategy": {"type": "string", "enum": ["generate", "stock", "provided", "procedural", "recorded"]},
+        "source_ref": {"type": "string", "description": "Provided/local source reference, or empty until production resolves the asset."},
         "asset_prompt": {"type": "string", "description": "Standalone prompt or search brief used to obtain the visual asset; no captions."},
         "on_screen_text": {"type": "string", "description": "Exact short text intentionally shown on screen, or an empty string."},
         "camera": {"type": "string", "description": "Framing and camera or graphic movement."},
         "transition": {"type": "string", "enum": ["cut", "dissolve", "wipe", "zoom", "match_cut", "none"]},
+        "duration_seconds": {"type": "number", "minimum": 0.1, "maximum": 180},
         "action": {"type": "string", "enum": ["intro", "stand", "walk", "point", "think", "explain", "celebrate", "outro"]},
         "accent": {"type": "string", "description": "A six-digit hexadecimal accent color such as #38bdf8."},
     }
@@ -112,10 +117,13 @@ def _template(request: JobCreate) -> dict[str, Any]:
             "narration": narration,
             "visual": visual,
             "visual_type": visual_type,
+            "source_strategy": "procedural" if visual_type in {"stickman", "motion_graphics"} else "generate",
+            "source_ref": "",
             "asset_prompt": visual,
             "on_screen_text": "",
             "camera": "Ruhige, klare Bewegung auf das Hauptmotiv.",
             "transition": "cut",
+            "duration_seconds": request.duration_seconds / len(beats),
             "action": ACTIONS[min(i, len(ACTIONS) - 1)],
             "accent": ACCENTS[i % len(ACCENTS)],
         }
@@ -178,6 +186,9 @@ Editorial requirements
 - Prefer precise examples, causal explanations and concrete takeaways over generic advice.
 - Narration must sound natural when spoken aloud; do not include headings, stage directions or citation markers in narration.
 - Keep deliberate on-screen text short. Never copy the visual instruction or full narration into on_screen_text.
+- Assign a stable scene_id to every scene. When revising, preserve the id if the scene's purpose remains; create a new id for a replacement scene.
+- Set duration_seconds per scene so their sum is the target duration. Match time to spoken length and visual complexity.
+- Choose source_strategy deliberately: generate, stock, provided, recorded or procedural. Leave source_ref empty unless the brief supplied a real source.
 - Make adjacent shots visually distinct while maintaining continuity of people, places, era, palette and art direction.
 - asset_prompt must be directly usable for image/video generation or asset search and must not ask the image model to draw words.
 - Use generated_video sparingly where visible motion matters; prefer generated_image with camera movement for controllable shots.
@@ -308,4 +319,4 @@ def generate_script(
         "fact_check_notes": fact_check_notes,
         "revision": bool(previous),
     }
-    return script
+    return finalize_scene_plan(script, request.duration_seconds, previous)

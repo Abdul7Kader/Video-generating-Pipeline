@@ -74,7 +74,10 @@ def render_job(job: dict[str, Any]) -> tuple[str, str]:
     tts_mode, audio_duration = synthesize(narration, audio_path, float(job["duration_seconds"]))
 
     total = max(float(job["duration_seconds"]), audio_duration + 0.6)
-    weights = [max(1, len(scene["narration"].split())) for scene in job["script"]["scenes"]]
+    weights = [
+        max(0.1, float(scene.get("duration_seconds") or len(scene["narration"].split()) or 1))
+        for scene in job["script"]["scenes"]
+    ]
     weight_sum = sum(weights)
     scenes = []
     cursor = 0.0
@@ -89,6 +92,7 @@ def render_job(job: dict[str, Any]) -> tuple[str, str]:
         "durationSeconds": total,
         "aspectRatio": job["aspect_ratio"],
         "language": job["language"],
+        "scriptHash": job["render_script_hash"],
     }
     props_path = job_dir / "render-props.json"
     props_path.write_text(json.dumps(props, ensure_ascii=False, indent=2), encoding="utf-8")

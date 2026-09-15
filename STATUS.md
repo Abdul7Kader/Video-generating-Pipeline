@@ -44,7 +44,7 @@ Ergebnis: Jede Szene besitzt stabile ID, Dauer, visuellen Medientyp, Prompt/Quel
 
 Prüfung: Datenbankmigration sowie Konflikt-, Hash- und Freigabetests; UI zeigt den Plan verständlich und vollständig.
 
-Status: offen
+Status: **erledigt**
 
 ### 3. Reale visuelle Produktion pro Stil
 
@@ -94,6 +94,9 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 - 2026-09-15: Direkter Funktions-/API-Ablauf in isoliertem temporärem Datenverzeichnis bestanden: Auftrag, Revision auf Version 2, Freigabe und erwartete Sperre des noch nicht realen Erklärvideo-Renderers.
 - 2026-09-15: Migration einer Kopie der bestehenden V1-Datenbank bestanden; 6 vorhandene Skriptversionen blieben erhalten und erhielten kompatible leere Metadaten.
 - 2026-09-15: Remotion-Smoke-Render eines vorhandenen kurzen Auftrags nach Entfernung der Bildanweisungs-Textkarte bestanden (`/tmp/video-pipeline-step1-smoke.mp4`, 468 Frames, 1,8 MB). Der erste Versuch scheiterte erwartbar an der Socket-Sandbox; der freigegebene lokale Testlauf war erfolgreich.
+- 2026-09-15: Etappe 2: 15/15 Tests bestanden, darunter kanonische Hashes, Szenen-ID-/Dauer-Normalisierung, falsche Freigabehashes, manipulierte gespeicherte Pläne und falsche Video-Dateihashes.
+- 2026-09-15: V1-Migrationsprüfung auf einer Datenbankkopie erneut bestanden: 6 Skriptversionen erhalten, alle mit gültigem nachgetragenem Inhaltshash; keine bestehende Datei verändert.
+- 2026-09-15: Isolierter API-Funktionstest bestanden: exakte hashgebundene Freigabe, Sperre nicht implementierter Renderer und Ablehnung einer vom Testadapter nur vorgetäuschten, inhaltlich unveränderten Revision.
 
 ## Offene Probleme/Risiken
 
@@ -108,7 +111,10 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 - Visuelle Regie ist je Stil getrennt und umfasst realen Medientyp, sichtbare Einstellung, Asset-Prompt, Kamera, bewusste Texteinblendung und Übergang.
 - KI-Änderungswünsche erzeugen eine neue Version; Modell/Anbieter und Hinweise zur Faktenprüfung werden gespeichert und angezeigt.
 - Nicht implementierte Videoarten werden vorläufig gesperrt statt als Strichmännchenvideo ausgegeben. Bildanweisungen werden nicht mehr als sichtbare Textkarte gerendert.
+- Jede neue Szene besitzt eine stabile ID, eine geplante Dauer und eine konkrete Quellenstrategie; Dauern werden exakt auf die Zielvideolänge normalisiert.
+- Skript-/Szenenfreigaben speichern den kanonischen SHA-256-Hash des Plans. Renderaufträge müssen Version und Hash treffen; Manipulationen werden erkannt.
+- Fertige Videos erhalten einen Datei-SHA-256. Prüfung, Freigabe und ein eventueller Upload sind an genau diese unveränderte Datei gebunden.
 
 ## Nächster konkreter Arbeitsschritt
 
-Etappe 2 beginnen: stabile Szenen-IDs und geplante Dauern ergänzen, kanonischen Skript-/Plan-Hash in der Datenbank speichern und Freigaben an genau diesen Hash binden; anschließend Konflikt-, Hash-, Migrations- und UI-Tests ausführen.
+Etappe 3 beginnen: auf der vorhandenen CPU-Hardware eine kostenfreie reale Asset-Strategie (bereitgestellte/korrekt lizenzierte Stockmedien plus hochwertige Motion Graphics) implementieren und externe generative Bild-/Videoanbieter nur als deaktivierte, kostenbewusste Adapter vorsehen. Danach pro freigeschaltetem Stil Render- und Assetmanifesttests ausführen.

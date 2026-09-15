@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .db import Database
+from .plan import file_sha256, finalize_scene_plan, script_hash
 from .planner import ScriptProviderUnavailable, generate_script, script_provider_status
 from .rendering import dependency_status, render_job
 from .schemas import JobCreate, ScriptRevision, ScriptUpdate, VersionAction
@@ -35,7 +36,8 @@ async def render_worker(stop: asyncio.Event) -> None:
             try:
                 output, tts_mode = await asyncio.to_thread(render_job, job)
                 relative = str(Path(output).relative_to(settings.jobs_dir))
-                db.finish_render(job["id"], int(job["render_version"]), relative, tts_mode)
+                output_hash = await asyncio.to_thread(file_sha256, Path(output))
+                db.finish_render(job["id"], int(job["render_version"]), relative, output_hash, tts_mode)
             except Exception as exc:
                 logger.exception("Render failed for %s", job["id"])
                 db.fail_render(job["id"], str(exc))
@@ -44,6 +46,8 @@ async def render_worker(stop: asyncio.Event) -> None:
         if publish_job:
             try:
                 output = (settings.jobs_dir / publish_job["output_path"]).resolve()
+                if file_sha256(output) != publish_job["approved_output_sha256"]:
+                    raise RuntimeError("Die freigegebene Videodatei wurde nach der Freigabe verändert; Upload gestoppt.")
                 video_id = await asyncio.to_thread(upload_video, publish_job, output)
                 db.finish_publish(publish_job["id"], video_id)
             except Exception as exc:
@@ -114,6 +118,7 @@ def update_script(job_id: str, payload: ScriptUpdate):
             "model": None,
             "parent": current["script"].get("metadata", {}),
         }
+        script = finalize_scene_plan(script, current["duration_seconds"], current["script"])
         return db.update_script(job_id, payload.expected_version, script)
     except KeyError:
         raise HTTPException(404, "Auftrag nicht gefunden")
@@ -136,6 +141,8 @@ def revise_script(job_id: str, payload: ScriptRevision):
     })
     try:
         revised = generate_script(request, previous=current["script"], instructions=payload.instructions)
+        if script_hash(revised) == current["script"]["content_hash"]:
+            raise RuntimeError("Das Modell hat den Szenenplan trotz Änderungswunsch nicht verändert.")
         return db.update_script(job_id, payload.expected_version, revised)
     except ScriptProviderUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc
@@ -150,11 +157,13 @@ def revise_script(job_id: str, payload: ScriptRevision):
 @app.post("/api/jobs/{job_id}/approve-script")
 def approve_script(job_id: str, payload: VersionAction):
     try:
-        return db.approve_script(job_id, payload.expected_version)
+        return db.approve_script(job_id, payload.expected_version, payload.expected_hash)
     except KeyError:
         raise HTTPException(404, "Auftrag nicht gefunden")
-    except ValueError:
-        raise HTTPException(409, "Nur die aktuelle Skriptversion kann freigegeben werden.")
+    except ValueError as exc:
+        if str(exc) in {"hash_conflict", "script_integrity_error"}:
+            raise HTTPException(409, "Der Szenenplan hat sich verändert oder seine Integritätsprüfung ist fehlgeschlagen. Bitte neu laden.") from exc
+        raise HTTPException(409, "Nur die aktuelle Skriptversion kann freigegeben werden.") from exc
 
 
 @app.post("/api/jobs/{job_id}/render")
@@ -172,21 +181,31 @@ def queue_render(job_id: str, payload: VersionAction):
             "Der alte Strichmännchen-Renderer wird nicht als Ersatz verwendet.",
         )
     try:
-        return db.queue_render(job_id, payload.expected_version)
+        return db.queue_render(job_id, payload.expected_version, payload.expected_hash)
     except KeyError:
         raise HTTPException(404, "Auftrag nicht gefunden")
-    except ValueError:
-        raise HTTPException(409, "Die aktuelle Skriptversion ist nicht freigegeben.")
+    except ValueError as exc:
+        if str(exc) in {"hash_conflict", "script_integrity_error"}:
+            raise HTTPException(409, "Der freigegebene Szenenplan stimmt nicht mit der aktuellen Fassung überein.") from exc
+        raise HTTPException(409, "Die aktuelle Skriptversion ist nicht freigegeben.") from exc
 
 
 @app.post("/api/jobs/{job_id}/approve-video")
 def approve_video(job_id: str, payload: VersionAction):
+    job = require_job(job_id)
+    if not job["output_path"]:
+        raise HTTPException(409, "Video noch nicht erzeugt.")
+    candidate = (settings.jobs_dir / job["output_path"]).resolve()
+    if settings.jobs_dir not in candidate.parents or not candidate.exists():
+        raise HTTPException(409, "Die zu prüfende Videodatei fehlt.")
+    if file_sha256(candidate) != payload.expected_hash:
+        raise HTTPException(409, "Die Videodatei hat sich seit dem Laden verändert. Bitte neu laden und erneut prüfen.")
     try:
-        return db.approve_video(job_id, payload.expected_version, settings.youtube_enabled)
+        return db.approve_video(job_id, payload.expected_version, payload.expected_hash, settings.youtube_enabled)
     except KeyError:
         raise HTTPException(404, "Auftrag nicht gefunden")
-    except ValueError:
-        raise HTTPException(409, "Nur die aktuell gerenderte Videoversion kann freigegeben werden.")
+    except ValueError as exc:
+        raise HTTPException(409, "Nur die unveränderte aktuell gerenderte Videoversion kann freigegeben werden.") from exc
 
 
 @app.get("/api/jobs/{job_id}/video")
@@ -197,6 +216,8 @@ def get_video(job_id: str):
     candidate = (settings.jobs_dir / job["output_path"]).resolve()
     if settings.jobs_dir not in candidate.parents or not candidate.exists():
         raise HTTPException(404, "Videodatei fehlt")
+    if not job["output_sha256"] or file_sha256(candidate) != job["output_sha256"]:
+        raise HTTPException(409, "Die Videodatei stimmt nicht mehr mit der erzeugten Version überein.")
     return FileResponse(candidate, media_type="video/mp4", filename=f"{job['script']['title']}.mp4")
 
 
