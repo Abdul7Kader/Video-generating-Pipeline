@@ -29,6 +29,14 @@ class Settings:
     pexels_api_key: str = os.getenv("PEXELS_API_KEY", "")
     media_download_max_mb: int = max(10, min(500, int(os.getenv("MEDIA_DOWNLOAD_MAX_MB", "150"))))
     allow_paid_media: bool = _bool("ALLOW_PAID_MEDIA", False)
+    tts_provider: str = os.getenv("TTS_PROVIDER", "piper").lower()
+    allow_cloud_tts: bool = _bool("ALLOW_CLOUD_TTS", False)
+    gemini_tts_model: str = os.getenv("GEMINI_TTS_MODEL", "gemini-3.1-flash-tts-preview")
+    gemini_tts_voice: str = os.getenv("GEMINI_TTS_VOICE", "Iapetus")
+    gemini_tts_style: str = os.getenv(
+        "GEMINI_TTS_STYLE",
+        "Natural documentary narration, warm and confident, clear articulation, moderate pace, no exaggerated advertising tone.",
+    )
     piper_voice: str = os.getenv("PIPER_VOICE", "de_DE-thorsten-high")
     piper_auto_download: bool = _bool("PIPER_AUTO_DOWNLOAD", True)
     render_concurrency: int = max(1, min(3, int(os.getenv("RENDER_CONCURRENCY", "2"))))

@@ -24,6 +24,7 @@ type Scene = {
   accent: string;
   start: number;
   duration: number;
+  captions?: {text: string; start: number; duration: number}[];
 };
 
 export type VideoProps = {
@@ -66,6 +67,17 @@ const Progress: React.FC<{accent: string; index: number; total: number; progress
   </div>
 );
 
+const Captions: React.FC<{scene: Scene}> = ({scene}) => {
+  const frame = useCurrentFrame();
+  const {fps, width} = useVideoConfig();
+  const time = frame / fps;
+  const caption = (scene.captions ?? []).find(item => time >= item.start && time < item.start + item.duration);
+  if (!caption) return null;
+  return <div style={{position:'absolute', zIndex:5, left:'8%', right:'8%', bottom:55, display:'flex', justifyContent:'center', textAlign:'center'}}>
+    <span style={{background:'rgba(0,0,0,.78)', color:'white', borderRadius:14, padding:'12px 20px', fontSize:width > 1200 ? 38 : 42, lineHeight:1.22, fontWeight:750, boxDecorationBreak:'clone', textShadow:'0 2px 4px #000'}}>{caption.text}</span>
+  </div>;
+};
+
 const AssetScene: React.FC<{scene: Scene; index: number; total: number}> = ({scene, index, total}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
@@ -82,7 +94,8 @@ const AssetScene: React.FC<{scene: Scene; index: number; total: number}> = ({sce
     </AbsoluteFill>
     <AbsoluteFill style={{background:'linear-gradient(180deg,rgba(3,6,12,.12) 20%,rgba(3,6,12,.28) 55%,rgba(3,6,12,.9) 100%)'}}/>
     <Progress accent={scene.accent} index={index} total={total} progress={progress}/>
-    {scene.on_screen_text ? <div style={{position:'absolute', zIndex:3, left:72, right:72, bottom:115, color:'white', fontSize:64, lineHeight:1.08, fontWeight:900, letterSpacing:-1.5, textShadow:'0 4px 24px #000'}}>{scene.on_screen_text}</div> : null}
+    {scene.on_screen_text ? <div style={{position:'absolute', zIndex:3, left:72, right:72, bottom:220, color:'white', fontSize:64, lineHeight:1.08, fontWeight:900, letterSpacing:-1.5, textShadow:'0 4px 24px #000'}}>{scene.on_screen_text}</div> : null}
+    <Captions scene={scene}/>
   </AbsoluteFill>;
 };
 
@@ -103,6 +116,7 @@ const StickmanScene: React.FC<{scene: Scene; index: number; total: number}> = ({
         {scene.on_screen_text ? <div style={{fontSize:compact?55:64, lineHeight:1.12, fontWeight:900, letterSpacing:-2}}>{scene.on_screen_text}</div> : null}
       </div>
     </div>
+    <Captions scene={scene}/>
   </AbsoluteFill>;
 };
 

@@ -60,7 +60,7 @@ Ergebnis: Natürliche Stimme, szenengenaue Timings, Schnitt/Übergänge und eing
 
 Prüfung: `ffprobe`-Checks für Audio/Video/Dauer, Untertitelprüfung, Asset-Vollständigkeit und stichprobenartige Frame-Prüfung gegen Skript/Plan.
 
-Status: offen
+Status: **teilweise erledigt** – lokale Piper-Stimme, szenengenaue eingeblendete Untertitel/SRT und hartes technisches Qualitäts-Gate funktionieren. Optionales natürliches Gemini TTS ist implementiert, aber ohne bewusst freigegebenen Cloudzugang nicht live bewertet. Semantische Bild-gegen-Plan-Prüfung bleibt offen.
 
 ### 5. Gezielte Überarbeitung
 
@@ -99,6 +99,8 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 - 2026-09-15: Isolierter API-Funktionstest bestanden: exakte hashgebundene Freigabe, Sperre nicht implementierter Renderer und Ablehnung einer vom Testadapter nur vorgetäuschten, inhaltlich unveränderten Revision.
 - 2026-09-15: Etappe 3: 18/18 Tests bestanden. Neue Tests prüfen fehlende Assetanbieter, Pexels-Hochformatwahl sowie versionsgebundene Quelle, Urheber, Lizenz-URL und Asset-SHA-256 im Manifest.
 - 2026-09-15: Neuer Remotion-Medienpfad mit echtem lokalem Bild und echtem lokalem MP4 jeweils über 60 Frames erfolgreich gerendert; Range-Requests für Videodateien funktionieren.
+- 2026-09-15: Etappe 4: 24/24 Tests bestanden. Neue Tests prüfen Caption-Timing/SRT, nicht-stummes Audio, Audio-/Videostream und Dauer, Ablehnung stiller Ausgabe, Cloud-TTS-Kostensperre sowie korrekt verpacktes Gemini-PCM.
+- 2026-09-15: Vollständiger isolierter Produktionslauf bestanden: Szenenplan, lokale Piper-Stimme, Untertitel, Remotion-Render und 8/8 Qualitätschecks. Ausgabe und alle Testartefakte lagen ausschließlich unter `/tmp`.
 
 ## Offene Probleme/Risiken
 
@@ -119,7 +121,9 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 - Fertige Videos erhalten einen Datei-SHA-256. Prüfung, Freigabe und ein eventueller Upload sind an genau diese unveränderte Datei gebunden.
 - Stockfotos und -videos werden passend zu Format und Suchbegriff über Pexels ausgewählt, lokal gespeichert und einschließlich Herkunft, Urheber, Lizenz und Datei-Hash manifestiert. Fehlende Assets brechen die Produktion ab.
 - Reale Bilder erhalten kontrollierte Kamerabewegung; reale Videos werden bildfüllend geschnitten. Bildanweisungen selbst werden weiterhin nicht eingeblendet.
+- Stumme Ersatzvideos sind entfernt. Fehlende oder lautlose Sprache, fehlende Untertitel/Assets, falsche Asset-Hashes, fehlende Audio-/Videostreams oder relevante Laufzeitabweichung verhindern den Status `video_review`.
+- Ein natürlicherer Gemini-TTS-Adapter für Deutsch/Englisch ist vorhanden, bleibt aber hinter `ALLOW_CLOUD_TTS=0`, bis Kosten und Datenschutz bewusst akzeptiert wurden.
 
 ## Nächster konkreter Arbeitsschritt
 
-Etappe 4 beginnen: stumme Fallbacks entfernen, szenengenaue Untertitel erzeugen und ein hartes Qualitäts-Gate für Audio, Video, Dauer, Asset-Vollständigkeit und Hashintegrität vor `video_review` setzen. Danach einen vollständigen lokalen Strichmännchen-Render und kostenfreie Mocktests des Stockpfads ausführen.
+Etappe 5 beginnen: visuelle und sprachliche Artefakte pro stabiler Szenen-ID mit Inhaltsfingerprints speichern, bei unveränderten Szenen wiederverwenden und gezielte Szenenänderungen als neue Planversion ermöglichen. Danach testen, dass nur geänderte Szenen neu erzeugt werden.

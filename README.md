@@ -69,6 +69,20 @@ PEXELS_API_KEY=...
 
 Jede Auswahl wird mit Suchbegriff, Pexels-Seite, Urheber, Lizenz-URL, lokaler Datei und SHA-256 im versionsgebundenen `asset-manifest.json` gespeichert. Fehlt der Schlüssel oder ein Asset, bricht der Renderauftrag ab; es erscheint kein Platzhalter als vermeintlich fertiges Video. Kostenpflichtige generative Medien bleiben zusätzlich durch `ALLOW_PAID_MEDIA=0` gesperrt.
 
+## Sprecherstimme und Qualitätsprüfung
+
+Der lokale Standard bleibt Piper. Eine stumme Ersatzspur gilt nicht mehr als Erfolg: Fehlt die Stimme oder ist das Audio leer, bricht die Produktion ab. Optional kann die natürlichere, steuerbare Gemini-TTS-Stimme bewusst aktiviert werden:
+
+```dotenv
+TTS_PROVIDER=gemini
+ALLOW_CLOUD_TTS=1
+GEMINI_API_KEY=...
+```
+
+Gemini TTS besitzt derzeit ein Free Tier, aber übermittelte Inhalte dürfen dort zur Produktverbesserung verwendet werden; bei einem abrechenbaren Projekt können nach dem Freikontingent Kosten entstehen. Deshalb erfolgt kein automatischer Wechsel in diesen Modus.
+
+Jeder Render erzeugt außerdem `subtitles.srt` und `quality-report.json`. Erst wenn Sprecher-Audio nicht stumm ist, Untertitel vorhanden sind, alle Assets ihren Manifest-Hash erfüllen und `ffprobe` Video-, Audio- und Laufzeitprüfung besteht, wechselt der Auftrag zu „Video prüfen“.
+
 ## YouTube
 
 Der Adapter ist implementiert, aber sicher deaktiviert. Ohne OAuth-Dateien speichert die zweite Freigabe nur `ready_to_publish`; es findet kein Upload statt. Für eine spätere Einrichtung werden die OAuth-Dateien unter `/data/secrets` erwartet und `YOUTUBE_ENABLED=1` gesetzt. Standard-Sichtbarkeit ist `private`.

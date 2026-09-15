@@ -1,0 +1,142 @@
+from __future__ import annotations
+
+import json
+import base64
+import math
+import struct
+import tempfile
+import unittest
+import wave
+from pathlib import Path
+from unittest.mock import patch
+
+from backend.captions import add_scene_captions, write_srt
+from backend.quality import QualityGateError, run_quality_gate
+from backend.rendering import _synthesize_gemini, synthesize
+
+
+def write_wav(path: Path, *, silent: bool = False, duration: float = 1.0) -> None:
+    rate = 24000
+    with wave.open(str(path), "wb") as output:
+        output.setnchannels(1)
+        output.setsampwidth(2)
+        output.setframerate(rate)
+        samples = []
+        for index in range(int(rate * duration)):
+            value = 0 if silent else int(4000 * math.sin(2 * math.pi * 220 * index / rate))
+            samples.append(struct.pack("<h", value))
+        output.writeframes(b"".join(samples))
+
+
+class CaptionTests(unittest.TestCase):
+    def test_captions_cover_each_scene_and_write_srt(self):
+        scenes = [{
+            "scene_id": "scene-one",
+            "narration": "Das ist der Einstieg. Danach folgt die konkrete Erklärung in wenigen Worten.",
+            "start": 2.0,
+            "duration": 8.0,
+        }]
+        add_scene_captions(scenes)
+        captions = scenes[0]["captions"]
+        self.assertGreater(len(captions), 1)
+        self.assertAlmostEqual(sum(item["duration"] for item in captions), 8.0, places=2)
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "subtitles.srt"
+            count = write_srt(scenes, path)
+            text = path.read_text()
+        self.assertEqual(count, len(captions))
+        self.assertIn("00:00:02,000 -->", text)
+
+
+class QualityTests(unittest.TestCase):
+    def _files(self, directory: Path, *, silent: bool = False):
+        audio = directory / "narration.wav"
+        output = directory / "video.mp4"
+        subtitles = directory / "subtitles.srt"
+        manifest = directory / "asset-manifest.json"
+        report = directory / "quality-report.json"
+        write_wav(audio, silent=silent)
+        output.write_bytes(b"0" * 20_000)
+        subtitles.write_text("1\n00:00:00,000 --> 00:00:01,000\nTest\n", encoding="utf-8")
+        manifest.write_text(json.dumps({"assets": [{"scene_id": "scene-one", "status": "procedural"}]}), encoding="utf-8")
+        return audio, output, subtitles, manifest, report
+
+    def test_gate_accepts_audio_video_duration_subtitles_and_assets(self):
+        with tempfile.TemporaryDirectory() as temp:
+            paths = self._files(Path(temp))
+            probe = {"streams": [{"codec_type": "video", "codec_name": "h264"}, {"codec_type": "audio", "codec_name": "aac"}], "format": {"duration": "1.0", "size": "20000"}}
+            with patch("backend.quality._probe", return_value=probe):
+                report = run_quality_gate(
+                    output_path=paths[1], audio_path=paths[0], subtitles_path=paths[2],
+                    asset_manifest_path=paths[3], expected_duration=1.0,
+                    expected_script_hash="a" * 64, report_path=paths[4],
+                )
+            self.assertTrue(report["passed"])
+            self.assertTrue(json.loads(paths[4].read_text())["passed"])
+
+    def test_gate_rejects_silent_voice_even_when_video_exists(self):
+        with tempfile.TemporaryDirectory() as temp:
+            paths = self._files(Path(temp), silent=True)
+            probe = {"streams": [{"codec_type": "video"}, {"codec_type": "audio"}], "format": {"duration": "1.0"}}
+            with patch("backend.quality._probe", return_value=probe):
+                with self.assertRaises(QualityGateError):
+                    run_quality_gate(
+                        output_path=paths[1], audio_path=paths[0], subtitles_path=paths[2],
+                        asset_manifest_path=paths[3], expected_duration=1.0,
+                        expected_script_hash="a" * 64, report_path=paths[4],
+                    )
+            report = json.loads(paths[4].read_text())
+            self.assertFalse(report["passed"])
+            self.assertFalse(next(check for check in report["checks"] if check["name"] == "voice_audio")["passed"])
+
+    def test_missing_piper_voice_fails_instead_of_creating_silence(self):
+        voice_settings = type("VoiceSettings", (), {"tts_provider": "piper"})()
+        with tempfile.TemporaryDirectory() as temp, \
+             patch("backend.rendering.settings", voice_settings), \
+             patch("backend.rendering.ensure_voice", return_value=None):
+            with self.assertRaisesRegex(RuntimeError, "stumme Ersatzvideos sind deaktiviert"):
+                synthesize("Test", Path(temp) / "voice.wav", "de")
+
+    def test_gemini_tts_requires_explicit_cloud_permission(self):
+        voice_settings = type("VoiceSettings", (), {"allow_cloud_tts": False, "gemini_api_key": "key"})()
+        with tempfile.TemporaryDirectory() as temp, patch("backend.rendering.settings", voice_settings):
+            with self.assertRaisesRegex(RuntimeError, "nicht freigegeben"):
+                _synthesize_gemini("Test", Path(temp) / "voice.wav", "de")
+
+    def test_gemini_tts_writes_returned_pcm_as_wave(self):
+        pcm = b"\x10\x00" * 2400
+        response_data = json.dumps({"output_audio": {"data": base64.b64encode(pcm).decode()}}).encode()
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return response_data
+
+        voice_settings = type("VoiceSettings", (), {
+            "allow_cloud_tts": True,
+            "gemini_api_key": "secret",
+            "gemini_tts_style": "Natural",
+            "gemini_tts_model": "gemini-3.1-flash-tts-preview",
+            "gemini_tts_voice": "Iapetus",
+        })()
+        with tempfile.TemporaryDirectory() as temp, \
+             patch("backend.rendering.settings", voice_settings), \
+             patch("backend.rendering.urllib.request.urlopen", return_value=Response()) as request:
+            path = Path(temp) / "voice.wav"
+            mode, duration = _synthesize_gemini("Guten Tag.", path, "de")
+            with wave.open(str(path), "rb") as audio:
+                self.assertEqual(audio.getframerate(), 24000)
+                self.assertEqual(audio.getnframes(), 2400)
+        self.assertTrue(mode.startswith("gemini:"))
+        self.assertAlmostEqual(duration, 0.1)
+        sent_request = request.call_args.args[0]
+        self.assertNotIn("secret", sent_request.full_url)
+
+
+if __name__ == "__main__":
+    unittest.main()
