@@ -63,6 +63,7 @@ class Database:
                     title TEXT NOT NULL,
                     description TEXT NOT NULL,
                     scenes_json TEXT NOT NULL,
+                    metadata_json TEXT NOT NULL DEFAULT '{}',
                     created_at TEXT NOT NULL,
                     PRIMARY KEY(job_id, version)
                 );
@@ -78,6 +79,9 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_events_job ON events(job_id, id);
                 """
             )
+            columns = {row["name"] for row in conn.execute("PRAGMA table_info(script_versions)").fetchall()}
+            if "metadata_json" not in columns:
+                conn.execute("ALTER TABLE script_versions ADD COLUMN metadata_json TEXT NOT NULL DEFAULT '{}'")
             conn.commit()
 
     def create_job(self, values: dict[str, Any], script: dict[str, Any]) -> str:
@@ -99,10 +103,14 @@ class Database:
         return job_id
 
     def _insert_script(self, conn: sqlite3.Connection, job_id: str, version: int, script: dict[str, Any], now: str) -> None:
+        metadata = script.get("metadata") or {"provider": "manual_or_legacy", "model": None}
         conn.execute(
-            "INSERT INTO script_versions VALUES (?, ?, ?, ?, ?, ?)",
+            """INSERT INTO script_versions
+            (job_id, version, title, description, scenes_json, metadata_json, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (job_id, version, script["title"], script.get("description", ""),
-             json.dumps(script["scenes"], ensure_ascii=False), now),
+             json.dumps(script["scenes"], ensure_ascii=False),
+             json.dumps(metadata, ensure_ascii=False), now),
         )
 
     def _event(self, conn: sqlite3.Connection, job_id: str, event_type: str, message: str, metadata: dict[str, Any] | None = None) -> None:
@@ -132,6 +140,7 @@ class Database:
             ).fetchall()
         job["script"] = dict(script)
         job["script"]["scenes"] = json.loads(job["script"].pop("scenes_json"))
+        job["script"]["metadata"] = json.loads(job["script"].pop("metadata_json"))
         job["events"] = [{**dict(e), "metadata": json.loads(e["metadata_json"])} for e in events]
         for event in job["events"]:
             event.pop("metadata_json", None)

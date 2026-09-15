@@ -11,9 +11,9 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .db import Database
-from .planner import generate_script
+from .planner import ScriptProviderUnavailable, generate_script, script_provider_status
 from .rendering import dependency_status, render_job
-from .schemas import JobCreate, ScriptUpdate, VersionAction
+from .schemas import JobCreate, ScriptRevision, ScriptUpdate, VersionAction
 from .youtube import upload_video
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -75,7 +75,12 @@ app = FastAPI(title="Video Pipeline", version="1.0.0", lifespan=lifespan, docs_u
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "dependencies": dependency_status(), "script_provider": settings.script_provider, "youtube_enabled": settings.youtube_enabled}
+    return {
+        "status": "ok",
+        "dependencies": dependency_status(),
+        "script_generation": script_provider_status(),
+        "youtube_enabled": settings.youtube_enabled,
+    }
 
 
 @app.get("/api/jobs")
@@ -87,6 +92,8 @@ def list_jobs():
 def create_job(payload: JobCreate):
     try:
         script = generate_script(payload)
+    except ScriptProviderUnavailable as exc:
+        raise HTTPException(503, str(exc)) from exc
     except Exception as exc:
         raise HTTPException(502, f"Skripterstellung fehlgeschlagen: {exc}") from exc
     return require_job(db.create_job(payload.model_dump(), script))
@@ -100,11 +107,44 @@ def get_job(job_id: str):
 @app.put("/api/jobs/{job_id}/script")
 def update_script(job_id: str, payload: ScriptUpdate):
     try:
-        return db.update_script(job_id, payload.expected_version, payload.model_dump(exclude={"expected_version"}))
+        current = require_job(job_id)
+        script = payload.model_dump(exclude={"expected_version"})
+        script["metadata"] = {
+            "provider": "manual_edit",
+            "model": None,
+            "parent": current["script"].get("metadata", {}),
+        }
+        return db.update_script(job_id, payload.expected_version, script)
     except KeyError:
         raise HTTPException(404, "Auftrag nicht gefunden")
     except ValueError:
         raise HTTPException(409, "Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.")
+
+
+@app.post("/api/jobs/{job_id}/revise-script")
+def revise_script(job_id: str, payload: ScriptRevision):
+    current = require_job(job_id)
+    if current["script_version"] != payload.expected_version:
+        raise HTTPException(409, "Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.")
+    request = JobCreate.model_validate({
+        "topic": current["topic"],
+        "language": current["language"],
+        "duration_seconds": current["duration_seconds"],
+        "aspect_ratio": current["aspect_ratio"],
+        "video_type": current["video_type"],
+        "target_platform": current["target_platform"],
+    })
+    try:
+        revised = generate_script(request, previous=current["script"], instructions=payload.instructions)
+        return db.update_script(job_id, payload.expected_version, revised)
+    except ScriptProviderUnavailable as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except ValueError as exc:
+        if str(exc) == "version_conflict":
+            raise HTTPException(409, "Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.") from exc
+        raise HTTPException(502, f"Skriptüberarbeitung fehlgeschlagen: {exc}") from exc
+    except Exception as exc:
+        raise HTTPException(502, f"Skriptüberarbeitung fehlgeschlagen: {exc}") from exc
 
 
 @app.post("/api/jobs/{job_id}/approve-script")
@@ -119,6 +159,18 @@ def approve_script(job_id: str, payload: VersionAction):
 
 @app.post("/api/jobs/{job_id}/render")
 def queue_render(job_id: str, payload: VersionAction):
+    job = require_job(job_id)
+    unsupported_visuals = [
+        scene.get("visual_type")
+        for scene in job["script"]["scenes"]
+        if scene.get("visual_type", "stickman") != "stickman"
+    ]
+    if job["video_type"] != "stickman" or unsupported_visuals:
+        raise HTTPException(
+            409,
+            "Diese Videoart wird erst freigeschaltet, wenn ihre visuellen Assets tatsächlich erzeugt und geprüft werden. "
+            "Der alte Strichmännchen-Renderer wird nicht als Ersatz verwendet.",
+        )
     try:
         return db.queue_render(job_id, payload.expected_version)
     except KeyError:

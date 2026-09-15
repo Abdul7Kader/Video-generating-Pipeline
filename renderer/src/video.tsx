@@ -1,7 +1,7 @@
 import React from 'react';
 import {AbsoluteFill, Audio, Easing, interpolate, Sequence, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 
-type Scene = {narration: string; visual: string; action: string; accent: string; start: number; duration: number};
+type Scene = {narration: string; visual: string; on_screen_text?: string; action: string; accent: string; start: number; duration: number};
 export type VideoProps = {title: string; scenes: Scene[]; durationSeconds: number; aspectRatio: string; language: string; audioSrc?: string};
 
 const StickFigure: React.FC<{action: string; accent: string}> = ({action, accent}) => {
@@ -42,7 +42,7 @@ const SceneCard: React.FC<{scene: Scene; index: number; total: number}> = ({scen
       <div style={{width:compact?'50%':'100%', display:'flex', flexDirection:'column', gap:26}}>
         <div style={{fontSize:compact?24:28, fontWeight:800, letterSpacing:4, textTransform:'uppercase', color:scene.accent}}>Schritt {index+1} / {total}</div>
         <div style={{fontSize:compact?55:64, lineHeight:1.12, fontWeight:900, letterSpacing:-2}}>{scene.narration}</div>
-        <div style={{fontSize:compact?27:31, lineHeight:1.38, color:'#526277', borderLeft:`8px solid ${scene.accent}`, paddingLeft:22}}>{scene.visual}</div>
+        {scene.on_screen_text ? <div style={{fontSize:compact?27:31, lineHeight:1.38, color:'#526277', borderLeft:`8px solid ${scene.accent}`, paddingLeft:22}}>{scene.on_screen_text}</div> : null}
       </div>
     </div>
   </AbsoluteFill>;

@@ -27,23 +27,37 @@ Auf diesem Rechner liegt zusätzlich eine verifizierte projektlokale Testlaufzei
 
 Änderungen am Skript erzeugen eine neue Version und löschen automatisch alte Skript-, Render- und Veröffentlichungsfreigaben. Wiederholte Renderaufrufe derselben Version werden nicht doppelt gestartet. Die Weboberfläche ist zunächst an `127.0.0.1` gebunden.
 
-## Automatische Skripterstellung
+## KI-Skripterstellung
 
-Ohne Schlüssel läuft ein lokaler Vorlagenplaner (`SCRIPT_PROVIDER=template`). Für höhere Textqualität kann in `.env` genau einer der vorgesehenen Adapter aktiviert werden:
+Die Pipeline erzeugt absichtlich **kein** allgemeines Vorlagenskript mehr. Ohne bewusst konfigurierten KI-Anbieter antwortet die Auftragserstellung mit einer klaren Konfigurationsmeldung. `SCRIPT_PROVIDER=auto` nutzt nur einen tatsächlich vorhandenen Schlüssel (Reihenfolge: Gemini, OpenAI, OpenRouter).
+
+Kostenbewusster Einstieg mit begrenztem Gemini-Free-Tier:
 
 ```dotenv
 SCRIPT_PROVIDER=gemini
 GEMINI_API_KEY=...
 ```
 
-oder:
+Alternativ mit separat abgerechneter OpenAI API:
+
+```dotenv
+SCRIPT_PROVIDER=openai
+OPENAI_API_KEY=...
+```
+
+oder mit einem ausdrücklich gewählten OpenRouter-Modell:
 
 ```dotenv
 SCRIPT_PROVIDER=openrouter
 OPENROUTER_API_KEY=...
+OPENROUTER_MODEL=anbieter/modell
 ```
 
-Schlüssel gehören nur in `.env`; die Datei wird nicht versioniert.
+Schlüssel gehören nur in `.env`; die Datei wird nicht versioniert. Ein ChatGPT-/Codex-Abo umfasst keine OpenAI-API-Nutzung. Beim Gemini-Free-Tier ist außerdem zu beachten, dass übermittelte Inhalte laut Anbieter zur Produktverbesserung verwendet werden können.
+
+Der KI-Entwurf enthält neben dem Sprechertext einen konkreten Produktionsplan pro Szene (visueller Medientyp, sichtbare Einstellung, Asset-Prompt, Kamera, bewusste Texteinblendung und Übergang). Über das Feld „Änderungswunsch an die KI“ entsteht eine neue Skriptversion; alte Freigaben werden dabei ungültig.
+
+Bis die reale Asset-Produktion implementiert und geprüft ist, lassen sich Nicht-Strichmännchen-Stile bewusst noch nicht rendern. Sie werden nicht mehr irreführend durch denselben Strichmännchenfilm ersetzt.
 
 ## YouTube
 

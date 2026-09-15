@@ -13,11 +13,18 @@ def _bool(name: str, default: bool = False) -> bool:
 class Settings:
     data_dir: Path = Path(os.getenv("DATA_DIR", "./data")).resolve()
     renderer_dir: Path = Path(os.getenv("RENDERER_DIR", "./renderer")).resolve()
-    script_provider: str = os.getenv("SCRIPT_PROVIDER", "template").lower()
+    # "auto" uses only an explicitly configured API key. It never falls back to
+    # a generic template, because that would make a failed AI request look like a
+    # successful, topic-specific script.
+    script_provider: str = os.getenv("SCRIPT_PROVIDER", "auto").lower()
+    allow_template_script: bool = _bool("ALLOW_TEMPLATE_SCRIPT", False)
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
-    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
+    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5.6-terra")
+    openai_base_url: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
     openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
-    openrouter_model: str = os.getenv("OPENROUTER_MODEL", "z-ai/glm-5.2:free")
+    openrouter_model: str = os.getenv("OPENROUTER_MODEL", "")
     piper_voice: str = os.getenv("PIPER_VOICE", "de_DE-thorsten-high")
     piper_auto_download: bool = _bool("PIPER_AUTO_DOWNLOAD", True)
     render_concurrency: int = max(1, min(3, int(os.getenv("RENDER_CONCURRENCY", "2"))))
