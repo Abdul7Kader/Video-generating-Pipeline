@@ -5,7 +5,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from backend.planner import ScriptProviderUnavailable, _prompt, generate_script, script_provider_status
+from backend.planner import ScriptProviderUnavailable, _prompt, generate_script, script_provider_status, unload_script_model
 from backend.schemas import JobCreate
 
 
@@ -23,6 +23,12 @@ def settings(**overrides):
     values = {
         "script_provider": "auto",
         "allow_template_script": False,
+        "ollama_base_url": "http://127.0.0.1:11434",
+        "ollama_model": "qwen3.5:9b-q4_K_M",
+        "ollama_num_ctx": 8192,
+        "ollama_num_predict": 3072,
+        "ollama_timeout_seconds": 600,
+        "ollama_keep_alive": "5m",
         "gemini_api_key": "",
         "gemini_model": "gemini-3.8-flash",
         "openai_api_key": "",
@@ -61,11 +67,12 @@ def model_response() -> dict:
 
 
 class PlannerTests(unittest.TestCase):
-    def test_no_ai_configuration_fails_instead_of_using_template(self):
-        with patch("backend.planner.settings", settings()):
-            with self.assertRaises(ScriptProviderUnavailable):
+    def test_local_provider_failure_does_not_use_template_or_cloud(self):
+        configured = settings(script_provider="ollama")
+        with patch("backend.planner.settings", configured), \
+             patch("backend.planner._post_ollama", side_effect=ScriptProviderUnavailable("Lokales Ollama fehlt")):
+            with self.assertRaisesRegex(ScriptProviderUnavailable, "Lokales Ollama fehlt"):
                 generate_script(REQUEST)
-            self.assertFalse(script_provider_status()["ready"])
 
     def test_style_prompt_is_specific_and_visual_is_not_on_screen_text(self):
         explainer = _prompt(REQUEST)
@@ -83,7 +90,7 @@ class PlannerTests(unittest.TestCase):
         self.assertNotIn('"provider": "gemini"', prompt)
 
     def test_gemini_uses_structured_schema_and_records_provenance(self):
-        configured = settings(gemini_api_key="secret")
+        configured = settings(script_provider="gemini", gemini_api_key="secret")
         with patch("backend.planner.settings", configured), patch("backend.planner._post_json", return_value=model_response()) as post:
             result = generate_script(REQUEST)
         url, payload, headers = post.call_args.args
@@ -96,6 +103,49 @@ class PlannerTests(unittest.TestCase):
         self.assertEqual(result["metadata"]["model"], "gemini-3.8-flash")
         self.assertEqual(result["scenes"][0]["visual_type"], "generated_image")
         self.assertTrue(result["metadata"]["fact_check_notes"])
+
+    def test_ollama_uses_local_schema_limits_and_records_metrics(self):
+        response = {
+            "message": {"content": model_response()["output_text"]},
+            "total_duration": 2_500_000_000,
+            "load_duration": 400_000_000,
+            "prompt_eval_count": 800,
+            "eval_count": 500,
+            "done_reason": "stop",
+        }
+        configured = settings(script_provider="ollama")
+        with patch("backend.planner.settings", configured), patch("backend.planner._post_ollama", return_value=response) as post:
+            result = generate_script(REQUEST)
+        payload = post.call_args.args[0]
+        self.assertEqual(payload["model"], "qwen3.5:9b-q4_K_M")
+        self.assertEqual(payload["format"]["type"], "object")
+        self.assertEqual(payload["options"]["num_ctx"], 8192)
+        self.assertEqual(payload["options"]["num_predict"], 3072)
+        self.assertFalse(payload["think"])
+        self.assertEqual(result["metadata"]["provider"], "ollama")
+        self.assertEqual(result["metadata"]["generation_metrics"]["total_duration_ms"], 2500)
+
+    def test_ollama_rejects_nonlocal_endpoint(self):
+        configured = settings(script_provider="ollama", ollama_base_url="https://example.com")
+        with patch("backend.planner.settings", configured):
+            with self.assertRaisesRegex(ScriptProviderUnavailable, "muss lokal"):
+                generate_script(REQUEST)
+
+    def test_unload_is_best_effort_and_local_only(self):
+        configured = settings(script_provider="ollama")
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+        with patch("backend.planner.settings", configured), \
+             patch("backend.planner.urllib.request.urlopen", return_value=Response()) as request:
+            self.assertTrue(unload_script_model())
+        sent = json.loads(request.call_args.args[0].data)
+        self.assertEqual(sent["keep_alive"], 0)
 
     def test_template_requires_explicit_development_opt_in(self):
         with patch("backend.planner.settings", settings(script_provider="template")):

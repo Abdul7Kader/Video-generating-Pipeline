@@ -2,6 +2,17 @@
 
 Letzte Aktualisierung: 2026-09-15
 
+## Aktiver Auftrag: vollständig lokale Skripterstellung
+
+Handyzugang und Cloud-Anbieter sind zurückgestellt. Der lokale Ausbau erfolgt in vier überprüfbaren Etappen:
+
+1. Ollama ausschließlich auf `127.0.0.1` installieren, Qwen3.5 9B Q4_K_M laden und Hardware-/Speicherreserve messen. Einen größeren Kandidaten nur testen, wenn Modell, KV-Cache, Anwendung und Renderreserve ohne dauerhaften Swap in 22 GiB RAM passen.
+2. Zwei identische deutsche Skriptaufgaben plus eine Revision mit festem JSON-Schema benchmarken; Laufzeit, RAM, Formatzuverlässigkeit und redaktionelle/visuelle Qualität dokumentieren und den besten Entwurf sichern.
+3. Den Gewinner ohne Cloud- oder Template-Fallback als begrenzten Ollama-Adapter integrieren: ein Modellaufruf gleichzeitig, begrenzter Kontext/Ausgabe, verständliche Fehler und Entladen vor dem Rendern.
+4. Echten lokalen API-Ablauf Thema → Entwurf → Revision → Freigabe testen; vollständigen Videoauftrag erst nach Nutzerfreigabe mit vorhandenem Material rendern.
+
+Aktueller Befund: Kein Ollama/llama.cpp vorhanden; 22 GiB RAM, rund 18 GiB aktuell verfügbar, 8 GiB unbenutzter Swap, 146 GiB freier Speicher und keine nutzbare GPU. Qwen3.5 9B Q4_K_M benötigt laut offizieller Ollama-Registry 6,6 GB und ist der Erstkandidat. Qwen3.5 27B Q4_K_M benötigt bereits 17 GB Modellgewicht; GLM-4.7-Flash Q4_K_M 19 GB. Beide lassen auf diesem Rechner keine belastbare Laufzeit- und Renderreserve und werden deshalb nicht vorsorglich heruntergeladen. Quellen: https://ollama.com/library/qwen3.5/tags, https://ollama.com/library/glm-4.7-flash
+
 ## Ziel
 
 Aus einem Thema entsteht zuerst ein inhaltlich belastbares, zum gewählten Stil passendes Skript mit konkretem Szenenplan. Nach versionsgebundener Freigabe erzeugt die Pipeline reale visuelle Assets beziehungsweise bewegte Szenen, natürliche Sprache, Schnitt und Untertitel. Einzelne Szenen sollen später gezielt überarbeitet werden können. Handyzugang und Plattformveröffentlichung bleiben bis zu einer ausdrücklichen Entscheidung beziehungsweise separaten Freigabe deaktiviert.

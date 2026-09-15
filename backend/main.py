@@ -13,7 +13,7 @@ from .assets import asset_provider_status, render_plan_readiness
 from .config import settings
 from .db import Database
 from .plan import file_sha256, finalize_scene_plan, script_hash
-from .planner import ScriptProviderUnavailable, generate_script, script_provider_status
+from .planner import ScriptProviderUnavailable, generate_script, script_provider_status, unload_script_model
 from .rendering import dependency_status, render_job
 from .schemas import JobCreate, Scene, SceneUpdate, ScriptRevision, ScriptUpdate, VersionAction
 from .youtube import upload_video
@@ -35,6 +35,7 @@ async def render_worker(stop: asyncio.Event) -> None:
         job = db.claim_render()
         if job:
             try:
+                await asyncio.to_thread(unload_script_model)
                 output, tts_mode = await asyncio.to_thread(render_job, job)
                 relative = str(Path(output).relative_to(settings.jobs_dir))
                 output_hash = await asyncio.to_thread(file_sha256, Path(output))

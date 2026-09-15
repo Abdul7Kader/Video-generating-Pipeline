@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any
 
@@ -13,6 +15,10 @@ from .schemas import JobCreate, ScriptDraft
 
 class ScriptProviderUnavailable(RuntimeError):
     """No deliberately configured AI script provider is available."""
+
+
+_OLLAMA_CALL_LOCK = threading.Lock()
+_LOCAL_OLLAMA_HOSTS = {"127.0.0.1", "localhost", "ollama"}
 
 
 ACTIONS = ["intro", "walk", "point", "think", "explain", "celebrate", "outro"]
@@ -146,7 +152,8 @@ def _system_prompt() -> str:
     return (
         "You are a senior documentary writer, visual director and editor. Create specific, useful content rather than a reusable template. "
         "Every spoken sentence must advance the subject. Do not invent facts, quotations, statistics or sources. Put claims that require current "
-        "verification into fact_check_notes. Treat visual as an instruction for production, never as text that should be displayed. Only "
+        "verification into fact_check_notes. You have no web access: never say or imply that you researched, verified, browsed or sourced a claim. "
+        "Treat visual as an instruction for production, never as text that should be displayed. Only "
         "on_screen_text may be rendered as text. Return JSON matching the supplied schema and nothing else."
     )
 
@@ -231,18 +238,47 @@ def _post_json(url: str, payload: dict[str, Any], headers: dict[str, str]) -> di
         raise RuntimeError(f"Anbieter ist nicht erreichbar: {exc.reason}") from exc
 
 
+def _ollama_url(path: str) -> str:
+    parsed = urllib.parse.urlparse(settings.ollama_base_url)
+    if parsed.scheme != "http" or parsed.hostname not in _LOCAL_OLLAMA_HOSTS:
+        raise ScriptProviderUnavailable(
+            "OLLAMA_BASE_URL muss lokal (127.0.0.1/localhost) oder der interne Containerdienst 'ollama' sein."
+        )
+    return f"{settings.ollama_base_url}{path}"
+
+
+def _post_ollama(payload: dict[str, Any], *, timeout: int | None = None) -> dict[str, Any]:
+    request = urllib.request.Request(
+        _ollama_url("/api/chat"),
+        data=json.dumps(payload).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout or settings.ollama_timeout_seconds) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        details = exc.read().decode("utf-8", errors="replace")[:600]
+        raise RuntimeError(f"Lokales Ollama antwortete mit HTTP {exc.code}: {details}") from exc
+    except urllib.error.URLError as exc:
+        raise ScriptProviderUnavailable(
+            f"Lokales Ollama ist unter {settings.ollama_base_url} nicht erreichbar. Starte den lokalen Modelldienst."
+        ) from exc
+    except TimeoutError as exc:
+        raise RuntimeError(
+            f"Das lokale Modell überschritt das Zeitlimit von {timeout or settings.ollama_timeout_seconds} Sekunden."
+        ) from exc
+
+
 def _selected_provider() -> tuple[str, str]:
     provider = settings.script_provider
     if provider == "auto":
-        if settings.gemini_api_key:
-            return "gemini", settings.gemini_model
-        if settings.openai_api_key:
-            return "openai", settings.openai_model
-        if settings.openrouter_api_key and settings.openrouter_model:
-            return "openrouter", settings.openrouter_model
-        raise ScriptProviderUnavailable(
-            "Kein KI-Skriptanbieter konfiguriert. Setze bewusst SCRIPT_PROVIDER und den zugehörigen API-Schlüssel."
-        )
+        # Local inference is always preferred. Cloud adapters remain available
+        # only when explicitly selected; they are never an automatic fallback.
+        return "ollama", settings.ollama_model
+    if provider == "ollama" and settings.ollama_model:
+        _ollama_url("")
+        return provider, settings.ollama_model
     if provider == "gemini" and settings.gemini_api_key:
         return provider, settings.gemini_model
     if provider == "openai" and settings.openai_api_key:
@@ -251,7 +287,7 @@ def _selected_provider() -> tuple[str, str]:
         return provider, settings.openrouter_model
     if provider == "template" and settings.allow_template_script:
         return provider, "development-template"
-    if provider not in {"gemini", "openai", "openrouter", "template", "auto"}:
+    if provider not in {"ollama", "gemini", "openai", "openrouter", "template", "auto"}:
         raise ScriptProviderUnavailable(f"Unbekannter SCRIPT_PROVIDER: {provider}")
     if provider == "template":
         raise ScriptProviderUnavailable("Der Vorlagenplaner ist deaktiviert. ALLOW_TEMPLATE_SCRIPT=1 ist nur für Entwicklungstests gedacht.")
@@ -261,7 +297,19 @@ def _selected_provider() -> tuple[str, str]:
 def script_provider_status() -> dict[str, Any]:
     try:
         provider, model = _selected_provider()
-        return {"ready": provider != "template", "provider": provider, "model": model, "requested": settings.script_provider}
+        status = {"ready": provider != "template", "provider": provider, "model": model, "requested": settings.script_provider}
+        if provider == "ollama":
+            request = urllib.request.Request(_ollama_url("/api/tags"), method="GET")
+            try:
+                with urllib.request.urlopen(request, timeout=2) as response:
+                    installed = {item.get("name") for item in json.loads(response.read()).get("models", [])}
+                status["ready"] = model in installed
+                if not status["ready"]:
+                    status["message"] = f"Lokales Modell {model} ist noch nicht installiert."
+            except (OSError, ValueError, urllib.error.URLError):
+                status["ready"] = False
+                status["message"] = f"Lokales Ollama ist unter {settings.ollama_base_url} nicht erreichbar."
+        return status
     except ScriptProviderUnavailable as exc:
         return {"ready": False, "provider": None, "model": None, "requested": settings.script_provider, "message": str(exc)}
 
@@ -276,6 +324,41 @@ def generate_script(
     prompt = _prompt(request, previous, instructions)
     if provider == "template":
         script = _template(request)
+        metrics: dict[str, Any] = {}
+    elif provider == "ollama":
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": _system_prompt()},
+                {"role": "user", "content": prompt},
+            ],
+            "format": _response_schema(),
+            "stream": False,
+            "think": False,
+            "keep_alive": settings.ollama_keep_alive,
+            "options": {
+                "num_ctx": settings.ollama_num_ctx,
+                "num_predict": settings.ollama_num_predict,
+                "temperature": 0.35,
+                "top_p": 0.9,
+                "seed": 42,
+            },
+        }
+        with _OLLAMA_CALL_LOCK:
+            data = _post_ollama(payload)
+        try:
+            script = _extract_json(data["message"]["content"])
+        except (KeyError, TypeError) as exc:
+            raise ValueError("Lokales Ollama lieferte keine verwertbare Skriptantwort.") from exc
+        metrics = {
+            "total_duration_ms": round(int(data.get("total_duration") or 0) / 1_000_000),
+            "load_duration_ms": round(int(data.get("load_duration") or 0) / 1_000_000),
+            "prompt_tokens": data.get("prompt_eval_count"),
+            "output_tokens": data.get("eval_count"),
+            "done_reason": data.get("done_reason"),
+            "num_ctx": settings.ollama_num_ctx,
+            "num_predict": settings.ollama_num_predict,
+        }
     elif provider == "gemini":
         url = "https://generativelanguage.googleapis.com/v1beta/interactions"
         data = _post_json(
@@ -292,6 +375,7 @@ def generate_script(
             {"x-goog-api-key": settings.gemini_api_key},
         )
         script = _extract_json(data["output_text"])
+        metrics = {}
     else:
         base_url = settings.openai_base_url if provider == "openai" else "https://openrouter.ai/api/v1"
         api_key = settings.openai_api_key if provider == "openai" else settings.openrouter_api_key
@@ -311,6 +395,7 @@ def generate_script(
             {"Authorization": f"Bearer {api_key}"},
         )
         script = _extract_json(data["choices"][0]["message"]["content"])
+        metrics = {}
     fact_check_notes = script.pop("fact_check_notes", [])
     audience = script.pop("audience", "")
     tone = script.pop("tone", "")
@@ -321,5 +406,24 @@ def generate_script(
         "tone": tone,
         "fact_check_notes": fact_check_notes,
         "revision": bool(previous),
+        "generation_metrics": metrics,
     }
     return finalize_scene_plan(script, request.duration_seconds, previous)
+
+
+def unload_script_model() -> bool:
+    """Unload local model memory before CPU/RAM-heavy rendering; never blocks a render on failure."""
+    try:
+        provider, model = _selected_provider()
+        if provider != "ollama":
+            return False
+        request = urllib.request.Request(
+            _ollama_url("/api/generate"),
+            data=json.dumps({"model": model, "keep_alive": 0, "stream": False}).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=10):
+            return True
+    except Exception:
+        return False
