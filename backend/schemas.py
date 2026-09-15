@@ -17,6 +17,7 @@ class Scene(BaseModel):
         "stickman",
         "generated_image",
         "generated_video",
+        "stock_image",
         "stock_video",
         "motion_graphics",
         "talking_head",
@@ -24,6 +25,7 @@ class Scene(BaseModel):
     ] = "motion_graphics"
     source_strategy: Literal["generate", "stock", "provided", "procedural", "recorded"] | None = None
     source_ref: str = Field(default="", max_length=2000)
+    asset_query: str = Field(default="", max_length=200)
     asset_prompt: str = Field(default="", max_length=2000)
     on_screen_text: str = Field(default="", max_length=240)
     camera: str = Field(default="", max_length=500)

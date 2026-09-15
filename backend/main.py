@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from .assets import asset_provider_status, render_plan_readiness
 from .config import settings
 from .db import Database
 from .plan import file_sha256, finalize_scene_plan, script_hash
@@ -83,6 +84,7 @@ def health():
         "status": "ok",
         "dependencies": dependency_status(),
         "script_generation": script_provider_status(),
+        "asset_generation": asset_provider_status(),
         "youtube_enabled": settings.youtube_enabled,
     }
 
@@ -169,16 +171,11 @@ def approve_script(job_id: str, payload: VersionAction):
 @app.post("/api/jobs/{job_id}/render")
 def queue_render(job_id: str, payload: VersionAction):
     job = require_job(job_id)
-    unsupported_visuals = [
-        scene.get("visual_type")
-        for scene in job["script"]["scenes"]
-        if scene.get("visual_type", "stickman") != "stickman"
-    ]
-    if job["video_type"] != "stickman" or unsupported_visuals:
+    readiness_issues = render_plan_readiness(job["script"]["scenes"])
+    if readiness_issues:
         raise HTTPException(
             409,
-            "Diese Videoart wird erst freigeschaltet, wenn ihre visuellen Assets tatsächlich erzeugt und geprüft werden. "
-            "Der alte Strichmännchen-Renderer wird nicht als Ersatz verwendet.",
+            "Dieser Szenenplan ist noch nicht produzierbar: " + " ".join(readiness_issues),
         )
     try:
         return db.queue_render(job_id, payload.expected_version, payload.expected_hash)

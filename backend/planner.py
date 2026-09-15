@@ -25,7 +25,7 @@ STYLE_DIRECTIONS = {
     ),
     "explainer": (
         "Design a polished explainer using a varied mix of generated imagery and motion graphics. "
-        "Prefer concrete demonstrations, diagrams and meaningful objects; never default to a presenter or stick figure."
+        "Prefer concrete demonstrations, relevant stock footage or photography, diagrams and meaningful objects; never default to a presenter or stick figure."
     ),
     "social": (
         "Design a fast, visually varied social clip with a strong first-second hook, purposeful B-roll, "
@@ -49,10 +49,11 @@ def _response_schema() -> dict[str, Any]:
         "visual": {"type": "string", "description": "A concrete description of what is visibly on screen."},
         "visual_type": {
             "type": "string",
-            "enum": ["stickman", "generated_image", "generated_video", "stock_video", "motion_graphics", "talking_head", "waveform"],
+            "enum": ["stickman", "generated_image", "generated_video", "stock_image", "stock_video", "motion_graphics", "talking_head", "waveform"],
         },
         "source_strategy": {"type": "string", "enum": ["generate", "stock", "provided", "procedural", "recorded"]},
         "source_ref": {"type": "string", "description": "Provided/local source reference, or empty until production resolves the asset."},
+        "asset_query": {"type": "string", "description": "Two to eight concrete English search terms for a stock library, or empty if not stock."},
         "asset_prompt": {"type": "string", "description": "Standalone prompt or search brief used to obtain the visual asset; no captions."},
         "on_screen_text": {"type": "string", "description": "Exact short text intentionally shown on screen, or an empty string."},
         "camera": {"type": "string", "description": "Framing and camera or graphic movement."},
@@ -119,6 +120,7 @@ def _template(request: JobCreate) -> dict[str, Any]:
             "visual_type": visual_type,
             "source_strategy": "procedural" if visual_type in {"stickman", "motion_graphics"} else "generate",
             "source_ref": "",
+            "asset_query": topic,
             "asset_prompt": visual,
             "on_screen_text": "",
             "camera": "Ruhige, klare Bewegung auf das Hauptmotiv.",
@@ -189,6 +191,7 @@ Editorial requirements
 - Assign a stable scene_id to every scene. When revising, preserve the id if the scene's purpose remains; create a new id for a replacement scene.
 - Set duration_seconds per scene so their sum is the target duration. Match time to spoken length and visual complexity.
 - Choose source_strategy deliberately: generate, stock, provided, recorded or procedural. Leave source_ref empty unless the brief supplied a real source.
+- For stock_image or stock_video, set asset_query to two to eight concrete English search terms. Do not put camera instructions into the search query.
 - Make adjacent shots visually distinct while maintaining continuity of people, places, era, palette and art direction.
 - asset_prompt must be directly usable for image/video generation or asset search and must not ask the image model to draw words.
 - Use generated_video sparingly where visible motion matters; prefer generated_image with camera movement for controllable shots.

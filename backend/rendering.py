@@ -7,6 +7,7 @@ import wave
 from pathlib import Path
 from typing import Any
 
+from .assets import prepare_scene_assets
 from .config import settings
 
 
@@ -69,6 +70,7 @@ def render_job(job: dict[str, Any]) -> tuple[str, str]:
     version = int(job["render_version"])
     job_dir = settings.jobs_dir / job["id"] / f"v{version}"
     job_dir.mkdir(parents=True, exist_ok=True)
+    prepare_scene_assets(job_dir, job["script"]["scenes"], job["aspect_ratio"])
     narration = " ".join(scene["narration"] for scene in job["script"]["scenes"])
     audio_path = job_dir / "narration.wav"
     tts_mode, audio_duration = synthesize(narration, audio_path, float(job["duration_seconds"]))

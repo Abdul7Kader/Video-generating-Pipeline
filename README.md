@@ -57,7 +57,17 @@ Schlüssel gehören nur in `.env`; die Datei wird nicht versioniert. Ein ChatGPT
 
 Der KI-Entwurf enthält neben dem Sprechertext einen konkreten Produktionsplan pro Szene (visueller Medientyp, sichtbare Einstellung, Asset-Prompt, Kamera, bewusste Texteinblendung und Übergang). Über das Feld „Änderungswunsch an die KI“ entsteht eine neue Skriptversion; alte Freigaben werden dabei ungültig.
 
-Bis die reale Asset-Produktion implementiert und geprüft ist, lassen sich Nicht-Strichmännchen-Stile bewusst noch nicht rendern. Sie werden nicht mehr irreführend durch denselben Strichmännchenfilm ersetzt.
+Nicht verfügbare visuelle Typen werden bewusst gesperrt. Sie werden nicht mehr irreführend durch denselben Strichmännchenfilm ersetzt. Aktuell freigeschaltet sind der bestehende Strichmännchenpfad sowie echte Stockfotos/-videos bei konfiguriertem Pexels-Zugang.
+
+## Reale Stockmedien
+
+Für lizenzierte reale Fotos und Videos ist ein Pexels-Adapter vorhanden. Pexels stellt Inhalte und API kostenlos bereit, verlangt für API-Aufrufe aber einen Kontoschlüssel und eine sichtbare Verlinkung. Der Schlüssel bleibt ausschließlich in `.env`:
+
+```dotenv
+PEXELS_API_KEY=...
+```
+
+Jede Auswahl wird mit Suchbegriff, Pexels-Seite, Urheber, Lizenz-URL, lokaler Datei und SHA-256 im versionsgebundenen `asset-manifest.json` gespeichert. Fehlt der Schlüssel oder ein Asset, bricht der Renderauftrag ab; es erscheint kein Platzhalter als vermeintlich fertiges Video. Kostenpflichtige generative Medien bleiben zusätzlich durch `ALLOW_PAID_MEDIA=0` gesperrt.
 
 ## YouTube
 

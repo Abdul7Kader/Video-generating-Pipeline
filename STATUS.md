@@ -52,7 +52,7 @@ Ergebnis: `stickman` bleibt eine bewusste Option. Erklärvideo, Social Clip und 
 
 Prüfung: Für jede angebotene Videoart ein kurzer Render-Smoke-Test und eine Asset-Manifestauswertung; nicht verfügbare Adapter werden in der UI deaktiviert statt vorgetäuscht.
 
-Status: offen
+Status: **teilweise erledigt** – Strichmännchen und reale Pexels-Stockfotos/-videos sind implementiert; Live-Pexels-Test wartet auf kostenlosen Schlüssel. Generierte Bilder/Videos sowie verifizierte Motion-Graphics-/Podcast-Renderer bleiben gesperrt.
 
 ### 4. Stimme, Schnitt, Untertitel und Qualitäts-Gate
 
@@ -97,12 +97,15 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 - 2026-09-15: Etappe 2: 15/15 Tests bestanden, darunter kanonische Hashes, Szenen-ID-/Dauer-Normalisierung, falsche Freigabehashes, manipulierte gespeicherte Pläne und falsche Video-Dateihashes.
 - 2026-09-15: V1-Migrationsprüfung auf einer Datenbankkopie erneut bestanden: 6 Skriptversionen erhalten, alle mit gültigem nachgetragenem Inhaltshash; keine bestehende Datei verändert.
 - 2026-09-15: Isolierter API-Funktionstest bestanden: exakte hashgebundene Freigabe, Sperre nicht implementierter Renderer und Ablehnung einer vom Testadapter nur vorgetäuschten, inhaltlich unveränderten Revision.
+- 2026-09-15: Etappe 3: 18/18 Tests bestanden. Neue Tests prüfen fehlende Assetanbieter, Pexels-Hochformatwahl sowie versionsgebundene Quelle, Urheber, Lizenz-URL und Asset-SHA-256 im Manifest.
+- 2026-09-15: Neuer Remotion-Medienpfad mit echtem lokalem Bild und echtem lokalem MP4 jeweils über 60 Frames erfolgreich gerendert; Range-Requests für Videodateien funktionieren.
 
 ## Offene Probleme/Risiken
 
 - Noch kein KI-Schlüssel im Projekt konfiguriert; Live-Qualität kann daher erst nach einer bewussten Anbieter-/Datenschutzentscheidung geprüft werden. Tests verwenden keine externen Kosten.
 - V1-Nutzdaten und bereits gerenderte Videos werden erhalten und nicht migriert oder gelöscht.
 - Die tatsächliche Medienstrategie pro Stil und mögliche generative Videokosten werden vor Aktivierung kostenpflichtiger Adapter konkret verglichen.
+- Die lokale Maschine (Intel i5-8400, 6 CPU-Kerne, 22 GiB RAM) besitzt aktuell keinen nutzbaren NVIDIA-Treiber. Hochwertige lokale Diffusions-/Videomodelle sind daher technisch nicht sinnvoll; generatives Video benötigt voraussichtlich einen externen Bezahladapter.
 
 ## Erledigter Zwischenstand
 
@@ -114,7 +117,9 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 - Jede neue Szene besitzt eine stabile ID, eine geplante Dauer und eine konkrete Quellenstrategie; Dauern werden exakt auf die Zielvideolänge normalisiert.
 - Skript-/Szenenfreigaben speichern den kanonischen SHA-256-Hash des Plans. Renderaufträge müssen Version und Hash treffen; Manipulationen werden erkannt.
 - Fertige Videos erhalten einen Datei-SHA-256. Prüfung, Freigabe und ein eventueller Upload sind an genau diese unveränderte Datei gebunden.
+- Stockfotos und -videos werden passend zu Format und Suchbegriff über Pexels ausgewählt, lokal gespeichert und einschließlich Herkunft, Urheber, Lizenz und Datei-Hash manifestiert. Fehlende Assets brechen die Produktion ab.
+- Reale Bilder erhalten kontrollierte Kamerabewegung; reale Videos werden bildfüllend geschnitten. Bildanweisungen selbst werden weiterhin nicht eingeblendet.
 
 ## Nächster konkreter Arbeitsschritt
 
-Etappe 3 beginnen: auf der vorhandenen CPU-Hardware eine kostenfreie reale Asset-Strategie (bereitgestellte/korrekt lizenzierte Stockmedien plus hochwertige Motion Graphics) implementieren und externe generative Bild-/Videoanbieter nur als deaktivierte, kostenbewusste Adapter vorsehen. Danach pro freigeschaltetem Stil Render- und Assetmanifesttests ausführen.
+Etappe 4 beginnen: stumme Fallbacks entfernen, szenengenaue Untertitel erzeugen und ein hartes Qualitäts-Gate für Audio, Video, Dauer, Asset-Vollständigkeit und Hashintegrität vor `video_review` setzen. Danach einen vollständigen lokalen Strichmännchen-Render und kostenfreie Mocktests des Stockpfads ausführen.

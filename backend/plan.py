@@ -15,6 +15,7 @@ SOURCE_BY_VISUAL_TYPE = {
     "stickman": "procedural",
     "generated_image": "generate",
     "generated_video": "generate",
+    "stock_image": "stock",
     "stock_video": "stock",
     "motion_graphics": "procedural",
     "talking_head": "provided",
