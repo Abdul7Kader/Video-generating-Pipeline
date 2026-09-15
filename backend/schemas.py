@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class Scene(BaseModel):
@@ -54,6 +54,32 @@ class ScriptUpdate(BaseModel):
     title: str = Field(min_length=2, max_length=140)
     description: str = Field(default="", max_length=5000)
     scenes: list[Scene] = Field(min_length=1, max_length=30)
+
+
+class SceneUpdate(BaseModel):
+    expected_version: int = Field(ge=1)
+    narration: str | None = Field(default=None, min_length=2, max_length=1200)
+    visual: str | None = Field(default=None, min_length=2, max_length=1200)
+    visual_type: Literal[
+        "stickman", "generated_image", "generated_video", "stock_image", "stock_video",
+        "motion_graphics", "talking_head", "waveform",
+    ] | None = None
+    source_strategy: Literal["generate", "stock", "provided", "procedural", "recorded"] | None = None
+    source_ref: str | None = Field(default=None, max_length=2000)
+    asset_query: str | None = Field(default=None, max_length=200)
+    asset_prompt: str | None = Field(default=None, max_length=2000)
+    on_screen_text: str | None = Field(default=None, max_length=240)
+    camera: str | None = Field(default=None, max_length=500)
+    transition: Literal["cut", "dissolve", "wipe", "zoom", "match_cut", "none"] | None = None
+    duration_seconds: float | None = Field(default=None, gt=0, le=180)
+    action: Literal["intro", "stand", "walk", "point", "think", "explain", "celebrate", "outro"] | None = None
+    accent: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
+
+    @model_validator(mode="after")
+    def require_change(self):
+        if not self.model_dump(exclude={"expected_version"}, exclude_none=True):
+            raise ValueError("Mindestens ein Szenenfeld muss geändert werden")
+        return self
 
 
 class ScriptDraft(BaseModel):

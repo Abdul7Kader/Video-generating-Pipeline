@@ -51,6 +51,7 @@ def run_quality_gate(
     audio_path: Path,
     subtitles_path: Path,
     asset_manifest_path: Path,
+    voice_manifest_path: Path,
     expected_duration: float,
     expected_script_hash: str,
     report_path: Path,
@@ -79,6 +80,18 @@ def run_quality_gate(
         if not local_file.exists() or file_sha256(local_file) != asset.get("sha256"):
             asset_failures.append(str(asset.get("scene_id")))
     checks.append(_check("scene_assets", not asset_failures and bool(manifest.get("assets")), f"invalid={asset_failures}"))
+
+    voice_manifest = json.loads(voice_manifest_path.read_text(encoding="utf-8")) if voice_manifest_path.exists() else {"segments": []}
+    voice_failures = []
+    for segment in voice_manifest.get("segments") or []:
+        local_file = voice_manifest_path.parent / str(segment.get("file") or "")
+        if not local_file.exists() or file_sha256(local_file) != segment.get("sha256"):
+            voice_failures.append(str(segment.get("scene_id")))
+    checks.append(_check(
+        "voice_segments",
+        not voice_failures and bool(voice_manifest.get("segments")),
+        f"invalid={voice_failures}",
+    ))
 
     checks.append(_check("script_binding", bool(expected_script_hash), f"script_hash={expected_script_hash}"))
     checks.append(_check("output_file", output_path.exists() and output_path.stat().st_size >= 10_000, f"bytes={output_path.stat().st_size if output_path.exists() else 0}"))

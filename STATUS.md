@@ -68,7 +68,7 @@ Ergebnis: Sprechertext, Voiceover, Asset oder Schnitt einer einzelnen Szene kön
 
 Prüfung: Test zeigt, dass bei einer Szenenänderung nur deren Artefakte und der finale Zusammenschnitt neu entstehen.
 
-Status: offen
+Status: **erledigt** – einzelne Szenen können separat als neue Planversion gespeichert werden. Medien- und Sprachsegmente besitzen szenenweise Inhaltsfingerprints und Datei-Hashes; unveränderte, intakte Artefakte werden in die neue Renderrevision übernommen. Nur geänderte Segmente werden neu erzeugt, der finale Schnitt wird zur eindeutigen neuen Ausgabe erneut gebaut.
 
 ### 6. Sicherer Handyzugang und kontrollierte Veröffentlichung
 
@@ -84,6 +84,7 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 - OpenAI-API-Modelle unterstützen strukturierte Ausgaben und bieten hohe Qualität, haben laut aktueller offizieller Modellübersicht aber kein kostenloses API-Kontingent. Ein ChatGPT/Codex-Abo deckt API-Kosten ausdrücklich nicht ab. Deshalb wird kein OpenAI-Aufruf ohne separat bereitgestellten API-Schlüssel und Kostenentscheidung aktiviert.
 - OpenRouter bleibt als expliziter Adapter möglich, wird aber wegen wechselnder Gratis-Modelle nicht als Qualitätsstandard voreingestellt.
 - Quellen: https://ai.google.dev/gemini-api/docs/models, https://ai.google.dev/gemini-api/docs/pricing, https://ai.google.dev/gemini-api/docs/structured-output, https://developers.openai.com/api/docs/models/compare, https://help.openai.com/en/articles/9039756-managing-your-work-in-the-api-platform-with-projects
+- Für den privaten Handyzugang ist Tailscale technisch die bevorzugte Option: freigegebene Geräte bleiben laut Dokumentation außerhalb des öffentlichen Internets, und Zugriffsregeln können Personen auf den Web-Port begrenzen. Der Personal-Tarif ist für nicht-kommerzielle Nutzung mit bis zu sechs Personen kostenlos; kommerzielle Nutzung benötigt nach aktuellem Preismodell einen bezahlten Tarif. Cloudflare Private Network wäre die zweite private Variante, erfordert aber ebenfalls einen Client auf den Endgeräten. Quellen: https://tailscale.com/pricing, https://tailscale.com/kb/1084/sharing, https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/private-net/
 
 ## Bisherige Tests
 
@@ -101,6 +102,9 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 - 2026-09-15: Neuer Remotion-Medienpfad mit echtem lokalem Bild und echtem lokalem MP4 jeweils über 60 Frames erfolgreich gerendert; Range-Requests für Videodateien funktionieren.
 - 2026-09-15: Etappe 4: 24/24 Tests bestanden. Neue Tests prüfen Caption-Timing/SRT, nicht-stummes Audio, Audio-/Videostream und Dauer, Ablehnung stiller Ausgabe, Cloud-TTS-Kostensperre sowie korrekt verpacktes Gemini-PCM.
 - 2026-09-15: Vollständiger isolierter Produktionslauf bestanden: Szenenplan, lokale Piper-Stimme, Untertitel, Remotion-Render und 8/8 Qualitätschecks. Ausgabe und alle Testartefakte lagen ausschließlich unter `/tmp`.
+- 2026-09-15: Etappe 5: 28/28 Tests bestanden. Geprüft sind gezielte Szenenänderung mit neuer Version, Ablehnung wirkungsloser Änderungen sowie Wiederverwendung unveränderter Stock- und Sprachsegmente ohne erneuten Anbieteraufruf.
+- 2026-09-15: Vollständiger Zwei-Szenen-Render mit getrennten Piper-Sprachsegmenten, neu zusammengesetzter Audiospur, Untertiteln und 9/9 Qualitätschecks bestanden. Die Testartefakte lagen ausschließlich unter `/tmp`.
+- 2026-09-15: Python-Compileall, JavaScript-Syntaxcheck, TypeScript-`tsc --noEmit` und `git diff --check` nach Etappe 5 bestanden.
 
 ## Offene Probleme/Risiken
 
@@ -123,7 +127,9 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 - Reale Bilder erhalten kontrollierte Kamerabewegung; reale Videos werden bildfüllend geschnitten. Bildanweisungen selbst werden weiterhin nicht eingeblendet.
 - Stumme Ersatzvideos sind entfernt. Fehlende oder lautlose Sprache, fehlende Untertitel/Assets, falsche Asset-Hashes, fehlende Audio-/Videostreams oder relevante Laufzeitabweichung verhindern den Status `video_review`.
 - Ein natürlicherer Gemini-TTS-Adapter für Deutsch/Englisch ist vorhanden, bleibt aber hinter `ALLOW_CLOUD_TTS=0`, bis Kosten und Datenschutz bewusst akzeptiert wurden.
+- Jede Szene kann in der Oberfläche separat gespeichert werden. Das erzeugt eine neue, hashgebundene Planversion und entwertet frühere Freigaben.
+- Stockmedien und Voiceover werden pro stabiler Szenen-ID und Inhalt gefingert. Bei einer Teiländerung werden nur betroffene Segmente neu beschafft beziehungsweise gesprochen; vorhandene Dateien werden vor Wiederverwendung per SHA-256 geprüft.
 
 ## Nächster konkreter Arbeitsschritt
 
-Etappe 5 beginnen: visuelle und sprachliche Artefakte pro stabiler Szenen-ID mit Inhaltsfingerprints speichern, bei unveränderten Szenen wiederverwenden und gezielte Szenenänderungen als neue Planversion ermöglichen. Danach testen, dass nur geänderte Szenen neu erzeugt werden.
+Etappe 6 benötigt die vereinbarte Nutzerentscheidung zum privaten Handyzugang, bevor ein Dienst erreichbar gemacht wird. Empfohlen ist Tailscale mit eigener Benutzer-/Gerätefreigabe, weil die Anwendung dabei nicht öffentlich ins Internet gestellt werden muss. Alternative: Cloudflare Access mit öffentlicher URL hinter Identitätsprüfung. Parallel bleiben für echte Qualitätsbewertung ein bewusst bereitgestellter KI-Schlüssel und für Stockmaterial ein kostenloser Pexels-Schlüssel offen.

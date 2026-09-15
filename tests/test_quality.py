@@ -11,8 +11,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from backend.captions import add_scene_captions, write_srt
+from backend.plan import file_sha256
 from backend.quality import QualityGateError, run_quality_gate
-from backend.rendering import _synthesize_gemini, synthesize
+from backend.rendering import _synthesize_gemini, prepare_scene_audio, synthesize
 
 
 def write_wav(path: Path, *, silent: bool = False, duration: float = 1.0) -> None:
@@ -54,12 +55,16 @@ class QualityTests(unittest.TestCase):
         output = directory / "video.mp4"
         subtitles = directory / "subtitles.srt"
         manifest = directory / "asset-manifest.json"
+        voice_manifest = directory / "voice-manifest.json"
         report = directory / "quality-report.json"
         write_wav(audio, silent=silent)
         output.write_bytes(b"0" * 20_000)
         subtitles.write_text("1\n00:00:00,000 --> 00:00:01,000\nTest\n", encoding="utf-8")
         manifest.write_text(json.dumps({"assets": [{"scene_id": "scene-one", "status": "procedural"}]}), encoding="utf-8")
-        return audio, output, subtitles, manifest, report
+        voice_manifest.write_text(json.dumps({"segments": [{
+            "scene_id": "scene-one", "file": "narration.wav", "sha256": file_sha256(audio),
+        }]}), encoding="utf-8")
+        return audio, output, subtitles, manifest, voice_manifest, report
 
     def test_gate_accepts_audio_video_duration_subtitles_and_assets(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -68,11 +73,11 @@ class QualityTests(unittest.TestCase):
             with patch("backend.quality._probe", return_value=probe):
                 report = run_quality_gate(
                     output_path=paths[1], audio_path=paths[0], subtitles_path=paths[2],
-                    asset_manifest_path=paths[3], expected_duration=1.0,
-                    expected_script_hash="a" * 64, report_path=paths[4],
+                    asset_manifest_path=paths[3], voice_manifest_path=paths[4], expected_duration=1.0,
+                    expected_script_hash="a" * 64, report_path=paths[5],
                 )
             self.assertTrue(report["passed"])
-            self.assertTrue(json.loads(paths[4].read_text())["passed"])
+            self.assertTrue(json.loads(paths[5].read_text())["passed"])
 
     def test_gate_rejects_silent_voice_even_when_video_exists(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -82,10 +87,10 @@ class QualityTests(unittest.TestCase):
                 with self.assertRaises(QualityGateError):
                     run_quality_gate(
                         output_path=paths[1], audio_path=paths[0], subtitles_path=paths[2],
-                        asset_manifest_path=paths[3], expected_duration=1.0,
-                        expected_script_hash="a" * 64, report_path=paths[4],
+                        asset_manifest_path=paths[3], voice_manifest_path=paths[4], expected_duration=1.0,
+                        expected_script_hash="a" * 64, report_path=paths[5],
                     )
-            report = json.loads(paths[4].read_text())
+            report = json.loads(paths[5].read_text())
             self.assertFalse(report["passed"])
             self.assertFalse(next(check for check in report["checks"] if check["name"] == "voice_audio")["passed"])
 
@@ -136,6 +141,40 @@ class QualityTests(unittest.TestCase):
         self.assertAlmostEqual(duration, 0.1)
         sent_request = request.call_args.args[0]
         self.assertNotIn("secret", sent_request.full_url)
+
+    def test_unchanged_scene_voice_is_reused(self):
+        voice_settings = type("VoiceSettings", (), {
+            "tts_provider": "piper",
+            "piper_voice": "test-voice",
+            "gemini_tts_model": "",
+            "gemini_tts_voice": "",
+            "gemini_tts_style": "",
+        })()
+        calls: list[str] = []
+
+        def fake_synthesize(text: str, output: Path, _language: str):
+            calls.append(text)
+            write_wav(output)
+            return "piper", 1.0
+
+        first = [
+            {"scene_id": "scene-one", "narration": "Erster Text."},
+            {"scene_id": "scene-two", "narration": "Zweiter Text."},
+        ]
+        second = [
+            {"scene_id": "scene-one", "narration": "Erster Text."},
+            {"scene_id": "scene-two", "narration": "Geänderter zweiter Text."},
+        ]
+        with tempfile.TemporaryDirectory() as temp, \
+             patch("backend.rendering.settings", voice_settings), \
+             patch("backend.rendering.synthesize", side_effect=fake_synthesize):
+            root = Path(temp)
+            prepare_scene_audio(root / "v1", first, "de")
+            prepare_scene_audio(root / "v2", second, "de")
+            manifest = json.loads((root / "v2" / "voice-manifest.json").read_text())
+        self.assertEqual(calls, ["Erster Text.", "Zweiter Text.", "Geänderter zweiter Text."])
+        self.assertIn("reused_from", manifest["segments"][0])
+        self.assertNotIn("reused_from", manifest["segments"][1])
 
 
 if __name__ == "__main__":

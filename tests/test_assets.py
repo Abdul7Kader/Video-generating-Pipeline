@@ -83,6 +83,41 @@ class AssetTests(unittest.TestCase):
         self.assertEqual(stored["assets"][0]["page_url"], "https://www.pexels.com/photo/123/")
         self.assertEqual(scenes[0]["asset_kind"], "image")
 
+    def test_unchanged_scene_asset_is_reused_without_provider_call(self):
+        scene = {
+            "scene_id": "scene-peatland",
+            "visual_type": "stock_image",
+            "source_strategy": "stock",
+            "source_ref": "",
+            "asset_query": "rewetted peatland aerial",
+            "asset_prompt": "Aerial view",
+            "duration_seconds": 5,
+        }
+        selection = {
+            "download_url": "https://images.pexels.com/photo.jpg",
+            "page_url": "https://www.pexels.com/photo/123/",
+            "creator": "Photographer",
+            "creator_url": "https://www.pexels.com/@photographer",
+            "media_id": "123",
+            "kind": "image",
+        }
+
+        def fake_download(_url: str, destination: Path) -> str:
+            destination.write_bytes(b"x" * 2048)
+            return "image/jpeg"
+
+        with tempfile.TemporaryDirectory() as temp, \
+             patch("backend.assets.settings", asset_settings()), \
+             patch("backend.assets._search_pexels", return_value=selection) as search, \
+             patch("backend.assets._download_media", side_effect=fake_download):
+            root = Path(temp)
+            prepare_scene_assets(root / "v1", [dict(scene)], "16:9")
+            second_scene = dict(scene)
+            manifest = prepare_scene_assets(root / "v2", [second_scene], "16:9")
+        self.assertEqual(search.call_count, 1)
+        self.assertIn("reused_from", manifest["assets"][0])
+        self.assertEqual(second_scene["asset_kind"], "image")
+
 
 if __name__ == "__main__":
     unittest.main()

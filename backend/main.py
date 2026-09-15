@@ -15,7 +15,7 @@ from .db import Database
 from .plan import file_sha256, finalize_scene_plan, script_hash
 from .planner import ScriptProviderUnavailable, generate_script, script_provider_status
 from .rendering import dependency_status, render_job
-from .schemas import JobCreate, ScriptRevision, ScriptUpdate, VersionAction
+from .schemas import JobCreate, Scene, SceneUpdate, ScriptRevision, ScriptUpdate, VersionAction
 from .youtube import upload_video
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -126,6 +126,39 @@ def update_script(job_id: str, payload: ScriptUpdate):
         raise HTTPException(404, "Auftrag nicht gefunden")
     except ValueError:
         raise HTTPException(409, "Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.")
+
+
+@app.patch("/api/jobs/{job_id}/scenes/{scene_id}")
+def update_scene(job_id: str, scene_id: str, payload: SceneUpdate):
+    current = require_job(job_id)
+    if current["script_version"] != payload.expected_version:
+        raise HTTPException(409, "Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.")
+    scenes = [dict(scene) for scene in current["script"]["scenes"]]
+    index = next((index for index, scene in enumerate(scenes) if scene.get("scene_id") == scene_id), None)
+    if index is None:
+        raise HTTPException(404, "Szene nicht gefunden")
+    changes = payload.model_dump(exclude={"expected_version"}, exclude_none=True)
+    candidate = Scene.model_validate({**scenes[index], **changes, "scene_id": scene_id}).model_dump()
+    if candidate == Scene.model_validate(scenes[index]).model_dump():
+        raise HTTPException(409, "Die Szene enthält keine tatsächliche Änderung.")
+    scenes[index] = candidate
+    script = finalize_scene_plan({
+        "title": current["script"]["title"],
+        "description": current["script"].get("description", ""),
+        "scenes": scenes,
+        "metadata": {
+            "provider": "scene_edit",
+            "model": None,
+            "changed_scene_id": scene_id,
+            "parent": current["script"].get("metadata", {}),
+        },
+    }, current["duration_seconds"], current["script"])
+    try:
+        return db.update_script(job_id, payload.expected_version, script)
+    except ValueError as exc:
+        if str(exc) == "version_conflict":
+            raise HTTPException(409, "Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.") from exc
+        raise
 
 
 @app.post("/api/jobs/{job_id}/revise-script")

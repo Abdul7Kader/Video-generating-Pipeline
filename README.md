@@ -57,6 +57,8 @@ Schlüssel gehören nur in `.env`; die Datei wird nicht versioniert. Ein ChatGPT
 
 Der KI-Entwurf enthält neben dem Sprechertext einen konkreten Produktionsplan pro Szene (visueller Medientyp, sichtbare Einstellung, Asset-Prompt, Kamera, bewusste Texteinblendung und Übergang). Über das Feld „Änderungswunsch an die KI“ entsteht eine neue Skriptversion; alte Freigaben werden dabei ungültig.
 
+Eine einzelne Szene kann separat gespeichert werden. Auch das erzeugt eine neue, hashgebundene Planversion. Beim nächsten Render werden unveränderte Stockmedien und Voiceover-Segmente nach Prüfung ihres SHA-256 wiederverwendet; nur betroffene Szenen werden neu beschafft beziehungsweise gesprochen. Der finale Film wird immer neu zusammengesetzt und als eigene Renderrevision geprüft.
+
 Nicht verfügbare visuelle Typen werden bewusst gesperrt. Sie werden nicht mehr irreführend durch denselben Strichmännchenfilm ersetzt. Aktuell freigeschaltet sind der bestehende Strichmännchenpfad sowie echte Stockfotos/-videos bei konfiguriertem Pexels-Zugang.
 
 ## Reale Stockmedien
@@ -81,7 +83,7 @@ GEMINI_API_KEY=...
 
 Gemini TTS besitzt derzeit ein Free Tier, aber übermittelte Inhalte dürfen dort zur Produktverbesserung verwendet werden; bei einem abrechenbaren Projekt können nach dem Freikontingent Kosten entstehen. Deshalb erfolgt kein automatischer Wechsel in diesen Modus.
 
-Jeder Render erzeugt außerdem `subtitles.srt` und `quality-report.json`. Erst wenn Sprecher-Audio nicht stumm ist, Untertitel vorhanden sind, alle Assets ihren Manifest-Hash erfüllen und `ffprobe` Video-, Audio- und Laufzeitprüfung besteht, wechselt der Auftrag zu „Video prüfen“.
+Jeder Render erzeugt außerdem `voice-manifest.json`, `subtitles.srt` und `quality-report.json`. Erst wenn Sprecher-Audio nicht stumm ist, alle Sprachsegmente und visuellen Assets ihren Manifest-Hash erfüllen, Untertitel vorhanden sind und `ffprobe` Video-, Audio- und Laufzeitprüfung besteht, wechselt der Auftrag zu „Video prüfen“.
 
 ## YouTube
 

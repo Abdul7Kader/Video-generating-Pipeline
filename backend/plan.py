@@ -81,6 +81,11 @@ def script_hash(script: dict[str, Any]) -> str:
     return canonical_script_hash(script["title"], script.get("description", ""), script["scenes"])
 
 
+def object_sha256(value: Any) -> str:
+    canonical = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def file_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:

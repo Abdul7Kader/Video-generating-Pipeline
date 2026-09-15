@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import shutil
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -9,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import settings
-from .plan import file_sha256
+from .plan import file_sha256, object_sha256
 
 
 PEXELS_LICENSE_URL = "https://www.pexels.com/license/"
@@ -157,6 +158,22 @@ def _download_media(url: str, destination: Path) -> str:
     return content_type
 
 
+def _cached_asset(job_dir: Path, scene_id: str, fingerprint: str) -> tuple[Path, dict[str, Any]] | None:
+    manifests = sorted(job_dir.parent.glob("v*/asset-manifest.json"), key=lambda path: path.stat().st_mtime, reverse=True)
+    for manifest_path in manifests:
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for asset in manifest.get("assets") or []:
+            if asset.get("scene_id") != scene_id or asset.get("fingerprint") != fingerprint or asset.get("status") != "ready":
+                continue
+            source = manifest_path.parent / str(asset.get("local_file") or "")
+            if source.is_file() and file_sha256(source) == asset.get("sha256"):
+                return source, asset
+    return None
+
+
 def prepare_scene_assets(job_dir: Path, scenes: list[dict[str, Any]], aspect_ratio: str) -> dict[str, Any]:
     issues = render_plan_readiness(scenes)
     if issues:
@@ -166,12 +183,37 @@ def prepare_scene_assets(job_dir: Path, scenes: list[dict[str, Any]], aspect_rat
     manifest: dict[str, Any] = {"provider": "pexels" if settings.pexels_api_key else None, "license_url": PEXELS_LICENSE_URL, "assets": []}
     for scene in scenes:
         visual_type = scene.get("visual_type", "stickman")
+        fingerprint = object_sha256({
+            "visual_type": visual_type,
+            "source_strategy": scene.get("source_strategy"),
+            "source_ref": scene.get("source_ref"),
+            "asset_query": scene.get("asset_query"),
+            "asset_prompt": scene.get("asset_prompt"),
+            "aspect_ratio": aspect_ratio,
+        })
         if visual_type == "stickman":
             manifest["assets"].append({
-                "scene_id": scene.get("scene_id"), "status": "procedural", "visual_type": visual_type,
+                "scene_id": scene.get("scene_id"), "status": "procedural", "visual_type": visual_type, "fingerprint": fingerprint,
             })
             continue
         query = str(scene.get("asset_query") or "").strip()
+        cached = _cached_asset(job_dir, str(scene["scene_id"]), fingerprint)
+        if cached:
+            source, previous = cached
+            extension = source.suffix
+            destination = assets_dir / f"{scene['scene_id']}{extension}"
+            if source.resolve() != destination.resolve():
+                shutil.copy2(source, destination)
+            scene["asset_path"] = str(destination.resolve())
+            scene["asset_kind"] = previous["kind"]
+            scene["source_ref"] = previous.get("page_url", "")
+            manifest["assets"].append({
+                **previous,
+                "local_file": str(destination.relative_to(job_dir)),
+                "reused_from": str(source),
+                "fingerprint": fingerprint,
+            })
+            continue
         selection = _search_pexels(visual_type, query, aspect_ratio, float(scene.get("duration_seconds") or 5))
         extension = ".mp4" if selection["kind"] == "video" else ".jpg"
         destination = assets_dir / f"{scene['scene_id']}{extension}"
@@ -190,6 +232,7 @@ def prepare_scene_assets(job_dir: Path, scenes: list[dict[str, Any]], aspect_rat
             "status": "ready",
             "visual_type": visual_type,
             "query": query,
+            "fingerprint": fingerprint,
             "local_file": str(destination.relative_to(job_dir)),
             "sha256": file_sha256(destination),
             "content_type": content_type or mimetypes.guess_type(destination.name)[0],
