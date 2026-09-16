@@ -11,7 +11,9 @@ Handyzugang und Cloud-Anbieter sind zurückgestellt. Der lokale Ausbau erfolgt i
 3. Den Gewinner ohne Cloud- oder Template-Fallback als begrenzten Ollama-Adapter integrieren: ein Modellaufruf gleichzeitig, begrenzter Kontext/Ausgabe, verständliche Fehler und Entladen vor dem Rendern.
 4. Echten lokalen API-Ablauf Thema → Entwurf → Revision → Freigabe testen; vollständigen Videoauftrag erst nach Nutzerfreigabe mit vorhandenem Material rendern.
 
-Aktueller Befund: Ollama 0.34.1 ist projektlokal installiert und läuft mit deaktivierter Cloud-/Verlaufsfunktion ausschließlich auf `127.0.0.1:11434`. 22 GiB RAM, rund 18 GiB aktuell verfügbar, 8 GiB unbenutzter Swap und 146 GiB freier Speicher wurden vor dem Test gemessen. Qwen3.5 9B Q4_K_M (6,6 GB) wird als einziger Kandidat geladen. Qwen3.5 27B Q4_K_M benötigt bereits 17 GB Modellgewicht; GLM-4.7-Flash Q4_K_M 19 GB. Beide lassen auf diesem Rechner keine belastbare Laufzeit- und Renderreserve und werden deshalb nicht heruntergeladen. Quellen: https://ollama.com/library/qwen3.5/tags, https://ollama.com/library/glm-4.7-flash
+Etappenstatus: **1 abgeschlossen**, **2 als Nächstes**, Adapter aus Etappe 3 bereits implementiert und testgedeckt, Etappe 4 wartet auf den realen Benchmark.
+
+Aktueller Befund: Ollama 0.34.1 ist projektlokal installiert und läuft mit deaktivierter Cloud-/Verlaufsfunktion ausschließlich auf `127.0.0.1:11434`. Qwen3.5 9B Q4_K_M wurde nach erfolgreicher SHA-256-Prüfung installiert (Ollama-ID `6488c96fa5fa`, 6,6 GB). Vor der Inferenz sind von 22 GiB RAM 19 GiB verfügbar und 8 GiB Swap vollständig frei; 138 GiB Plattenplatz bleiben frei. Qwen3.5 27B Q4_K_M benötigt bereits 17 GB Modellgewicht; GLM-4.7-Flash Q4_K_M 19 GB. Beide lassen auf diesem Rechner keine belastbare Laufzeit- und Renderreserve und werden deshalb nicht heruntergeladen. Quellen: https://ollama.com/library/qwen3.5/tags, https://ollama.com/library/glm-4.7-flash
 
 ## Ziel
 
@@ -119,10 +121,12 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 - 2026-09-16: Ollama 0.34.1 projektlokal gestartet; Bindung auf `127.0.0.1:11434`, `OLLAMA_NO_CLOUD=1`, `OLLAMA_NOHISTORY=1`, maximal ein geladenes Modell und ein paralleler Modellaufruf verifiziert.
 - 2026-09-16: Interner Compose-Betrieb ergänzt und mit `docker compose config --quiet` geprüft: kein veröffentlichter Ollama-Port, gepinntes Image, internes Modell-Init und gehärtete Containeroptionen.
 - 2026-09-16: 31/31 Python-Tests sowie Python-Compileall, JavaScript-Syntaxcheck, TypeScript-`tsc --noEmit` und `git diff --check` mit lokalem Ollama-Standard bestanden.
+- 2026-09-16: Qwen3.5 `qwen3.5:9b-q4_K_M` vollständig geladen und von Ollama per SHA-256 verifiziert; Modellliste meldet ID `6488c96fa5fa` und 6,6 GB. Socket erneut ausschließlich auf `127.0.0.1:11434` bestätigt; vor Inferenz 19 GiB RAM verfügbar und 0 Byte Swap belegt.
+- 2026-09-16: 32/32 Python-Tests bestanden. Ein zweiter gleichzeitiger Modellaufruf schlägt nun sofort verständlich fehl, statt die Anwendungsthreads hinter dem aktiven Lauf aufzustauen.
 
 ## Offene Probleme/Risiken
 
-- Der 6,6-GB-Modelldownload läuft noch. Erst danach sind gemessene CPU-Laufzeit, Spitzen-RAM, Swapfreiheit, Formatzuverlässigkeit und redaktionelle Qualität belastbar dokumentierbar.
+- CPU-Laufzeit, Spitzen-RAM, Swapfreiheit, Formatzuverlässigkeit und redaktionelle Qualität des installierten Modells werden im unmittelbar folgenden Drei-Lauf-Benchmark gemessen.
 - V1-Nutzdaten und bereits gerenderte Videos werden erhalten und nicht migriert oder gelöscht.
 - Die tatsächliche Medienstrategie pro Stil und mögliche generative Videokosten werden vor Aktivierung kostenpflichtiger Adapter konkret verglichen.
 - Die lokale Maschine (Intel i5-8400, 6 CPU-Kerne, 22 GiB RAM) besitzt aktuell keinen nutzbaren NVIDIA-Treiber. Hochwertige lokale Diffusions-/Videomodelle sind daher technisch nicht sinnvoll; generatives Video benötigt voraussichtlich einen externen Bezahladapter.
@@ -147,4 +151,4 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 
 ## Nächster konkreter Arbeitsschritt
 
-Den laufenden Download von `qwen3.5:9b-q4_K_M` abschließen. Danach exakt die zwei festgelegten deutschen 45-Sekunden-Skripte und den Änderungswunsch mit `scripts/benchmark_local_model.py` ausführen, Laufzeit/RAM/Swap/Schema und Inhalt bewerten und den besseren Entwurf dokumentieren. Anschließend den isolierten echten API-Ablauf Thema → Entwurf → Revision → hashgebundene Freigabe testen. Ein Video wird erst nach Nutzerfreigabe mit vorhandenem Testmaterial gerendert; Handyzugang bleibt zurückgestellt.
+Exakt die zwei festgelegten deutschen 45-Sekunden-Skripte und den Änderungswunsch mit `scripts/benchmark_local_model.py` ausführen, Laufzeit/RAM/Swap/Schema und Inhalt bewerten und den besseren Entwurf dokumentieren. Anschließend den isolierten echten API-Ablauf Thema → Entwurf → Revision → hashgebundene Freigabe testen. Ein Video wird erst nach Nutzerfreigabe mit vorhandenem Testmaterial gerendert; Handyzugang bleibt zurückgestellt.
