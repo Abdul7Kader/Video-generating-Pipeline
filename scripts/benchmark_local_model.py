@@ -80,11 +80,16 @@ def run_case(label: str, request: JobCreate, **kwargs: Any) -> dict[str, Any]:
     try:
         script = generate_script(request, **kwargs)
         elapsed = time.perf_counter() - started
+        error = None
+    except Exception as exc:
+        elapsed = time.perf_counter() - started
+        script = None
+        error = f"{type(exc).__name__}: {exc}"
     finally:
         stop.set()
         sampler.join(timeout=1)
     after = memory_snapshot()
-    return {
+    result = {
         "label": label,
         "request": request.model_dump(),
         "wall_seconds": round(elapsed, 3),
@@ -92,11 +97,16 @@ def run_case(label: str, request: JobCreate, **kwargs: Any) -> dict[str, Any]:
         "memory_after": after,
         "memory_peak": peak,
         "loaded_models": loaded_models(),
-        "format_valid": True,
-        "scene_count": len(script["scenes"]),
-        "narration_words": sum(len(scene["narration"].split()) for scene in script["scenes"]),
-        "script": script,
+        "format_valid": script is not None,
+        "error": error,
     }
+    if script is not None:
+        result.update({
+            "scene_count": len(script["scenes"]),
+            "narration_words": sum(len(scene["narration"].split()) for scene in script["scenes"]),
+            "script": script,
+        })
+    return result
 
 
 def main() -> None:
@@ -108,16 +118,22 @@ def main() -> None:
         run_case("moor-original", CASES[0]),
         run_case("schlaf-original", CASES[1]),
     ]
-    first_script = results[0]["script"]
-    results.append(run_case(
-        "moor-revision",
-        CASES[0],
-        previous=first_script,
-        instructions=(
-            "Ersetze die zweite Szene durch eine leicht verständliche Schwamm-Analogie. "
-            "Formuliere sachlich, kennzeichne überprüfungsbedürftige Zahlen und bewahre die übrigen starken Szenen."
-        ),
-    ))
+    if results[0]["format_valid"]:
+        results.append(run_case(
+            "moor-revision",
+            CASES[0],
+            previous=results[0]["script"],
+            instructions=(
+                "Ersetze die zweite Szene durch eine leicht verständliche Schwamm-Analogie. "
+                "Formuliere sachlich, kennzeichne überprüfungsbedürftige Zahlen und bewahre die übrigen starken Szenen."
+            ),
+        ))
+    else:
+        results.append({
+            "label": "moor-revision",
+            "format_valid": False,
+            "error": "Übersprungen, weil der Ausgangsentwurf ungültig war.",
+        })
     report = {
         "model": settings.ollama_model,
         "base_url": settings.ollama_base_url,
@@ -130,7 +146,12 @@ def main() -> None:
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps({
         "model": report["model"],
-        "cases": [{"label": item["label"], "seconds": item["wall_seconds"], "scenes": item["scene_count"]} for item in results],
+        "cases": [{
+            "label": item["label"],
+            "seconds": item.get("wall_seconds"),
+            "scenes": item.get("scene_count"),
+            "format_valid": item["format_valid"],
+        } for item in results],
         "output": str(args.output),
     }, ensure_ascii=False))
 
