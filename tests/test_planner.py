@@ -5,7 +5,14 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from backend.planner import ScriptProviderUnavailable, _prompt, generate_script, script_provider_status, unload_script_model
+from backend.planner import (
+    ScriptProviderUnavailable,
+    _OLLAMA_CALL_LOCK,
+    _prompt,
+    generate_script,
+    script_provider_status,
+    unload_script_model,
+)
 from backend.schemas import JobCreate
 
 
@@ -130,6 +137,16 @@ class PlannerTests(unittest.TestCase):
         with patch("backend.planner.settings", configured):
             with self.assertRaisesRegex(ScriptProviderUnavailable, "muss lokal"):
                 generate_script(REQUEST)
+
+    def test_second_ollama_call_fails_fast_so_application_stays_responsive(self):
+        configured = settings(script_provider="ollama")
+        _OLLAMA_CALL_LOCK.acquire()
+        try:
+            with patch("backend.planner.settings", configured):
+                with self.assertRaisesRegex(ScriptProviderUnavailable, "bereits ein Skript"):
+                    generate_script(REQUEST)
+        finally:
+            _OLLAMA_CALL_LOCK.release()
 
     def test_unload_is_best_effort_and_local_only(self):
         configured = settings(script_provider="ollama")

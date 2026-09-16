@@ -344,8 +344,14 @@ def generate_script(
                 "seed": 42,
             },
         }
-        with _OLLAMA_CALL_LOCK:
+        if not _OLLAMA_CALL_LOCK.acquire(blocking=False):
+            raise ScriptProviderUnavailable(
+                "Das lokale Modell erstellt bereits ein Skript. Bitte den laufenden Entwurf abwarten und dann erneut versuchen."
+            )
+        try:
             data = _post_ollama(payload)
+        finally:
+            _OLLAMA_CALL_LOCK.release()
         try:
             script = _extract_json(data["message"]["content"])
         except (KeyError, TypeError) as exc:
