@@ -1,6 +1,6 @@
 # Entwicklungsstatus – Video Pipeline V2
 
-Letzte Aktualisierung: 2026-09-15
+Letzte Aktualisierung: 2026-09-16
 
 ## Aktiver Auftrag: vollständig lokale Skripterstellung
 
@@ -11,7 +11,7 @@ Handyzugang und Cloud-Anbieter sind zurückgestellt. Der lokale Ausbau erfolgt i
 3. Den Gewinner ohne Cloud- oder Template-Fallback als begrenzten Ollama-Adapter integrieren: ein Modellaufruf gleichzeitig, begrenzter Kontext/Ausgabe, verständliche Fehler und Entladen vor dem Rendern.
 4. Echten lokalen API-Ablauf Thema → Entwurf → Revision → Freigabe testen; vollständigen Videoauftrag erst nach Nutzerfreigabe mit vorhandenem Material rendern.
 
-Aktueller Befund: Kein Ollama/llama.cpp vorhanden; 22 GiB RAM, rund 18 GiB aktuell verfügbar, 8 GiB unbenutzter Swap, 146 GiB freier Speicher und keine nutzbare GPU. Qwen3.5 9B Q4_K_M benötigt laut offizieller Ollama-Registry 6,6 GB und ist der Erstkandidat. Qwen3.5 27B Q4_K_M benötigt bereits 17 GB Modellgewicht; GLM-4.7-Flash Q4_K_M 19 GB. Beide lassen auf diesem Rechner keine belastbare Laufzeit- und Renderreserve und werden deshalb nicht vorsorglich heruntergeladen. Quellen: https://ollama.com/library/qwen3.5/tags, https://ollama.com/library/glm-4.7-flash
+Aktueller Befund: Ollama 0.34.1 ist projektlokal installiert und läuft mit deaktivierter Cloud-/Verlaufsfunktion ausschließlich auf `127.0.0.1:11434`. 22 GiB RAM, rund 18 GiB aktuell verfügbar, 8 GiB unbenutzter Swap und 146 GiB freier Speicher wurden vor dem Test gemessen. Qwen3.5 9B Q4_K_M (6,6 GB) wird als einziger Kandidat geladen. Qwen3.5 27B Q4_K_M benötigt bereits 17 GB Modellgewicht; GLM-4.7-Flash Q4_K_M 19 GB. Beide lassen auf diesem Rechner keine belastbare Laufzeit- und Renderreserve und werden deshalb nicht heruntergeladen. Quellen: https://ollama.com/library/qwen3.5/tags, https://ollama.com/library/glm-4.7-flash
 
 ## Ziel
 
@@ -47,7 +47,7 @@ Ergebnis: Ohne konfigurierten leistungsfähigen Anbieter wird kein generisches V
 
 Prüfung: Unit-Tests für Anbieterwahl, strukturiertes Ergebnis, Stilverzweigung, Revision und Fehler bei fehlender Konfiguration; bestehende Workflow-Tests bleiben grün.
 
-Status: **erledigt (Implementierung und kostenfreie Mock-/Workflowtests); Live-Modelltest wartet auf bewusst bereitgestellten Zugang**
+Status: **lokaler Adapter erledigt; Live-Benchmark läuft** – Qwen3.5 9B ist Standard, Fehler verwenden weder Textvorlagen noch Cloudmodelle. Der reale Modell-/API-Test folgt unmittelbar nach abgeschlossenem Modelldownload.
 
 ### 2. Versionsgebundener Produktionsplan
 
@@ -116,17 +116,21 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 - 2026-09-15: Etappe 5: 28/28 Tests bestanden. Geprüft sind gezielte Szenenänderung mit neuer Version, Ablehnung wirkungsloser Änderungen sowie Wiederverwendung unveränderter Stock- und Sprachsegmente ohne erneuten Anbieteraufruf.
 - 2026-09-15: Vollständiger Zwei-Szenen-Render mit getrennten Piper-Sprachsegmenten, neu zusammengesetzter Audiospur, Untertiteln und 9/9 Qualitätschecks bestanden. Die Testartefakte lagen ausschließlich unter `/tmp`.
 - 2026-09-15: Python-Compileall, JavaScript-Syntaxcheck, TypeScript-`tsc --noEmit` und `git diff --check` nach Etappe 5 bestanden.
+- 2026-09-16: Ollama 0.34.1 projektlokal gestartet; Bindung auf `127.0.0.1:11434`, `OLLAMA_NO_CLOUD=1`, `OLLAMA_NOHISTORY=1`, maximal ein geladenes Modell und ein paralleler Modellaufruf verifiziert.
+- 2026-09-16: Interner Compose-Betrieb ergänzt und mit `docker compose config --quiet` geprüft: kein veröffentlichter Ollama-Port, gepinntes Image, internes Modell-Init und gehärtete Containeroptionen.
+- 2026-09-16: 31/31 Python-Tests sowie Python-Compileall, JavaScript-Syntaxcheck, TypeScript-`tsc --noEmit` und `git diff --check` mit lokalem Ollama-Standard bestanden.
 
 ## Offene Probleme/Risiken
 
-- Noch kein KI-Schlüssel im Projekt konfiguriert; Live-Qualität kann daher erst nach einer bewussten Anbieter-/Datenschutzentscheidung geprüft werden. Tests verwenden keine externen Kosten.
+- Der 6,6-GB-Modelldownload läuft noch. Erst danach sind gemessene CPU-Laufzeit, Spitzen-RAM, Swapfreiheit, Formatzuverlässigkeit und redaktionelle Qualität belastbar dokumentierbar.
 - V1-Nutzdaten und bereits gerenderte Videos werden erhalten und nicht migriert oder gelöscht.
 - Die tatsächliche Medienstrategie pro Stil und mögliche generative Videokosten werden vor Aktivierung kostenpflichtiger Adapter konkret verglichen.
 - Die lokale Maschine (Intel i5-8400, 6 CPU-Kerne, 22 GiB RAM) besitzt aktuell keinen nutzbaren NVIDIA-Treiber. Hochwertige lokale Diffusions-/Videomodelle sind daher technisch nicht sinnvoll; generatives Video benötigt voraussichtlich einen externen Bezahladapter.
 
 ## Erledigter Zwischenstand
 
-- Standard ist jetzt `SCRIPT_PROVIDER=auto`; ohne bewusst konfigurierten Schlüssel entsteht kein Schein-Skript.
+- Standard ist jetzt `SCRIPT_PROVIDER=ollama` mit `qwen3.5:9b-q4_K_M`; ohne erreichbares lokales Modell entsteht kein Schein-Skript.
+- Der Ollama-Adapter erzwingt strukturiertes JSON, begrenzt Kontext und Ausgabe, serialisiert Modellaufrufe und entlädt das Modell vor einem Render. Nicht-lokale Ollama-Adressen werden abgewiesen.
 - Aktuelle strukturierte Gemini-`interactions`-Integration, OpenAI-kompatibler Adapter und expliziter OpenRouter-Adapter sind vorhanden.
 - Visuelle Regie ist je Stil getrennt und umfasst realen Medientyp, sichtbare Einstellung, Asset-Prompt, Kamera, bewusste Texteinblendung und Übergang.
 - KI-Änderungswünsche erzeugen eine neue Version; Modell/Anbieter und Hinweise zur Faktenprüfung werden gespeichert und angezeigt.
@@ -143,4 +147,4 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 
 ## Nächster konkreter Arbeitsschritt
 
-Etappe 6 benötigt die vereinbarte Nutzerentscheidung zum privaten Handyzugang, bevor ein Dienst erreichbar gemacht wird. Empfohlen ist Tailscale mit eigener Benutzer-/Gerätefreigabe, weil die Anwendung dabei nicht öffentlich ins Internet gestellt werden muss. Alternative: Cloudflare Access mit öffentlicher URL hinter Identitätsprüfung. Parallel bleiben für echte Qualitätsbewertung ein bewusst bereitgestellter KI-Schlüssel und für Stockmaterial ein kostenloser Pexels-Schlüssel offen.
+Den laufenden Download von `qwen3.5:9b-q4_K_M` abschließen. Danach exakt die zwei festgelegten deutschen 45-Sekunden-Skripte und den Änderungswunsch mit `scripts/benchmark_local_model.py` ausführen, Laufzeit/RAM/Swap/Schema und Inhalt bewerten und den besseren Entwurf dokumentieren. Anschließend den isolierten echten API-Ablauf Thema → Entwurf → Revision → hashgebundene Freigabe testen. Ein Video wird erst nach Nutzerfreigabe mit vorhandenem Testmaterial gerendert; Handyzugang bleibt zurückgestellt.

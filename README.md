@@ -9,11 +9,18 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-Danach ist die Oberfläche ausschließlich lokal unter <http://127.0.0.1:8080> erreichbar. Beim ersten Start wird das Piper-Stimmenmodell `de_DE-thorsten-high` in das Docker-Volume geladen. Falls der Download vorübergehend nicht klappt, erzeugt die Pipeline ein prüfbares Video mit stummer Ersatzspur und weist in der Oberfläche darauf hin.
+Danach ist die Oberfläche ausschließlich lokal unter <http://127.0.0.1:8080> erreichbar. Compose startet Ollama nur im internen Containernetz und lädt beim ersten Start `qwen3.5:9b-q4_K_M` in ein lokales Volume. Das Piper-Stimmenmodell liegt ebenfalls lokal. Fehlende Modelle oder Stimmen brechen den Auftrag verständlich ab; stumme oder generische Ersatzresultate gelten nicht als Erfolg.
 
 Auf diesem Rechner liegt zusätzlich eine verifizierte projektlokale Testlaufzeit unter `.runtime`. Solange Docker wegen fehlender Socket-Berechtigung noch nicht nutzbar ist, startet die bereits installierte Fassung so im Vordergrund:
 
 ```bash
+# Terminal 1
+./scripts/ollama_local.sh serve
+
+# einmalig in Terminal 2
+./scripts/ollama_local.sh pull qwen3.5:9b-q4_K_M
+
+# anschließend in Terminal 2
 ./scripts/run_local.sh
 ```
 
@@ -29,9 +36,21 @@ Auf diesem Rechner liegt zusätzlich eine verifizierte projektlokale Testlaufzei
 
 ## KI-Skripterstellung
 
-Die Pipeline erzeugt absichtlich **kein** allgemeines Vorlagenskript mehr. Ohne bewusst konfigurierten KI-Anbieter antwortet die Auftragserstellung mit einer klaren Konfigurationsmeldung. `SCRIPT_PROVIDER=auto` nutzt nur einen tatsächlich vorhandenen Schlüssel (Reihenfolge: Gemini, OpenAI, OpenRouter).
+Die Pipeline erzeugt absichtlich **kein** allgemeines Vorlagenskript mehr. Standard ist die vollständig lokale Erzeugung mit Ollama und `qwen3.5:9b-q4_K_M`. Ollama lauscht beim projektlokalen Start nur auf `127.0.0.1`; in Compose besitzt der Dienst keinen veröffentlichten Port. Cloud-Funktionen und Verlauf sind deaktiviert.
 
-Kostenbewusster Einstieg mit begrenztem Gemini-Free-Tier:
+```dotenv
+SCRIPT_PROVIDER=ollama
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=qwen3.5:9b-q4_K_M
+OLLAMA_NUM_CTX=8192
+OLLAMA_NUM_PREDICT=3072
+```
+
+Das lokale Modell bearbeitet höchstens eine Skripterstellung gleichzeitig. Vor einem aufwendigen Render wird es aus dem Arbeitsspeicher entladen. Ist Ollama nicht erreichbar, liefert die Oberfläche einen verständlichen Fehler; es gibt weder einen Vorlagen- noch einen Cloud-Ersatzpfad.
+
+Die vorhandenen Cloudadapter bleiben ausschließlich für eine spätere ausdrücklich gewählte Konfiguration erhalten. Sie werden nicht automatisch verwendet.
+
+Beispiel für eine ausdrückliche spätere Cloud-Auswahl:
 
 ```dotenv
 SCRIPT_PROVIDER=gemini
@@ -53,7 +72,7 @@ OPENROUTER_API_KEY=...
 OPENROUTER_MODEL=anbieter/modell
 ```
 
-Schlüssel gehören nur in `.env`; die Datei wird nicht versioniert. Ein ChatGPT-/Codex-Abo umfasst keine OpenAI-API-Nutzung. Beim Gemini-Free-Tier ist außerdem zu beachten, dass übermittelte Inhalte laut Anbieter zur Produktverbesserung verwendet werden können.
+Schlüssel gehören nur in `.env`; die Datei wird nicht versioniert. Ein ChatGPT-/Codex-Abo umfasst keine OpenAI-API-Nutzung. Beim Gemini-Free-Tier ist außerdem zu beachten, dass übermittelte Inhalte laut Anbieter zur Produktverbesserung verwendet werden können. Diese Cloudwege sind im lokalen Standard vollständig unbeteiligt.
 
 Der KI-Entwurf enthält neben dem Sprechertext einen konkreten Produktionsplan pro Szene (visueller Medientyp, sichtbare Einstellung, Asset-Prompt, Kamera, bewusste Texteinblendung und Übergang). Über das Feld „Änderungswunsch an die KI“ entsteht eine neue Skriptversion; alte Freigaben werden dabei ungültig.
 
