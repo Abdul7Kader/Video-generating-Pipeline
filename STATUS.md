@@ -11,7 +11,7 @@ Handyzugang und Cloud-Anbieter sind zurückgestellt. Der lokale Ausbau erfolgt i
 3. Den Gewinner ohne Cloud- oder Template-Fallback als begrenzten Ollama-Adapter integrieren: ein Modellaufruf gleichzeitig, begrenzter Kontext/Ausgabe, verständliche Fehler und Entladen vor dem Rendern.
 4. Echten lokalen API-Ablauf Thema → Entwurf → Revision → Freigabe testen; vollständigen Videoauftrag erst nach Nutzerfreigabe mit vorhandenem Material rendern.
 
-Etappenstatus: **1 abgeschlossen**, **2 als Nächstes**, Adapter aus Etappe 3 bereits implementiert und testgedeckt, Etappe 4 wartet auf den realen Benchmark.
+Etappenstatus: **1 abgeschlossen**, **2 in Arbeit**, Adapter aus Etappe 3 bereits implementiert und testgedeckt, Etappe 4 wartet auf den bestandenen realen Benchmark.
 
 Aktueller Befund: Ollama 0.34.1 ist projektlokal installiert und läuft mit deaktivierter Cloud-/Verlaufsfunktion ausschließlich auf `127.0.0.1:11434`. Qwen3.5 9B Q4_K_M wurde nach erfolgreicher SHA-256-Prüfung installiert (Ollama-ID `6488c96fa5fa`, 6,6 GB). Vor der Inferenz sind von 22 GiB RAM 19 GiB verfügbar und 8 GiB Swap vollständig frei; 138 GiB Plattenplatz bleiben frei. Qwen3.5 27B Q4_K_M benötigt bereits 17 GB Modellgewicht; GLM-4.7-Flash Q4_K_M 19 GB. Beide lassen auf diesem Rechner keine belastbare Laufzeit- und Renderreserve und werden deshalb nicht heruntergeladen. Quellen: https://ollama.com/library/qwen3.5/tags, https://ollama.com/library/glm-4.7-flash
 
@@ -123,10 +123,12 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 - 2026-09-16: 31/31 Python-Tests sowie Python-Compileall, JavaScript-Syntaxcheck, TypeScript-`tsc --noEmit` und `git diff --check` mit lokalem Ollama-Standard bestanden.
 - 2026-09-16: Qwen3.5 `qwen3.5:9b-q4_K_M` vollständig geladen und von Ollama per SHA-256 verifiziert; Modellliste meldet ID `6488c96fa5fa` und 6,6 GB. Socket erneut ausschließlich auf `127.0.0.1:11434` bestätigt; vor Inferenz 19 GiB RAM verfügbar und 0 Byte Swap belegt.
 - 2026-09-16: 32/32 Python-Tests bestanden. Ein zweiter gleichzeitiger Modellaufruf schlägt nun sofort verständlich fehl, statt die Anwendungsthreads hinter dem aktiven Lauf aufzustauen.
+- 2026-09-16: Erster realer Benchmarkversuch korrekt als fehlgeschlagen gewertet: Moor 470,705 s und Schlaf 451,000 s, beide Antworten wegen `accent="de_DE"` beziehungsweise `accent="de"` in allen Szenen nicht schema-valide; Revision daher nicht vorgetäuscht, sondern übersprungen. Spitzenreserve mindestens 12,66 GiB verfügbarer RAM, Swap stets 0 Byte. Rohmessung: `benchmarks/qwen3.5-9b-q4_K_M-attempt1-invalid.json`.
+- 2026-09-16: Ursache des Formatfehlers behoben: Das an Ollama übermittelte JSON-Schema erzwingt für `accent` nun eine feste Hex-Farbpalette; der Prompt grenzt das Feld zusätzlich ausdrücklich gegen Sprache/Locale ab. Zugehöriger Adaptertest bestanden.
 
 ## Offene Probleme/Risiken
 
-- CPU-Laufzeit, Spitzen-RAM, Swapfreiheit, Formatzuverlässigkeit und redaktionelle Qualität des installierten Modells werden im unmittelbar folgenden Drei-Lauf-Benchmark gemessen.
+- Die CPU-Laufzeit liegt im ersten Versuch bei etwa 7,5–7,8 Minuten je Entwurf und die Speicherreserve ist gut; der technische Formatfehler ist behoben. Formatzuverlässigkeit und redaktionelle Qualität müssen nun im vollständigen Wiederholungslauf belegt werden.
 - V1-Nutzdaten und bereits gerenderte Videos werden erhalten und nicht migriert oder gelöscht.
 - Die tatsächliche Medienstrategie pro Stil und mögliche generative Videokosten werden vor Aktivierung kostenpflichtiger Adapter konkret verglichen.
 - Die lokale Maschine (Intel i5-8400, 6 CPU-Kerne, 22 GiB RAM) besitzt aktuell keinen nutzbaren NVIDIA-Treiber. Hochwertige lokale Diffusions-/Videomodelle sind daher technisch nicht sinnvoll; generatives Video benötigt voraussichtlich einen externen Bezahladapter.
@@ -151,4 +153,4 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 
 ## Nächster konkreter Arbeitsschritt
 
-Exakt die zwei festgelegten deutschen 45-Sekunden-Skripte und den Änderungswunsch mit `scripts/benchmark_local_model.py` ausführen, Laufzeit/RAM/Swap/Schema und Inhalt bewerten und den besseren Entwurf dokumentieren. Anschließend den isolierten echten API-Ablauf Thema → Entwurf → Revision → hashgebundene Freigabe testen. Ein Video wird erst nach Nutzerfreigabe mit vorhandenem Testmaterial gerendert; Handyzugang bleibt zurückgestellt.
+Den vollständigen Drei-Lauf-Benchmark nach der `accent`-Schemahärtung wiederholen. Nur bei drei schema-validen Ergebnissen Laufzeit/RAM/Swap und Inhalt bewerten und den besseren Entwurf dokumentieren. Anschließend den isolierten echten API-Ablauf Thema → Entwurf → Revision → hashgebundene Freigabe testen. Ein Video wird erst nach Nutzerfreigabe mit vorhandenem Testmaterial gerendert; Handyzugang bleibt zurückgestellt.

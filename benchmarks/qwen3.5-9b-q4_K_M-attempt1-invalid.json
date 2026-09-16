@@ -1,0 +1,133 @@
+{
+  "model": "qwen3.5:9b-q4_K_M",
+  "base_url": "http://127.0.0.1:11434",
+  "num_ctx": 8192,
+  "num_predict": 3072,
+  "keep_alive": "5m",
+  "runtime": {
+    "ollama_version": "0.34.1",
+    "model_digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+    "model_size_bytes": 6594474711,
+    "model_details": {
+      "parent_model": "",
+      "format": "gguf",
+      "family": "qwen35",
+      "families": [
+        "qwen35"
+      ],
+      "parameter_size": "9.7B",
+      "quantization_level": "Q4_K_M",
+      "context_length": 262144,
+      "embedding_length": 4096
+    }
+  },
+  "results": [
+    {
+      "label": "moor-original",
+      "request": {
+        "topic": "Warum wiedervernässte Moore das Klima schützen",
+        "language": "de",
+        "duration_seconds": 45,
+        "aspect_ratio": "16:9",
+        "video_type": "explainer",
+        "target_platform": "download"
+      },
+      "wall_seconds": 470.705,
+      "memory_before": {
+        "MemAvailable": 21218115584,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589930496,
+        "SwapUsed": 0
+      },
+      "memory_after": {
+        "MemAvailable": 13590667264,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589930496,
+        "SwapUsed": 0
+      },
+      "memory_peak": {
+        "min_mem_available_bytes": 13590396928,
+        "max_swap_used_bytes": 0
+      },
+      "loaded_models": [
+        {
+          "name": "qwen3.5:9b-q4_K_M",
+          "model": "qwen3.5:9b-q4_K_M",
+          "size": 6254535637,
+          "digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen35",
+            "families": [
+              "qwen35"
+            ],
+            "parameter_size": "9.7B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-16T10:55:16.201793977+02:00",
+          "size_vram": 119936122,
+          "context_length": 8192
+        }
+      ],
+      "format_valid": false,
+      "error": "ValueError: Ungültiges strukturiertes Skript: 4 validation errors for ScriptDraft\nscenes.0.accent\n  String should match pattern '^#[0-9a-fA-F]{6}$' [type=string_pattern_mismatch, input_value='de_DE', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_pattern_mismatch\nscenes.1.accent\n  String should match pattern '^#[0-9a-fA-F]{6}$' [type=string_pattern_mismatch, input_value='de_DE', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_pattern_mismatch\nscenes.2.accent\n  String should match pattern '^#[0-9a-fA-F]{6}$' [type=string_pattern_mismatch, input_value='de_DE', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_pattern_mismatch\nscenes.3.accent\n  String should match pattern '^#[0-9a-fA-F]{6}$' [type=string_pattern_mismatch, input_value='de_DE', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_pattern_mismatch"
+    },
+    {
+      "label": "schlaf-original",
+      "request": {
+        "topic": "Wie Schlaf neue Erinnerungen festigt",
+        "language": "de",
+        "duration_seconds": 45,
+        "aspect_ratio": "9:16",
+        "video_type": "social",
+        "target_platform": "download"
+      },
+      "wall_seconds": 451.0,
+      "memory_before": {
+        "MemAvailable": 13590667264,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589930496,
+        "SwapUsed": 0
+      },
+      "memory_after": {
+        "MemAvailable": 13396512768,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589930496,
+        "SwapUsed": 0
+      },
+      "memory_peak": {
+        "min_mem_available_bytes": 13352898560,
+        "max_swap_used_bytes": 0
+      },
+      "loaded_models": [
+        {
+          "name": "qwen3.5:9b-q4_K_M",
+          "model": "qwen3.5:9b-q4_K_M",
+          "size": 6254535637,
+          "digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen35",
+            "families": [
+              "qwen35"
+            ],
+            "parameter_size": "9.7B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-16T11:02:47.20349527+02:00",
+          "size_vram": 119936122,
+          "context_length": 8192
+        }
+      ],
+      "format_valid": false,
+      "error": "ValueError: Ungültiges strukturiertes Skript: 4 validation errors for ScriptDraft\nscenes.0.accent\n  String should match pattern '^#[0-9a-fA-F]{6}$' [type=string_pattern_mismatch, input_value='de', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_pattern_mismatch\nscenes.1.accent\n  String should match pattern '^#[0-9a-fA-F]{6}$' [type=string_pattern_mismatch, input_value='de', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_pattern_mismatch\nscenes.2.accent\n  String should match pattern '^#[0-9a-fA-F]{6}$' [type=string_pattern_mismatch, input_value='de', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_pattern_mismatch\nscenes.3.accent\n  String should match pattern '^#[0-9a-fA-F]{6}$' [type=string_pattern_mismatch, input_value='de', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/string_pattern_mismatch"
+    },
+    {
+      "label": "moor-revision",
+      "format_valid": false,
+      "error": "Übersprungen, weil der Ausgangsentwurf ungültig war."
+    }
+  ]
+}

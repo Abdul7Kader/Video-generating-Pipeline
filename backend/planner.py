@@ -66,7 +66,11 @@ def _response_schema() -> dict[str, Any]:
         "transition": {"type": "string", "enum": ["cut", "dissolve", "wipe", "zoom", "match_cut", "none"]},
         "duration_seconds": {"type": "number", "minimum": 0.1, "maximum": 180},
         "action": {"type": "string", "enum": ["intro", "stand", "walk", "point", "think", "explain", "celebrate", "outro"]},
-        "accent": {"type": "string", "description": "A six-digit hexadecimal accent color such as #38bdf8."},
+        "accent": {
+            "type": "string",
+            "enum": ACCENTS,
+            "description": "Choose exactly one hexadecimal accent color from this production palette.",
+        },
     }
     return {
         "type": "object",
@@ -201,6 +205,7 @@ Editorial requirements
 - For stock_image or stock_video, set asset_query to two to eight concrete English search terms. Do not put camera instructions into the search query.
 - Make adjacent shots visually distinct while maintaining continuity of people, places, era, palette and art direction.
 - asset_prompt must be directly usable for image/video generation or asset search and must not ask the image model to draw words.
+- Choose accent only from the hexadecimal colors allowed by the response schema; accent never means a language or locale.
 - Use generated_video sparingly where visible motion matters; prefer generated_image with camera movement for controllable shots.
 - For factual/current topics, avoid unsupported certainty and list every claim needing verification in fact_check_notes.
 {revision_block}"""

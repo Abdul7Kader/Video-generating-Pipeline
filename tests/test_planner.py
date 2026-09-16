@@ -126,6 +126,8 @@ class PlannerTests(unittest.TestCase):
         payload = post.call_args.args[0]
         self.assertEqual(payload["model"], "qwen3.5:9b-q4_K_M")
         self.assertEqual(payload["format"]["type"], "object")
+        accent_schema = payload["format"]["properties"]["scenes"]["items"]["properties"]["accent"]
+        self.assertEqual(accent_schema["enum"], ["#ff6b4a", "#38bdf8", "#a78bfa", "#34d399", "#fbbf24", "#fb7185"])
         self.assertEqual(payload["options"]["num_ctx"], 8192)
         self.assertEqual(payload["options"]["num_predict"], 3072)
         self.assertFalse(payload["think"])
