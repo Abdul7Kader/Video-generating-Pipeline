@@ -9,7 +9,7 @@ import urllib.request
 from typing import Any
 
 from .config import settings
-from .plan import finalize_scene_plan
+from .plan import SOURCE_BY_VISUAL_TYPE, finalize_scene_plan
 from .schemas import JobCreate, ScriptDraft
 
 
@@ -51,18 +51,16 @@ STYLE_DIRECTIONS = {
 def _response_schema() -> dict[str, Any]:
     scene_properties: dict[str, Any] = {
         "scene_id": {"type": "string", "description": "Stable id such as scene-a1b2c3; preserve it when revising the same scene."},
-        "narration": {"type": "string", "description": "Only the naturally spoken voice-over for this scene."},
-        "visual": {"type": "string", "description": "A concrete description of what is visibly on screen."},
+        "narration": {"type": "string", "minLength": 2, "maxLength": 400, "description": "Only the naturally spoken voice-over for this scene."},
+        "visual": {"type": "string", "minLength": 10, "maxLength": 280, "description": "A natural-language description of what is visibly on screen, never a media-type enum."},
         "visual_type": {
             "type": "string",
             "enum": ["stickman", "generated_image", "generated_video", "stock_image", "stock_video", "motion_graphics", "talking_head", "waveform"],
         },
-        "source_strategy": {"type": "string", "enum": ["generate", "stock", "provided", "procedural", "recorded"]},
-        "source_ref": {"type": "string", "description": "Provided/local source reference, or empty until production resolves the asset."},
-        "asset_query": {"type": "string", "description": "Two to eight concrete English search terms for a stock library, or empty if not stock."},
-        "asset_prompt": {"type": "string", "description": "Standalone prompt or search brief used to obtain the visual asset; no captions."},
-        "on_screen_text": {"type": "string", "description": "Exact short text intentionally shown on screen, or an empty string."},
-        "camera": {"type": "string", "description": "Framing and camera or graphic movement."},
+        "asset_query": {"type": "string", "maxLength": 120, "description": "Two to eight concrete English search terms for a stock library, or empty if not stock."},
+        "asset_prompt": {"type": "string", "minLength": 10, "maxLength": 500, "description": "Concise standalone prompt or search brief used to obtain the visual asset; no captions."},
+        "on_screen_text": {"type": "string", "maxLength": 80, "description": "Exact short text intentionally shown on screen, or an empty string."},
+        "camera": {"type": "string", "maxLength": 120, "description": "Concise framing and camera or graphic movement."},
         "transition": {"type": "string", "enum": ["cut", "dissolve", "wipe", "zoom", "match_cut", "none"]},
         "duration_seconds": {"type": "number", "minimum": 0.1, "maximum": 180},
         "action": {"type": "string", "enum": ["intro", "stand", "walk", "point", "think", "explain", "celebrate", "outro"]},
@@ -76,13 +74,14 @@ def _response_schema() -> dict[str, Any]:
         "type": "object",
         "additionalProperties": False,
         "properties": {
-            "title": {"type": "string"},
-            "description": {"type": "string"},
-            "audience": {"type": "string"},
-            "tone": {"type": "string"},
+            "title": {"type": "string", "minLength": 2, "maxLength": 100},
+            "description": {"type": "string", "maxLength": 280},
+            "audience": {"type": "string", "minLength": 2, "maxLength": 120},
+            "tone": {"type": "string", "minLength": 2, "maxLength": 120},
             "fact_check_notes": {
                 "type": "array",
-                "items": {"type": "string"},
+                "items": {"type": "string", "maxLength": 240},
+                "maxItems": 6,
                 "description": "Claims that need a current source check; empty for timeless/non-factual content.",
             },
             "scenes": {
@@ -197,11 +196,15 @@ Style direction
 Editorial requirements
 - Start with a subject-specific hook, then build a coherent argument or story with a satisfying conclusion.
 - Prefer precise examples, causal explanations and concrete takeaways over generic advice.
+- Without supplied sources, avoid exact numbers, rankings, superlatives and claims of certainty. State only robust high-level mechanisms, and quote every claim needing verification precisely in fact_check_notes.
+- An analogy may clarify one aspect but must never pretend to reproduce the scientific mechanism. Explain where necessary what the analogy does and does not mean.
 - Narration must sound natural when spoken aloud; do not include headings, stage directions or citation markers in narration.
+- Do not add a commercial, political or donation call to action unless the brief explicitly asks for one.
 - Keep deliberate on-screen text short. Never copy the visual instruction or full narration into on_screen_text.
+- Keep each visual under 20 words, each asset_prompt under 35 words and each camera instruction under 10 words. Be concrete, not verbose.
+- visual is a natural-language description of the visible shot. It must never contain only a value such as generated_image or stock_video.
 - Assign a stable scene_id to every scene. When revising, preserve the id if the scene's purpose remains; create a new id for a replacement scene.
 - Set duration_seconds per scene so their sum is the target duration. Match time to spoken length and visual complexity.
-- Choose source_strategy deliberately: generate, stock, provided, recorded or procedural. Leave source_ref empty unless the brief supplied a real source.
 - For stock_image or stock_video, set asset_query to two to eight concrete English search terms. Do not put camera instructions into the search query.
 - Make adjacent shots visually distinct while maintaining continuity of people, places, era, palette and art direction.
 - asset_prompt must be directly usable for image/video generation or asset search and must not ask the image model to draw words.
@@ -217,6 +220,16 @@ def _extract_json(text: str) -> dict[str, Any]:
         raise ValueError("Das Modell hat kein JSON-Objekt geliefert")
     try:
         raw = json.loads(match.group(0))
+        for scene in raw.get("scenes", []):
+            visual_type = scene.get("visual_type")
+            scene["source_strategy"] = SOURCE_BY_VISUAL_TYPE.get(visual_type)
+            scene["source_ref"] = ""
+            if str(scene.get("visual", "")).strip() in SOURCE_BY_VISUAL_TYPE:
+                scene["visual"] = scene.get("asset_prompt", "")
+            if visual_type not in {"stock_image", "stock_video"}:
+                scene["asset_query"] = ""
+            elif not str(scene.get("asset_query", "")).strip():
+                raise ValueError("Stock-Szene enthält keinen konkreten Suchbegriff")
         draft = ScriptDraft.model_validate(raw)
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
         raise ValueError(f"Ungültiges strukturiertes Skript: {exc}") from exc

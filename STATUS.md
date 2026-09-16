@@ -125,10 +125,12 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 - 2026-09-16: 32/32 Python-Tests bestanden. Ein zweiter gleichzeitiger Modellaufruf schlägt nun sofort verständlich fehl, statt die Anwendungsthreads hinter dem aktiven Lauf aufzustauen.
 - 2026-09-16: Erster realer Benchmarkversuch korrekt als fehlgeschlagen gewertet: Moor 470,705 s und Schlaf 451,000 s, beide Antworten wegen `accent="de_DE"` beziehungsweise `accent="de"` in allen Szenen nicht schema-valide; Revision daher nicht vorgetäuscht, sondern übersprungen. Spitzenreserve mindestens 12,66 GiB verfügbarer RAM, Swap stets 0 Byte. Rohmessung: `benchmarks/qwen3.5-9b-q4_K_M-attempt1-invalid.json`.
 - 2026-09-16: Ursache des Formatfehlers behoben: Das an Ollama übermittelte JSON-Schema erzwingt für `accent` nun eine feste Hex-Farbpalette; der Prompt grenzt das Feld zusätzlich ausdrücklich gegen Sprache/Locale ab. Zugehöriger Adaptertest bestanden.
+- 2026-09-16: Zweiter realer Benchmark: Moor-Entwurf schema-valide in 419,200 s, Schlaf-Entwurf nach 600,101 s am bisherigen Timeout abgebrochen, Moor-Revision schema-valide in 475,022 s. Revision bewahrte Szenen-IDs und nicht adressierte Szenen, setzte die Schwamm-Analogie aber wissenschaftlich zu wörtlich um. Messung: `benchmarks/qwen3.5-9b-q4_K_M-attempt2-timeout.json`.
+- 2026-09-16: Daraufhin Ausgabe gezielt gestrafft und gehärtet: technische Quellenfelder werden deterministisch aus dem Medientyp abgeleitet, Beschreibungen besitzen Schema-Längenlimits, `visual` darf kein bloßer Enumwert sein, Fakt-/Analogie-/CTA-Regeln wurden verschärft. Ausgabelimit sinkt von 3072 auf 2048 Tokens; CPU-Zeitlimit steigt moderat von 600 auf 720 s. 32/32 Tests sowie Compileall und `git diff --check` bestanden.
 
 ## Offene Probleme/Risiken
 
-- Die CPU-Laufzeit liegt im ersten Versuch bei etwa 7,5–7,8 Minuten je Entwurf und die Speicherreserve ist gut; der technische Formatfehler ist behoben. Formatzuverlässigkeit und redaktionelle Qualität müssen nun im vollständigen Wiederholungslauf belegt werden.
+- Die CPU-Laufzeit liegt bei etwa 7–10 Minuten je Entwurf und die Speicherreserve ist gut. Ein Lauf überschritt das alte 600-s-Limit; außerdem waren die ersten validen Moor-Texte fachlich zu pauschal. Formatzuverlässigkeit und verbesserte redaktionelle Qualität müssen deshalb mit den gestrafften Grenzen erneut belegt werden.
 - V1-Nutzdaten und bereits gerenderte Videos werden erhalten und nicht migriert oder gelöscht.
 - Die tatsächliche Medienstrategie pro Stil und mögliche generative Videokosten werden vor Aktivierung kostenpflichtiger Adapter konkret verglichen.
 - Die lokale Maschine (Intel i5-8400, 6 CPU-Kerne, 22 GiB RAM) besitzt aktuell keinen nutzbaren NVIDIA-Treiber. Hochwertige lokale Diffusions-/Videomodelle sind daher technisch nicht sinnvoll; generatives Video benötigt voraussichtlich einen externen Bezahladapter.
@@ -153,4 +155,4 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 
 ## Nächster konkreter Arbeitsschritt
 
-Den vollständigen Drei-Lauf-Benchmark nach der `accent`-Schemahärtung wiederholen. Nur bei drei schema-validen Ergebnissen Laufzeit/RAM/Swap und Inhalt bewerten und den besseren Entwurf dokumentieren. Anschließend den isolierten echten API-Ablauf Thema → Entwurf → Revision → hashgebundene Freigabe testen. Ein Video wird erst nach Nutzerfreigabe mit vorhandenem Testmaterial gerendert; Handyzugang bleibt zurückgestellt.
+Den vollständigen Drei-Lauf-Benchmark mit gestrafftem Schema, 2048 Ausgabetokens und 720-s-CPU-Limit wiederholen. Nur bei drei schema-validen und fachlich vertretbaren Ergebnissen Laufzeit/RAM/Swap und Inhalt abschließend bewerten und den besseren Entwurf dokumentieren. Anschließend den isolierten echten API-Ablauf Thema → Entwurf → Revision → hashgebundene Freigabe testen. Ein Video wird erst nach Nutzerfreigabe mit vorhandenem Testmaterial gerendert; Handyzugang bleibt zurückgestellt.

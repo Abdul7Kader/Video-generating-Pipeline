@@ -1,0 +1,363 @@
+{
+  "model": "qwen3.5:9b-q4_K_M",
+  "base_url": "http://127.0.0.1:11434",
+  "num_ctx": 8192,
+  "num_predict": 3072,
+  "keep_alive": "5m",
+  "runtime": {
+    "ollama_version": "0.34.1",
+    "model_digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+    "model_size_bytes": 6594474711,
+    "model_details": {
+      "parent_model": "",
+      "format": "gguf",
+      "family": "qwen35",
+      "families": [
+        "qwen35"
+      ],
+      "parameter_size": "9.7B",
+      "quantization_level": "Q4_K_M",
+      "context_length": 262144,
+      "embedding_length": 4096
+    }
+  },
+  "results": [
+    {
+      "label": "moor-original",
+      "request": {
+        "topic": "Warum wiedervernässte Moore das Klima schützen",
+        "language": "de",
+        "duration_seconds": 45,
+        "aspect_ratio": "16:9",
+        "video_type": "explainer",
+        "target_platform": "download"
+      },
+      "wall_seconds": 419.2,
+      "memory_before": {
+        "MemAvailable": 13343567872,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589930496,
+        "SwapUsed": 0
+      },
+      "memory_after": {
+        "MemAvailable": 13323014144,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589930496,
+        "SwapUsed": 0
+      },
+      "memory_peak": {
+        "min_mem_available_bytes": 13274886144,
+        "max_swap_used_bytes": 0
+      },
+      "loaded_models": [
+        {
+          "name": "qwen3.5:9b-q4_K_M",
+          "model": "qwen3.5:9b-q4_K_M",
+          "size": 6254535637,
+          "digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen35",
+            "families": [
+              "qwen35"
+            ],
+            "parameter_size": "9.7B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-16T11:10:58.556281866+02:00",
+          "size_vram": 119936122,
+          "context_length": 8192
+        }
+      ],
+      "format_valid": true,
+      "error": null,
+      "scene_count": 4,
+      "narration_words": 64,
+      "script": {
+        "title": "Wiedervernässte Moore: Der stille Klimaheld",
+        "description": "Eine visuelle Erklärung über die Rolle von wiedervernässten Mooren im Klimaschutz.",
+        "scenes": [
+          {
+            "scene_id": "scene-7ca42cef47d6",
+            "narration": "Moore sind die größten Kohlenstoffspeicher der Welt. Doch wenn sie trocknen, wird dieser Schatz zur Bombe.",
+            "visual": "generated_image",
+            "visual_type": "stock_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "aerial view of drained brown peat bog with dry cracked earth and sparse vegetation",
+            "asset_prompt": "Aerial drone shot of a vast, flat landscape covered in dark brown dried peat soil. The ground is deeply cracked like a dried riverbed. Sparse, yellowed grasses stand alone. Overcast grey sky, muted earth tones, high resolution, photorealistic.",
+            "on_screen_text": "Kohlenstoffspeicher",
+            "camera": "slow push-in",
+            "transition": "cut",
+            "duration_seconds": 12.857,
+            "action": "intro",
+            "accent": "#38bdf8"
+          },
+          {
+            "scene_id": "scene-2aadf821b2af",
+            "narration": "Wasser ist der Schlüssel. Durch die Wiederanfeuchtung kehrt das Leben zurück und stoppt die Freisetzung von Treibhausgasen.",
+            "visual": "generated_image",
+            "visual_type": "stock_video",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "water flowing into dry peatland bog vegetation regrowing",
+            "asset_prompt": "Time-lapse style footage of water levels rising in a bog. Green moss and small plants rapidly sprouting from the dark soil. Rain falling gently. The scene transitions from brown to vibrant green. Soft natural lighting, 4k resolution.",
+            "on_screen_text": "Wasser zurück",
+            "camera": "tilt up",
+            "transition": "dissolve",
+            "duration_seconds": 12.857,
+            "action": "explain",
+            "accent": "#38bdf8"
+          },
+          {
+            "scene_id": "scene-9eae51b467df",
+            "narration": "Das Moor beginnt wieder Kohlenstoff zu binden. Ein wiedervernässter Sumpf ist ein aktiver Schutzschild für unser Klima.",
+            "visual": "generated_image",
+            "visual_type": "stock_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "healthy green peat bog forest with tall grasses and water reflection",
+            "asset_prompt": "Wide shot of a lush, healthy peatland ecosystem. Tall reeds and small trees growing in deep standing water. Reflections of clouds on the water surface. Vibrant greens and blues, sunny but soft daylight, hyper-detailed texture.",
+            "on_screen_text": "Kohlenstoff binden",
+            "camera": "static wide",
+            "transition": "cut",
+            "duration_seconds": 12.857,
+            "action": "explain",
+            "accent": "#38bdf8"
+          },
+          {
+            "scene_id": "scene-8ccb96ef931e",
+            "narration": "Jeder Tropfen Wasser zählt. Investieren Sie in die Renaturierung: Wir schützen gemeinsam unsere Zukunft.",
+            "visual": "generated_image",
+            "visual_type": "stock_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "close up of water droplet on green moss leaf nature detail",
+            "asset_prompt": "Macro close-up of a single clear water droplet resting on a vibrant green moss leaf. The background is a soft blur of dark bog soil and other foliage. Sharp focus on the droplet, highlighting texture and color contrast. Natural lighting.",
+            "on_screen_text": "Zukunft sichern",
+            "camera": "static macro",
+            "transition": "cut",
+            "duration_seconds": 6.429,
+            "action": "outro",
+            "accent": "#38bdf8"
+          }
+        ],
+        "metadata": {
+          "provider": "ollama",
+          "model": "qwen3.5:9b-q4_K_M",
+          "audience": "Allgemeininteresse, Bildung",
+          "tone": "Informative, hopeful, scientific",
+          "fact_check_notes": [
+            "The specific percentage of carbon stored in peatlands globally (approx. 30%) is a widely cited statistic but requires verification against the latest IPCC reports.",
+            "The rate of CO2 release from drained peatlands versus the sequestration rate upon rewetting needs current scientific consensus validation."
+          ],
+          "revision": false,
+          "generation_metrics": {
+            "total_duration_ms": 419158,
+            "load_duration_ms": 1,
+            "prompt_tokens": 594,
+            "output_tokens": 1059,
+            "done_reason": "stop",
+            "num_ctx": 8192,
+            "num_predict": 3072
+          }
+        }
+      }
+    },
+    {
+      "label": "schlaf-original",
+      "request": {
+        "topic": "Wie Schlaf neue Erinnerungen festigt",
+        "language": "de",
+        "duration_seconds": 45,
+        "aspect_ratio": "9:16",
+        "video_type": "social",
+        "target_platform": "download"
+      },
+      "wall_seconds": 600.101,
+      "memory_before": {
+        "MemAvailable": 13323014144,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589930496,
+        "SwapUsed": 0
+      },
+      "memory_after": {
+        "MemAvailable": 13132214272,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589930496,
+        "SwapUsed": 0
+      },
+      "memory_peak": {
+        "min_mem_available_bytes": 13058281472,
+        "max_swap_used_bytes": 0
+      },
+      "loaded_models": [
+        {
+          "name": "qwen3.5:9b-q4_K_M",
+          "model": "qwen3.5:9b-q4_K_M",
+          "size": 6254535637,
+          "digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen35",
+            "families": [
+              "qwen35"
+            ],
+            "parameter_size": "9.7B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-16T11:20:58.663319023+02:00",
+          "size_vram": 119936122,
+          "context_length": 8192
+        }
+      ],
+      "format_valid": false,
+      "error": "RuntimeError: Das lokale Modell überschritt das Zeitlimit von 600 Sekunden."
+    },
+    {
+      "label": "moor-revision",
+      "request": {
+        "topic": "Warum wiedervernässte Moore das Klima schützen",
+        "language": "de",
+        "duration_seconds": 45,
+        "aspect_ratio": "16:9",
+        "video_type": "explainer",
+        "target_platform": "download"
+      },
+      "wall_seconds": 475.022,
+      "memory_before": {
+        "MemAvailable": 13132214272,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589930496,
+        "SwapUsed": 0
+      },
+      "memory_after": {
+        "MemAvailable": 12912218112,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589619200,
+        "SwapUsed": 311296
+      },
+      "memory_peak": {
+        "min_mem_available_bytes": 12903292928,
+        "max_swap_used_bytes": 311296
+      },
+      "loaded_models": [
+        {
+          "name": "qwen3.5:9b-q4_K_M",
+          "model": "qwen3.5:9b-q4_K_M",
+          "size": 6254535637,
+          "digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen35",
+            "families": [
+              "qwen35"
+            ],
+            "parameter_size": "9.7B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-16T11:28:53.687669228+02:00",
+          "size_vram": 119936122,
+          "context_length": 8192
+        }
+      ],
+      "format_valid": true,
+      "error": null,
+      "scene_count": 4,
+      "narration_words": 75,
+      "script": {
+        "title": "Wiedervernässte Moore: Der stille Klimaheld",
+        "description": "Eine visuelle Erklärung über die Rolle von wiedervernässten Mooren im Klimaschutz.",
+        "scenes": [
+          {
+            "scene_id": "scene-7ca42cef47d6",
+            "narration": "Moore sind die größten Kohlenstoffspeicher der Welt. Doch wenn sie trocknen, wird dieser Schatz zur Bombe.",
+            "visual": "generated_image",
+            "visual_type": "stock_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "aerial view of drained brown peat bog with dry cracked earth and sparse vegetation",
+            "asset_prompt": "Aerial drone shot of a vast, flat landscape covered in dark brown dried peat soil. The ground is deeply cracked like a dried riverbed. Sparse, yellowed grasses stand alone. Overcast grey sky, muted earth tones, high resolution, photorealistic.",
+            "on_screen_text": "Kohlenstoffspeicher",
+            "camera": "slow push-in",
+            "transition": "cut",
+            "duration_seconds": 12.0,
+            "action": "intro",
+            "accent": "#38bdf8"
+          },
+          {
+            "scene_id": "scene-2aadf821b2af",
+            "narration": "Stellen Sie sich ein Moor wie einen Schwamm vor. Trocknet er aus, gibt er alles ab. Füllt man ihn wieder mit Wasser, saugt er den Kohlenstoff sicher zurück.",
+            "visual": "generated_image",
+            "visual_type": "stock_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "close up of sponge absorbing water turning from dry brown to saturated green",
+            "asset_prompt": "Macro close-up of a porous natural sponge. The left side is dry, brittle and beige. The right side is fully saturated with clear blue water, looking vibrant and healthy. Soft studio lighting highlights the texture change.",
+            "on_screen_text": "Der Schwamm-Effekt",
+            "camera": "slow pan right",
+            "transition": "dissolve",
+            "duration_seconds": 12.0,
+            "action": "explain",
+            "accent": "#38bdf8"
+          },
+          {
+            "scene_id": "scene-9eae51b467df",
+            "narration": "Das Moor beginnt wieder Kohlenstoff zu binden. Ein wiedervernässter Sumpf ist ein aktiver Schutzschild für unser Klima.",
+            "visual": "generated_image",
+            "visual_type": "stock_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "healthy green peat bog forest with tall grasses and water reflection",
+            "asset_prompt": "Wide shot of a lush, healthy peatland ecosystem. Tall reeds and small trees growing in deep standing water. Reflections of clouds on the water surface. Vibrant greens and blues, sunny but soft daylight, hyper-detailed texture.",
+            "on_screen_text": "Kohlenstoff binden",
+            "camera": "static wide",
+            "transition": "cut",
+            "duration_seconds": 12.0,
+            "action": "explain",
+            "accent": "#38bdf8"
+          },
+          {
+            "scene_id": "scene-8ccb96ef931e",
+            "narration": "Jeder Tropfen Wasser zählt. Investieren Sie in die Renaturierung: Wir schützen gemeinsam unsere Zukunft.",
+            "visual": "generated_image",
+            "visual_type": "stock_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "close up of water droplet on green moss leaf nature detail",
+            "asset_prompt": "Macro close-up of a single clear water droplet resting on a vibrant green moss leaf. The background is a soft blur of dark bog soil and other foliage. Sharp focus on the droplet, highlighting texture and color contrast. Natural lighting.",
+            "on_screen_text": "Zukunft sichern",
+            "camera": "static macro",
+            "transition": "cut",
+            "duration_seconds": 9.0,
+            "action": "outro",
+            "accent": "#38bdf8"
+          }
+        ],
+        "metadata": {
+          "provider": "ollama",
+          "model": "qwen3.5:9b-q4_K_M",
+          "audience": "general public",
+          "tone": "informative, urgent yet hopeful",
+          "fact_check_notes": [
+            "The claim that peatlands store more carbon than forests is a widely cited statistic but varies by region and study; verify specific comparison figures for current context.",
+            "The exact amount of CO2 released when peat dries out depends on drainage depth, soil type, and duration; avoid precise numbers without source data."
+          ],
+          "revision": true,
+          "generation_metrics": {
+            "total_duration_ms": 475020,
+            "load_duration_ms": 1,
+            "prompt_tokens": 1517,
+            "output_tokens": 1113,
+            "done_reason": "stop",
+            "num_ctx": 8192,
+            "num_predict": 3072
+          }
+        }
+      }
+    }
+  ]
+}

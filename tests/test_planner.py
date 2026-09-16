@@ -33,8 +33,8 @@ def settings(**overrides):
         "ollama_base_url": "http://127.0.0.1:11434",
         "ollama_model": "qwen3.5:9b-q4_K_M",
         "ollama_num_ctx": 8192,
-        "ollama_num_predict": 3072,
-        "ollama_timeout_seconds": 600,
+        "ollama_num_predict": 2048,
+        "ollama_timeout_seconds": 720,
         "ollama_keep_alive": "5m",
         "gemini_api_key": "",
         "gemini_model": "gemini-3.8-flash",
@@ -129,10 +129,14 @@ class PlannerTests(unittest.TestCase):
         accent_schema = payload["format"]["properties"]["scenes"]["items"]["properties"]["accent"]
         self.assertEqual(accent_schema["enum"], ["#ff6b4a", "#38bdf8", "#a78bfa", "#34d399", "#fbbf24", "#fb7185"])
         self.assertEqual(payload["options"]["num_ctx"], 8192)
-        self.assertEqual(payload["options"]["num_predict"], 3072)
+        self.assertEqual(payload["options"]["num_predict"], 2048)
+        scene_schema = payload["format"]["properties"]["scenes"]["items"]
+        self.assertNotIn("source_strategy", scene_schema["properties"])
+        self.assertNotIn("source_ref", scene_schema["properties"])
         self.assertFalse(payload["think"])
         self.assertEqual(result["metadata"]["provider"], "ollama")
         self.assertEqual(result["metadata"]["generation_metrics"]["total_duration_ms"], 2500)
+        self.assertEqual(result["scenes"][0]["source_strategy"], "generate")
 
     def test_ollama_rejects_nonlocal_endpoint(self):
         configured = settings(script_provider="ollama", ollama_base_url="https://example.com")

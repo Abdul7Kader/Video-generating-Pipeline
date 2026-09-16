@@ -43,7 +43,8 @@ SCRIPT_PROVIDER=ollama
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=qwen3.5:9b-q4_K_M
 OLLAMA_NUM_CTX=8192
-OLLAMA_NUM_PREDICT=3072
+OLLAMA_NUM_PREDICT=2048
+OLLAMA_TIMEOUT_SECONDS=720
 ```
 
 Das lokale Modell bearbeitet höchstens eine Skripterstellung gleichzeitig. Vor einem aufwendigen Render wird es aus dem Arbeitsspeicher entladen. Ist Ollama nicht erreichbar, liefert die Oberfläche einen verständlichen Fehler; es gibt weder einen Vorlagen- noch einen Cloud-Ersatzpfad.
