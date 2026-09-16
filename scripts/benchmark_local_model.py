@@ -56,6 +56,23 @@ def loaded_models() -> list[dict[str, Any]]:
         return []
 
 
+def runtime_info() -> dict[str, Any]:
+    info: dict[str, Any] = {}
+    try:
+        with urllib.request.urlopen(f"{settings.ollama_base_url}/api/version", timeout=5) as response:
+            info["ollama_version"] = json.loads(response.read()).get("version")
+        with urllib.request.urlopen(f"{settings.ollama_base_url}/api/tags", timeout=5) as response:
+            models = json.loads(response.read()).get("models", [])
+        selected = next((item for item in models if item.get("name") == settings.ollama_model), None)
+        if selected:
+            info["model_digest"] = selected.get("digest")
+            info["model_size_bytes"] = selected.get("size")
+            info["model_details"] = selected.get("details")
+    except Exception as exc:
+        info["inspection_error"] = f"{type(exc).__name__}: {exc}"
+    return info
+
+
 def sample_memory(stop: threading.Event, peak: dict[str, int]) -> None:
     while not stop.wait(0.25):
         snapshot = memory_snapshot()
@@ -140,6 +157,7 @@ def main() -> None:
         "num_ctx": settings.ollama_num_ctx,
         "num_predict": settings.ollama_num_predict,
         "keep_alive": settings.ollama_keep_alive,
+        "runtime": runtime_info(),
         "results": results,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
