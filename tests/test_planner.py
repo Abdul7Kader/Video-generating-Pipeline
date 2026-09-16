@@ -9,6 +9,7 @@ from backend.planner import (
     ScriptProviderUnavailable,
     _OLLAMA_CALL_LOCK,
     _prompt,
+    _validate_editorial_output,
     generate_script,
     script_provider_status,
     unload_script_model,
@@ -74,6 +75,15 @@ def model_response() -> dict:
 
 
 class PlannerTests(unittest.TestCase):
+    def test_editorial_guard_rejects_unfilled_placeholders(self):
+        with self.assertRaisesRegex(ValueError, "Platzhalter"):
+            _validate_editorial_output({
+                "title": "Entwurf",
+                "description": "Beschreibung",
+                "fact_check_notes": ["Quelle: %s"],
+                "scenes": [],
+            })
+
     def test_local_provider_failure_does_not_use_template_or_cloud(self):
         configured = settings(script_provider="ollama")
         with patch("backend.planner.settings", configured), \

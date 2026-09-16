@@ -155,9 +155,12 @@ def _system_prompt() -> str:
     return (
         "You are a senior documentary writer, visual director and editor. Create specific, useful content rather than a reusable template. "
         "Every spoken sentence must advance the subject. Do not invent facts, quotations, statistics or sources. Put claims that require current "
-        "verification into fact_check_notes. You have no web access: never say or imply that you researched, verified, browsed or sourced a claim. "
+        "verification into fact_check_notes, but never use a note as permission to keep an unsupported claim in narration. If the brief supplies no "
+        "source, omit exact quantities, rankings and comparative performance claims from narration and visuals. You have no web access: never say "
+        "or imply that you researched, verified, browsed or sourced a claim. "
         "Treat visual as an instruction for production, never as text that should be displayed. Only "
-        "on_screen_text may be rendered as text. Return JSON matching the supplied schema and nothing else."
+        "on_screen_text may be rendered as text. Use polished, grammatically correct language consistently in every audience-facing field. "
+        "Never emit placeholders such as %s, TODO or template variables. Return JSON matching the supplied schema and nothing else."
     )
 
 
@@ -200,6 +203,7 @@ Editorial requirements
 - An analogy may clarify one aspect but must never pretend to reproduce the scientific mechanism. Explain where necessary what the analogy does and does not mean.
 - Narration must sound natural when spoken aloud; do not include headings, stage directions or citation markers in narration.
 - Do not add a commercial, political or donation call to action unless the brief explicitly asks for one.
+- Do not add follow, subscribe, like, next-episode or teaser cards unless explicitly requested. End with the subject's clearest conclusion.
 - Keep deliberate on-screen text short. Never copy the visual instruction or full narration into on_screen_text.
 - Keep each visual under 20 words, each asset_prompt under 35 words and each camera instruction under 10 words. Be concrete, not verbose.
 - visual is a natural-language description of the visible shot. It must never contain only a value such as generated_image or stock_video.
@@ -211,6 +215,7 @@ Editorial requirements
 - Choose accent only from the hexadecimal colors allowed by the response schema; accent never means a language or locale.
 - Use generated_video sparingly where visible motion matters; prefer generated_image with camera movement for controllable shots.
 - For factual/current topics, avoid unsupported certainty and list every claim needing verification in fact_check_notes.
+- Before returning, silently check every narration sentence for grammar, unsupported quantities/comparisons, internal contradictions and generic filler; correct or remove failures.
 {revision_block}"""
 
 
@@ -234,6 +239,21 @@ def _extract_json(text: str) -> dict[str, Any]:
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
         raise ValueError(f"Ungültiges strukturiertes Skript: {exc}") from exc
     return draft.model_dump()
+
+
+def _validate_editorial_output(script: dict[str, Any]) -> None:
+    placeholder = re.compile(r"%s|\bTODO\b|\{\{[^}]+\}\}|\$\{[^}]+\}", re.IGNORECASE)
+    fields: list[str] = [
+        str(script.get("title", "")),
+        str(script.get("description", "")),
+        *(str(note) for note in script.get("fact_check_notes", [])),
+    ]
+    for scene in script.get("scenes", []):
+        fields.extend(str(scene.get(key, "")) for key in (
+            "narration", "visual", "asset_query", "asset_prompt", "on_screen_text", "camera"
+        ))
+    if any(placeholder.search(value) for value in fields):
+        raise ValueError("Das lokale Modell lieferte einen nicht ausgefüllten Platzhalter im Szenenplan.")
 
 
 def _post_json(url: str, payload: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]:
@@ -420,6 +440,7 @@ def generate_script(
         )
         script = _extract_json(data["choices"][0]["message"]["content"])
         metrics = {}
+    _validate_editorial_output(script)
     fact_check_notes = script.pop("fact_check_notes", [])
     audience = script.pop("audience", "")
     tone = script.pop("tone", "")

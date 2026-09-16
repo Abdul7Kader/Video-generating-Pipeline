@@ -142,7 +142,9 @@ def main() -> None:
             previous=results[0]["script"],
             instructions=(
                 "Ersetze die zweite Szene durch eine leicht verständliche Schwamm-Analogie. "
-                "Formuliere sachlich, kennzeichne überprüfungsbedürftige Zahlen und bewahre die übrigen starken Szenen."
+                "Die Analogie darf nur den Wasserhaushalt veranschaulichen: Behaupte nicht, dass Wasser oder der Schwamm "
+                "Kohlenstoff beziehungsweise Gas aufsaugt oder bindet. Formuliere sachlich, entferne ungesicherte Zahlen "
+                "und Vergleiche aus dem Sprechertext und bewahre die übrigen starken Szenen."
             ),
         ))
     else:

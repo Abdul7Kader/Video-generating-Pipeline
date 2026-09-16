@@ -1,0 +1,472 @@
+{
+  "model": "qwen3.5:9b-q4_K_M",
+  "base_url": "http://127.0.0.1:11434",
+  "num_ctx": 8192,
+  "num_predict": 2048,
+  "keep_alive": "5m",
+  "runtime": {
+    "ollama_version": "0.34.1",
+    "model_digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+    "model_size_bytes": 6594474711,
+    "model_details": {
+      "parent_model": "",
+      "format": "gguf",
+      "family": "qwen35",
+      "families": [
+        "qwen35"
+      ],
+      "parameter_size": "9.7B",
+      "quantization_level": "Q4_K_M",
+      "context_length": 262144,
+      "embedding_length": 4096
+    }
+  },
+  "results": [
+    {
+      "label": "moor-original",
+      "request": {
+        "topic": "Warum wiedervernässte Moore das Klima schützen",
+        "language": "de",
+        "duration_seconds": 45,
+        "aspect_ratio": "16:9",
+        "video_type": "explainer",
+        "target_platform": "download"
+      },
+      "wall_seconds": 491.725,
+      "memory_before": {
+        "MemAvailable": 12890701824,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589619200,
+        "SwapUsed": 311296
+      },
+      "memory_after": {
+        "MemAvailable": 12562247680,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589619200,
+        "SwapUsed": 311296
+      },
+      "memory_peak": {
+        "min_mem_available_bytes": 12515958784,
+        "max_swap_used_bytes": 311296
+      },
+      "loaded_models": [
+        {
+          "name": "qwen3.5:9b-q4_K_M",
+          "model": "qwen3.5:9b-q4_K_M",
+          "size": 6254535637,
+          "digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen35",
+            "families": [
+              "qwen35"
+            ],
+            "parameter_size": "9.7B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-16T11:41:24.68899212+02:00",
+          "size_vram": 119936122,
+          "context_length": 8192
+        }
+      ],
+      "format_valid": true,
+      "error": null,
+      "scene_count": 4,
+      "narration_words": 95,
+      "script": {
+        "title": "Wiedervernässte Moore: Der stille Klimaheld",
+        "description": "Ein 45-Sekunden-Explainer über die Funktionsweise von Wiedervernässung und deren direkten Effekt auf den Kohlenstoffkreislauf.",
+        "scenes": [
+          {
+            "scene_id": "SCENE_01",
+            "narration": "Stellen Sie sich vor, ein riesiger Schwamm trocknet aus. Wo früher Wasser stand, liegt nun braunes Land. Millionen Tonnen Kohlenstoff entweichen als Treibhausgas in die Atmosphäre.",
+            "visual": "Luftaufnahme: Ein trockenes, bräunliches Moor mit sichtbaren Rissen im Boden und spärlicher Vegetation.",
+            "visual_type": "generated_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "",
+            "asset_prompt": "High-angle drone shot of a dried-out peatland with cracked brown earth and sparse dry grass, overcast sky, muted color palette, photorealistic style.",
+            "on_screen_text": "Trockenheit = CO2-Ausstoß",
+            "camera": "Langsam hochzoomen",
+            "transition": "cut",
+            "duration_seconds": 11.25,
+            "action": "stand",
+            "accent": "#34d399"
+          },
+          {
+            "scene_id": "SCENE_02",
+            "narration": "Doch es gibt eine Lösung: Wiedervernässung. Wir leiten Wasser zurück in die Senken. Der Boden wird wieder feucht, das Wachstum kehrt zurück.",
+            "visual": "Nahaufnahme: Klare Wasserstrahlen fließen über den Boden und füllen Risse; grüne Pflanzenkeime sprießen.",
+            "visual_type": "generated_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "",
+            "asset_prompt": "Close-up shot of clear water filling cracks in soil, small green moss shoots emerging, soft sunlight, detailed texture of wet earth and water droplets.",
+            "on_screen_text": "Wasser zurückführen",
+            "camera": "Sanfter Schwenk nach rechts",
+            "transition": "dissolve",
+            "duration_seconds": 11.25,
+            "action": "stand",
+            "accent": "#34d399"
+          },
+          {
+            "scene_id": "SCENE_03",
+            "narration": "In feuchtem Boden verlangsamt sich der Abbau. Der Kohlenstoff wird nicht freigesetzt, sondern bleibt sicher im Erdreich gespeichert. Ein natürlicher Schutzschild entsteht.",
+            "visual": "Diagramm: Eine Querschnittszeichnung zeigt, wie organische Masse unter Wasser stabilisiert wird und keine Gase entweicht.",
+            "visual_type": "generated_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "",
+            "asset_prompt": "Clean vector-style illustration of a bog cross-section showing water table rising, organic matter stabilizing underwater, no gas bubbles escaping, educational diagram style.",
+            "on_screen_text": "Kohlenstoff wird gespeichert",
+            "camera": "Stillstand",
+            "transition": "cut",
+            "duration_seconds": 11.25,
+            "action": "stand",
+            "accent": "#34d399"
+          },
+          {
+            "scene_id": "SCENE_04",
+            "narration": "Ein Wiedervernässter Moor speichert pro Jahr mehr Kohlenstoff als ein Wald. Wir schützen das Klima, indem wir die Natur wieder in ihre alte Funktion zurückversetzen.",
+            "visual": "Vergleichsgrafik: Links ein Wald, rechts ein feuchtes Moor; Pfeile zeigen deutlich mehr Speicherung beim Moor an.",
+            "visual_type": "generated_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "",
+            "asset_prompt": "Split screen comparison: left side green forest, right side lush wet bog. Large upward arrows on the bog side indicating higher storage efficiency, clean modern design.",
+            "on_screen_text": "Effizienter als Wald",
+            "camera": "Zoom auf das Moor-Teil",
+            "transition": "cut",
+            "duration_seconds": 11.25,
+            "action": "stand",
+            "accent": "#34d399"
+          }
+        ],
+        "metadata": {
+          "provider": "ollama",
+          "model": "qwen3.5:9b-q4_K_M",
+          "audience": "Allgemein interessierte Öffentlichkeit, Download-Medium",
+          "tone": "Wissenschaftlich präzise, hoffnungsvoll, sachlich",
+          "fact_check_notes": [
+            "Die spezifische Menge an gespeichertem Kohlenstoff pro Hektar in trockengelegten Mooren variiert stark je nach Standort und liegt oft im Bereich von mehreren Tonnen bis zu über 10 Tonnen CO2-Äquivalent pro Jahr bei Emissionen; exakte Zahlen",
+            "Die Effizienz der Wiedervernässung zur Reduktion von Emissionen ist wissenschaftlich gut belegt, aber die genaue zeitliche Dynamik des Kohlenstoffanreicherungsvorgangs nach dem Wasseranstieg unterliegt regionalen Unterschieden.",
+            "Der Vergleich mit Waldflächen als Kohlenstoffspeicher gilt allgemein, jedoch sind Moore pro Fläche deutlich effizienter; diese Relation ist eine vereinfachte Veranschaulichung."
+          ],
+          "revision": false,
+          "generation_metrics": {
+            "total_duration_ms": 491714,
+            "load_duration_ms": 1,
+            "prompt_tokens": 719,
+            "output_tokens": 1225,
+            "done_reason": "stop",
+            "num_ctx": 8192,
+            "num_predict": 2048
+          }
+        }
+      }
+    },
+    {
+      "label": "schlaf-original",
+      "request": {
+        "topic": "Wie Schlaf neue Erinnerungen festigt",
+        "language": "de",
+        "duration_seconds": 45,
+        "aspect_ratio": "9:16",
+        "video_type": "social",
+        "target_platform": "download"
+      },
+      "wall_seconds": 484.206,
+      "memory_before": {
+        "MemAvailable": 12562247680,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589619200,
+        "SwapUsed": 311296
+      },
+      "memory_after": {
+        "MemAvailable": 12253483008,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589619200,
+        "SwapUsed": 311296
+      },
+      "memory_peak": {
+        "min_mem_available_bytes": 12219887616,
+        "max_swap_used_bytes": 311296
+      },
+      "loaded_models": [
+        {
+          "name": "qwen3.5:9b-q4_K_M",
+          "model": "qwen3.5:9b-q4_K_M",
+          "size": 6254535637,
+          "digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen35",
+            "families": [
+              "qwen35"
+            ],
+            "parameter_size": "9.7B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-16T11:49:28.896254256+02:00",
+          "size_vram": 119936122,
+          "context_length": 8192
+        }
+      ],
+      "format_valid": true,
+      "error": null,
+      "scene_count": 5,
+      "narration_words": 82,
+      "script": {
+        "title": "Wie Schlaf neue Erinnerungen festigt",
+        "description": "Ein schnelles, visuell abwechslungsreiches Social-Clip-Skript über die Rolle des Schlafs bei der Gedächtniskonsolidierung.",
+        "scenes": [
+          {
+            "scene_id": "S01",
+            "narration": "Haben Sie sich schon einmal gefragt, warum wir Dinge vergessen, die wir gestern gelernt haben?",
+            "visual": "Close-up on a person looking confused at a messy desk with papers scattered.",
+            "visual_type": "generated_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "",
+            "asset_prompt": "A young adult staring blankly at a cluttered desk covered in loose papers, soft morning light filtering through blinds, shallow depth of field, 9:16 aspect ratio.",
+            "on_screen_text": "Warum vergessen wir?",
+            "camera": "Slow push-in",
+            "transition": "cut",
+            "duration_seconds": 9.0,
+            "action": "point",
+            "accent": "#34d399"
+          },
+          {
+            "scene_id": "S02",
+            "narration": "Die Antwort liegt nicht im Lernen selbst, sondern in der Pause danach. Während Sie schlafen, arbeitet Ihr Gehirn.",
+            "visual": "Abstract visualization of glowing neural pathways lighting up in a dark brain silhouette.",
+            "visual_type": "generated_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "",
+            "asset_prompt": "A stylized dark silhouette of a human head with bright, pulsing golden lines connecting nodes inside, representing active processing, dark blue background, 9:16 aspect ratio.",
+            "on_screen_text": "Das Gehirn arbeitet",
+            "camera": "Rotate around subject",
+            "transition": "dissolve",
+            "duration_seconds": 9.0,
+            "action": "point",
+            "accent": "#fbbf24"
+          },
+          {
+            "scene_id": "S03",
+            "narration": "Es ist wie ein Archiv: Neue Informationen werden sortiert und mit bestehenden Wissen verknüpft, statt einfach gelöscht zu werden.",
+            "visual": "Split screen showing a chaotic pile of books transforming into an organized digital library interface.",
+            "visual_type": "generated_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "",
+            "asset_prompt": "Left side shows a messy pile of physical books, right side shows those same items neatly arranged in a glowing digital grid, smooth transition effect, 9:16 aspect ratio.",
+            "on_screen_text": "Sortieren & Verknüpfen",
+            "camera": "Pan left to right",
+            "transition": "wipe",
+            "duration_seconds": 9.0,
+            "action": "point",
+            "accent": "#a78bfa"
+          },
+          {
+            "scene_id": "S04",
+            "narration": "Ohne diese nächtliche Ruhe bleibt das Gelernte instabil. Schlaf macht Ihre Erinnerungen erst wirklich fest.",
+            "visual": "Time-lapse of a person sleeping peacefully, transitioning from a blurry world to a sharp, clear view of their face.",
+            "visual_type": "generated_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "",
+            "asset_prompt": "A serene shot of a person sleeping under soft blankets, the surrounding room blurring into bokeh while the person's face remains crisp and clear, warm ambient lighting, 9:16 aspect ratio.",
+            "on_screen_text": "Schlaf = Festigung",
+            "camera": "Zoom out slowly",
+            "transition": "cut",
+            "duration_seconds": 9.0,
+            "action": "point",
+            "accent": "#fb7185"
+          },
+          {
+            "scene_id": "S05",
+            "narration": "Nächste Woche: Warum der erste Schlafzyklus am wichtigsten ist und wie Sie ihn optimieren können.",
+            "visual": "Text overlay on a clean background with a subtle breathing animation pattern.",
+            "visual_type": "generated_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "",
+            "asset_prompt": "Minimalist dark grey background with a gentle, rhythmic wave animation in the center, white sans-serif typography for text, 9:16 aspect ratio.",
+            "on_screen_text": "Folge uns für mehr",
+            "camera": "Static",
+            "transition": "cut",
+            "duration_seconds": 9.0,
+            "action": "point",
+            "accent": "#34d399"
+          }
+        ],
+        "metadata": {
+          "provider": "ollama",
+          "model": "qwen3.5:9b-q4_K_M",
+          "audience": "Social Media Users (Gen Z / Millennials)",
+          "tone": "Engaging, Educational, Fast-paced",
+          "fact_check_notes": [
+            "The claim that sleep 'solidifies' memories is a robust high-level mechanism; specific molecular pathways like synaptic downscaling are complex and not fully settled in all contexts.",
+            "The analogy of 'filing away papers' simplifies memory consolidation into a storage process, which does not capture the active reorganization of neural connections during sleep."
+          ],
+          "revision": false,
+          "generation_metrics": {
+            "total_duration_ms": 484202,
+            "load_duration_ms": 2,
+            "prompt_tokens": 708,
+            "output_tokens": 1210,
+            "done_reason": "stop",
+            "num_ctx": 8192,
+            "num_predict": 2048
+          }
+        }
+      }
+    },
+    {
+      "label": "moor-revision",
+      "request": {
+        "topic": "Warum wiedervernässte Moore das Klima schützen",
+        "language": "de",
+        "duration_seconds": 45,
+        "aspect_ratio": "16:9",
+        "video_type": "explainer",
+        "target_platform": "download"
+      },
+      "wall_seconds": 481.649,
+      "memory_before": {
+        "MemAvailable": 12253483008,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589619200,
+        "SwapUsed": 311296
+      },
+      "memory_after": {
+        "MemAvailable": 11895758848,
+        "SwapTotal": 8589930496,
+        "SwapFree": 8589619200,
+        "SwapUsed": 311296
+      },
+      "memory_peak": {
+        "min_mem_available_bytes": 11863539712,
+        "max_swap_used_bytes": 311296
+      },
+      "loaded_models": [
+        {
+          "name": "qwen3.5:9b-q4_K_M",
+          "model": "qwen3.5:9b-q4_K_M",
+          "size": 6254535637,
+          "digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen35",
+            "families": [
+              "qwen35"
+            ],
+            "parameter_size": "9.7B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-09-16T11:57:30.551190342+02:00",
+          "size_vram": 119936122,
+          "context_length": 8192
+        }
+      ],
+      "format_valid": true,
+      "error": null,
+      "scene_count": 4,
+      "narration_words": 100,
+      "script": {
+        "title": "Wiedervernässte Moore: Der stille Klimaheld",
+        "description": "Ein 45-Sekunden-Explainer über die Funktionsweise von Wiedervernässung und deren direkten Effekt auf den Kohlenstoffkreislauf.",
+        "scenes": [
+          {
+            "scene_id": "SCENE_01",
+            "narration": "Stellen Sie sich vor, ein riesiger Schwamm trocknet aus. Wo früher Wasser stand, liegt nun braunes Land. Millionen Tonnen Kohlenstoff entweichen als Treibhausgas in die Atmosphäre.",
+            "visual": "Luftaufnahme: Ein trockenes, bräunliches Moor mit sichtbaren Rissen im Boden und spärlicher Vegetation.",
+            "visual_type": "generated_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "",
+            "asset_prompt": "High-angle drone shot of a dried-out peatland with cracked brown earth and sparse dry grass, overcast sky, muted color palette, photorealistic style.",
+            "on_screen_text": "Trockenheit = CO2-Ausstoß",
+            "camera": "Langsam hochzoomen",
+            "transition": "cut",
+            "duration_seconds": 11.506,
+            "action": "stand",
+            "accent": "#34d399"
+          },
+          {
+            "scene_id": "SCENE_02",
+            "narration": "Ein trockener Schwamm saugt kein Wasser mehr auf. Doch wenn wir ihn wieder tränken, kehrt seine Funktion zurück. Feuchter Boden verlangsamt den Abbau und bindet das Gas.",
+            "visual": "Nahaufnahme: Ein poröses Material wird mit klarem Wasser übergossen; die Poren füllen sich langsam an.",
+            "visual_type": "generated_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "",
+            "asset_prompt": "Macro shot of a porous material being soaked with clear water, pores filling slowly, soft lighting, educational diagram style.",
+            "on_screen_text": "Wasser bindet Gas",
+            "camera": "Sanfter Schwenk nach rechts",
+            "transition": "dissolve",
+            "duration_seconds": 11.506,
+            "action": "stand",
+            "accent": "#34d399"
+          },
+          {
+            "scene_id": "SCENE_03",
+            "narration": "In feuchtem Boden verlangsamt sich der Abbau. Der Kohlenstoff wird nicht freigesetzt, sondern bleibt sicher im Erdreich gespeichert. Ein natürlicher Schutzschild entsteht.",
+            "visual": "Diagramm: Eine Querschnittszeichnung zeigt, wie organische Masse unter Wasser stabilisiert wird und keine Gase entweicht.",
+            "visual_type": "generated_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "",
+            "asset_prompt": "Clean vector-style illustration of a bog cross-section showing water table rising, organic matter stabilizing underwater, no gas bubbles escaping, educational diagram style.",
+            "on_screen_text": "Kohlenstoff wird gespeichert",
+            "camera": "Stillstand",
+            "transition": "cut",
+            "duration_seconds": 11.506,
+            "action": "stand",
+            "accent": "#34d399"
+          },
+          {
+            "scene_id": "SCENE_04",
+            "narration": "Ein wiedervernässtes Moor speichert pro Jahr mehr Kohlenstoff als ein Wald. Wir schützen das Klima, indem wir die Natur wieder in ihre alte Funktion zurückversetzen.",
+            "visual": "Vergleichsgrafik: Links ein Wald, rechts ein feuchtes Moor; Pfeile zeigen deutlich mehr Speicherung beim Moor an.",
+            "visual_type": "generated_image",
+            "source_strategy": "generate",
+            "source_ref": "",
+            "asset_query": "",
+            "asset_prompt": "Split screen comparison: left side green forest, right side lush wet bog. Large upward arrows on the bog side indicating higher storage efficiency, clean modern design.",
+            "on_screen_text": "Effizienter als Wald",
+            "camera": "Zoom auf das Moor-Teil",
+            "transition": "cut",
+            "duration_seconds": 10.482,
+            "action": "stand",
+            "accent": "#34d399"
+          }
+        ],
+        "metadata": {
+          "provider": "ollama",
+          "model": "qwen3.5:9b-q4_K_M",
+          "audience": "Allgemeinverständig, sachlich",
+          "tone": "Erklärend, präzise",
+          "fact_check_notes": [
+            "Die Behauptung, dass ein wiedervernässtes Moor pro Jahr mehr Kohlenstoff speichert als ein Wald, ist eine vereinfachende Darstellung und hängt stark vom spezifischen Ökosystem und der Historie ab; ohne Quellenangaben wird diese Aussage als ",
+            "%s"
+          ],
+          "revision": true,
+          "generation_metrics": {
+            "total_duration_ms": 481647,
+            "load_duration_ms": 1,
+            "prompt_tokens": 1670,
+            "output_tokens": 1112,
+            "done_reason": "stop",
+            "num_ctx": 8192,
+            "num_predict": 2048
+          }
+        }
+      }
+    }
+  ]
+}
