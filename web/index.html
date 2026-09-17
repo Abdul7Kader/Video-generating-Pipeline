@@ -5,7 +5,7 @@
   <title>Video Pipeline</title><link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <header><div class="brand"><span class="brandmark">▶</span><div><strong>Video Pipeline</strong><small>lokal · freigabegesteuert</small></div></div><div><a href="https://www.pexels.com" target="_blank" rel="noopener">Stockmedien von Pexels</a><div id="health" class="health">System wird geprüft …</div></div></header>
+  <header><div class="brand"><span class="brandmark">▶</span><div><strong>Video Pipeline</strong><small>lokal · freigabegesteuert</small></div></div><div><a href="https://www.pexels.com" target="_blank" rel="noopener">Stockmedien von Pexels</a><div id="health" class="health">System wird geprüft …</div><div id="gemini-profiles" class="profile-summary" aria-live="polite"></div></div></header>
   <main>
     <aside>
       <button id="new-button" class="primary full">＋ Neues Video</button>
@@ -16,7 +16,8 @@
   <dialog id="create-dialog"><form id="create-form"><div class="dialog-head"><div><small>NEUER AUFTRAG</small><h2>Was möchtest du erzählen?</h2></div><button type="button" class="icon" data-close>×</button></div>
     <label>Thema oder Idee<textarea name="topic" rows="4" required minlength="3" placeholder="Zum Beispiel: Warum kleine Gewohnheiten große Wirkung haben"></textarea></label>
     <div class="grid3"><label>Sprache<select name="language"><option value="de">Deutsch</option><option value="en">Englisch</option></select></label><label>Länge<select name="duration_seconds"><option value="30">30 Sekunden</option><option value="60" selected>60 Sekunden</option><option value="90">90 Sekunden</option><option value="180">3 Minuten</option></select></label><label>Format<select name="aspect_ratio"><option value="9:16">9:16 · Shorts</option><option value="16:9">16:9 · YouTube</option><option value="1:1">1:1 · Quadrat</option></select></label></div>
-    <div class="grid2"><label>Videoart<select name="video_type"><option value="stickman">Strichmännchen</option><option value="explainer">Erklärvideo</option><option value="social">Social Clip</option><option value="podcast">Podcast</option><option value="generated">Generiertes Video (Adapter)</option></select></label><label>Ziel<select name="target_platform"><option value="download">Download</option><option value="youtube">YouTube</option></select></label></div>
+    <div class="grid2"><label>Videoart<select name="video_type"><option value="stickman">Strichmännchen</option><option value="explainer">Erklärvideo</option><option value="social">Social Clip</option><option value="podcast">Podcast</option><option value="generated">Generiertes Video (Adapter)</option></select></label><label>Skripterstellung<select name="script_generator"><option value="qwen">Qwen 3.5 9B · lokal/offline</option><option value="gemini_cli">Gemini CLI · 5 geprüfte Schritte</option></select></label></div>
+    <fieldset class="targets"><legend>Veröffentlichungsziele · Mehrfachauswahl möglich</legend><div id="target-platforms" class="target-grid"><label class="target-card"><input type="checkbox" name="target_platforms" value="download" checked><span><strong>Lokaler Download</strong><small>Bereit</small></span></label></div></fieldset>
     <div class="dialog-actions"><button type="button" class="ghost" data-close>Abbrechen</button><button class="primary">Skript erzeugen</button></div>
   </form></dialog>
   <div id="toast"></div><script src="/app.js"></script>

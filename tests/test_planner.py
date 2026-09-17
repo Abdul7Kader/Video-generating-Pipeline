@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from backend.planner import (
+    ProviderHTTPError,
     ScriptProviderUnavailable,
     _OLLAMA_CALL_LOCK,
     _prompt,
@@ -39,6 +40,8 @@ def settings(**overrides):
         "ollama_keep_alive": "5m",
         "gemini_api_key": "",
         "gemini_model": "gemini-3.8-flash",
+        "gemini_max_retries": 1,
+        "gemini_retry_base_seconds": 0.0,
         "openai_api_key": "",
         "openai_model": "gpt-5.6-terra",
         "openai_base_url": "https://api.openai.com/v1",
@@ -72,6 +75,17 @@ def model_response() -> dict:
         "scenes": scenes,
     }
     return {"output_text": json.dumps(payload)}
+
+
+def ollama_response() -> dict:
+    return {
+        "message": {"content": model_response()["output_text"]},
+        "total_duration": 2_500_000_000,
+        "load_duration": 400_000_000,
+        "prompt_eval_count": 800,
+        "eval_count": 500,
+        "done_reason": "stop",
+    }
 
 
 class PlannerTests(unittest.TestCase):
@@ -121,15 +135,53 @@ class PlannerTests(unittest.TestCase):
         self.assertEqual(result["scenes"][0]["visual_type"], "generated_image")
         self.assertTrue(result["metadata"]["fact_check_notes"])
 
+    def test_hybrid_uses_gemini_without_touching_local_model_when_cloud_succeeds(self):
+        configured = settings(script_provider="gemini_ollama", gemini_api_key="secret")
+        with patch("backend.planner.settings", configured), \
+             patch("backend.planner._post_json", return_value=model_response()), \
+             patch("backend.planner._post_ollama", side_effect=AssertionError("local fallback must stay idle")):
+            result = generate_script(REQUEST)
+        self.assertEqual(result["metadata"]["provider"], "gemini")
+        self.assertEqual(result["metadata"]["requested_provider"], "gemini_ollama")
+        self.assertNotIn("fallback_from", result["metadata"])
+
+    def test_hybrid_retries_rate_limit_then_falls_back_to_local_qwen_without_rotating_accounts(self):
+        configured = settings(script_provider="gemini_ollama", gemini_api_key="secret")
+        quota_error = ProviderHTTPError(429, "quota_exceeded", retry_after=0)
+        with patch("backend.planner.settings", configured), \
+             patch("backend.planner._post_json", side_effect=quota_error) as gemini_post, \
+             patch("backend.planner._post_ollama", return_value=ollama_response()) as ollama_post, \
+             patch("backend.planner.time.sleep"):
+            result = generate_script(REQUEST)
+        self.assertEqual(gemini_post.call_count, 2)
+        self.assertEqual(ollama_post.call_count, 1)
+        self.assertEqual(result["metadata"]["provider"], "ollama")
+        self.assertEqual(result["metadata"]["model"], "qwen3.5:9b-q4_K_M")
+        self.assertEqual(result["metadata"]["fallback_from"], "gemini")
+        self.assertEqual(result["metadata"]["fallback_reason"], "quota_or_capacity")
+        self.assertNotIn("secret", json.dumps(result))
+
+    def test_hybrid_does_not_hide_invalid_gemini_credentials_with_local_fallback(self):
+        configured = settings(script_provider="gemini_ollama", gemini_api_key="invalid-secret")
+        auth_error = ProviderHTTPError(401, "invalid credential")
+        with patch("backend.planner.settings", configured), \
+             patch("backend.planner._post_json", side_effect=auth_error), \
+             patch("backend.planner._post_ollama", side_effect=AssertionError("auth failures must be visible")):
+            with self.assertRaisesRegex(RuntimeError, "HTTP 401"):
+                generate_script(REQUEST)
+
+    def test_hybrid_without_api_key_uses_local_qwen_directly(self):
+        configured = settings(script_provider="gemini_ollama", gemini_api_key="")
+        with patch("backend.planner.settings", configured), \
+             patch("backend.planner._post_json", side_effect=AssertionError("no cloud call without a key")), \
+             patch("backend.planner._post_ollama", return_value=ollama_response()):
+            result = generate_script(REQUEST)
+        self.assertEqual(result["metadata"]["provider"], "ollama")
+        self.assertEqual(result["metadata"]["requested_provider"], "gemini_ollama")
+        self.assertEqual(result["metadata"]["fallback_reason"], "gemini_not_configured")
+
     def test_ollama_uses_local_schema_limits_and_records_metrics(self):
-        response = {
-            "message": {"content": model_response()["output_text"]},
-            "total_duration": 2_500_000_000,
-            "load_duration": 400_000_000,
-            "prompt_eval_count": 800,
-            "eval_count": 500,
-            "done_reason": "stop",
-        }
+        response = ollama_response()
         configured = settings(script_provider="ollama")
         with patch("backend.planner.settings", configured), patch("backend.planner._post_ollama", return_value=response) as post:
             result = generate_script(REQUEST)

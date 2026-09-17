@@ -14,7 +14,7 @@ from .assets import prepare_scene_assets
 from .captions import add_scene_captions, write_srt
 from .config import settings
 from .plan import file_sha256, object_sha256
-from .quality import find_ffprobe, run_quality_gate
+from .quality import find_ffmpeg, find_ffprobe, run_quality_gate
 
 
 _PIPER_VOICE_CACHE: dict[str, Any] = {}
@@ -219,6 +219,37 @@ def compose_scene_audio(job_dir: Path, segments: list[dict[str, Any]], scene_dur
     return total_frames / output_params[2]
 
 
+def normalize_narration_audio(audio_path: Path) -> float:
+    """Normalize speech to a platform-friendly -16 LUFS with true-peak headroom."""
+    executable = find_ffmpeg()
+    if not executable:
+        raise RuntimeError("ffmpeg fehlt; die Sprachlautheit kann nicht normalisiert werden.")
+    normalized = audio_path.with_name(f"{audio_path.stem}.normalized.wav")
+    normalized.unlink(missing_ok=True)
+    try:
+        _run([
+            executable,
+            "-y",
+            "-i",
+            str(audio_path),
+            "-af",
+            "loudnorm=I=-16:TP=-1.5:LRA=11",
+            "-ar",
+            "48000",
+            "-c:a",
+            "pcm_s16le",
+            str(normalized),
+        ], timeout=600)
+        if not normalized.is_file() or normalized.stat().st_size < 1000:
+            raise RuntimeError("ffmpeg hat keine normalisierte Sprachdatei erzeugt.")
+        with wave.open(str(normalized), "rb") as wav_file:
+            duration = wav_file.getnframes() / wav_file.getframerate()
+        normalized.replace(audio_path)
+        return duration
+    finally:
+        normalized.unlink(missing_ok=True)
+
+
 def render_job(job: dict[str, Any]) -> tuple[str, str]:
     version = int(job["render_version"])
     job_dir = settings.jobs_dir / job["id"] / f"v{version}"
@@ -230,7 +261,8 @@ def render_job(job: dict[str, Any]) -> tuple[str, str]:
         for scene, segment in zip(job["script"]["scenes"], audio_segments)
     ]
     audio_path = job_dir / "narration.wav"
-    audio_duration = compose_scene_audio(job_dir, audio_segments, scene_durations, audio_path)
+    compose_scene_audio(job_dir, audio_segments, scene_durations, audio_path)
+    audio_duration = normalize_narration_audio(audio_path)
 
     total = audio_duration
     scenes = []
@@ -275,7 +307,7 @@ def render_job(job: dict[str, Any]) -> tuple[str, str]:
 
 def dependency_status() -> dict[str, Any]:
     return {
-        "ffmpeg": bool(shutil.which("ffmpeg")),
+        "ffmpeg": bool(find_ffmpeg()),
         "ffprobe": bool(find_ffprobe()),
         "node": bool(shutil.which("node")),
         "piper_voice": _voice_model().exists(),

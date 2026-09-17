@@ -13,7 +13,7 @@ from unittest.mock import patch
 from backend.captions import add_scene_captions, write_srt
 from backend.plan import file_sha256
 from backend.quality import QualityGateError, run_quality_gate
-from backend.rendering import _synthesize_gemini, prepare_scene_audio, synthesize
+from backend.rendering import _synthesize_gemini, normalize_narration_audio, prepare_scene_audio, synthesize
 
 
 def write_wav(path: Path, *, silent: bool = False, duration: float = 1.0) -> None:
@@ -175,6 +175,20 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(calls, ["Erster Text.", "Zweiter Text.", "Geänderter zweiter Text."])
         self.assertIn("reused_from", manifest["segments"][0])
         self.assertNotIn("reused_from", manifest["segments"][1])
+
+    def test_narration_is_normalized_for_cross_platform_loudness(self):
+        with tempfile.TemporaryDirectory() as temp:
+            audio = Path(temp) / "narration.wav"
+            write_wav(audio)
+
+            def fake_run(command, **_kwargs):
+                self.assertIn("loudnorm=I=-16:TP=-1.5:LRA=11", command)
+                write_wav(Path(command[-1]))
+
+            with patch("backend.rendering.find_ffmpeg", return_value="ffmpeg"), patch("backend.rendering._run", side_effect=fake_run):
+                duration = normalize_narration_audio(audio)
+
+        self.assertAlmostEqual(duration, 1.0)
 
 
 if __name__ == "__main__":

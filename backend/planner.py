@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -17,8 +18,23 @@ class ScriptProviderUnavailable(RuntimeError):
     """No deliberately configured AI script provider is available."""
 
 
+class ProviderHTTPError(RuntimeError):
+    """Sanitized upstream HTTP failure with retry information but no credentials."""
+
+    def __init__(self, status_code: int, reason: str = "", *, retry_after: float | None = None):
+        super().__init__(f"Anbieter antwortete mit HTTP {status_code}.")
+        self.status_code = status_code
+        self.reason = reason
+        self.retry_after = retry_after
+
+
+class ProviderConnectionError(RuntimeError):
+    """Upstream could not be reached without exposing request details."""
+
+
 _OLLAMA_CALL_LOCK = threading.Lock()
 _LOCAL_OLLAMA_HOSTS = {"127.0.0.1", "localhost", "ollama"}
+_RETRYABLE_GEMINI_STATUS = {429, 500, 502, 503, 504}
 
 
 ACTIONS = ["intro", "walk", "point", "think", "explain", "celebrate", "outro"]
@@ -267,13 +283,41 @@ def _post_json(url: str, payload: dict[str, Any], headers: dict[str, str]) -> di
         with urllib.request.urlopen(request, timeout=120) as response:
             return json.loads(response.read())
     except urllib.error.HTTPError as exc:
+        retry_after: float | None = None
+        retry_header = exc.headers.get("Retry-After") if exc.headers else None
+        if retry_header:
+            try:
+                retry_after = max(0.0, min(30.0, float(retry_header)))
+            except ValueError:
+                retry_after = None
         try:
-            details = exc.read().decode("utf-8", errors="replace")[:600]
+            body = json.loads(exc.read().decode("utf-8", errors="replace"))
+            reason = str(body.get("error", {}).get("status", ""))[:80]
         except Exception:
-            details = ""
-        raise RuntimeError(f"Anbieter antwortete mit HTTP {exc.code}: {details}") from exc
+            reason = ""
+        raise ProviderHTTPError(exc.code, reason, retry_after=retry_after) from exc
     except urllib.error.URLError as exc:
-        raise RuntimeError(f"Anbieter ist nicht erreichbar: {exc.reason}") from exc
+        raise ProviderConnectionError("Anbieter ist nicht erreichbar.") from exc
+
+
+def _post_gemini(payload: dict[str, Any]) -> dict[str, Any]:
+    """Use Google's documented bounded exponential backoff for transient API errors."""
+    attempts = max(0, min(3, settings.gemini_max_retries)) + 1
+    for attempt in range(attempts):
+        try:
+            return _post_json(
+                "https://generativelanguage.googleapis.com/v1beta/interactions",
+                payload,
+                {"x-goog-api-key": settings.gemini_api_key},
+            )
+        except ProviderHTTPError as exc:
+            if exc.status_code not in _RETRYABLE_GEMINI_STATUS or attempt == attempts - 1:
+                raise
+            delay = exc.retry_after
+            if delay is None:
+                delay = min(30.0, settings.gemini_retry_base_seconds * (2**attempt))
+            time.sleep(delay)
+    raise RuntimeError("Gemini-Wiederholungslogik endete unerwartet.")
 
 
 def _ollama_url(path: str) -> str:
@@ -308,6 +352,65 @@ def _post_ollama(payload: dict[str, Any], *, timeout: int | None = None) -> dict
         ) from exc
 
 
+def _generate_with_ollama(prompt: str, model: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": _system_prompt()},
+            {"role": "user", "content": prompt},
+        ],
+        "format": _response_schema(),
+        "stream": False,
+        "think": False,
+        "keep_alive": settings.ollama_keep_alive,
+        "options": {
+            "num_ctx": settings.ollama_num_ctx,
+            "num_predict": settings.ollama_num_predict,
+            "temperature": 0.35,
+            "top_p": 0.9,
+            "seed": 42,
+        },
+    }
+    if not _OLLAMA_CALL_LOCK.acquire(blocking=False):
+        raise ScriptProviderUnavailable(
+            "Das lokale Modell erstellt bereits ein Skript. Bitte den laufenden Entwurf abwarten und dann erneut versuchen."
+        )
+    try:
+        data = _post_ollama(payload)
+    finally:
+        _OLLAMA_CALL_LOCK.release()
+    try:
+        script = _extract_json(data["message"]["content"])
+    except (KeyError, TypeError) as exc:
+        raise ValueError("Lokales Ollama lieferte keine verwertbare Skriptantwort.") from exc
+    metrics = {
+        "total_duration_ms": round(int(data.get("total_duration") or 0) / 1_000_000),
+        "load_duration_ms": round(int(data.get("load_duration") or 0) / 1_000_000),
+        "prompt_tokens": data.get("prompt_eval_count"),
+        "output_tokens": data.get("eval_count"),
+        "done_reason": data.get("done_reason"),
+        "num_ctx": settings.ollama_num_ctx,
+        "num_predict": settings.ollama_num_predict,
+    }
+    return script, metrics
+
+
+def _generate_with_gemini(prompt: str, model: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    data = _post_gemini({
+        "model": model,
+        "input": f"{_system_prompt()}\n\n{prompt}",
+        "response_format": {
+            "type": "text",
+            "mime_type": "application/json",
+            "schema": _response_schema(),
+        },
+    })
+    try:
+        return _extract_json(data["output_text"]), {}
+    except (KeyError, TypeError) as exc:
+        raise ValueError("Gemini lieferte keine verwertbare Skriptantwort.") from exc
+
+
 def _selected_provider() -> tuple[str, str]:
     provider = settings.script_provider
     if provider == "auto":
@@ -319,13 +422,17 @@ def _selected_provider() -> tuple[str, str]:
         return provider, settings.ollama_model
     if provider == "gemini" and settings.gemini_api_key:
         return provider, settings.gemini_model
+    if provider == "gemini_ollama" and settings.ollama_model:
+        _ollama_url("")
+        models = f"{settings.gemini_model} → {settings.ollama_model}" if settings.gemini_api_key else settings.ollama_model
+        return provider, models
     if provider == "openai" and settings.openai_api_key:
         return provider, settings.openai_model
     if provider == "openrouter" and settings.openrouter_api_key and settings.openrouter_model:
         return provider, settings.openrouter_model
     if provider == "template" and settings.allow_template_script:
         return provider, "development-template"
-    if provider not in {"ollama", "gemini", "openai", "openrouter", "template", "auto"}:
+    if provider not in {"ollama", "gemini", "gemini_ollama", "openai", "openrouter", "template", "auto"}:
         raise ScriptProviderUnavailable(f"Unbekannter SCRIPT_PROVIDER: {provider}")
     if provider == "template":
         raise ScriptProviderUnavailable("Der Vorlagenplaner ist deaktiviert. ALLOW_TEMPLATE_SCRIPT=1 ist nur für Entwicklungstests gedacht.")
@@ -336,17 +443,28 @@ def script_provider_status() -> dict[str, Any]:
     try:
         provider, model = _selected_provider()
         status = {"ready": provider != "template", "provider": provider, "model": model, "requested": settings.script_provider}
-        if provider == "ollama":
+        if provider in {"ollama", "gemini_ollama"}:
+            local_model = settings.ollama_model
             request = urllib.request.Request(_ollama_url("/api/tags"), method="GET")
             try:
                 with urllib.request.urlopen(request, timeout=2) as response:
                     installed = {item.get("name") for item in json.loads(response.read()).get("models", [])}
-                status["ready"] = model in installed
-                if not status["ready"]:
-                    status["message"] = f"Lokales Modell {model} ist noch nicht installiert."
+                local_ready = local_model in installed
             except (OSError, ValueError, urllib.error.URLError):
-                status["ready"] = False
-                status["message"] = f"Lokales Ollama ist unter {settings.ollama_base_url} nicht erreichbar."
+                local_ready = False
+            if provider == "ollama":
+                status["ready"] = local_ready
+                if not local_ready:
+                    status["message"] = f"Lokales Ollama oder Modell {local_model} ist nicht erreichbar."
+            else:
+                status["cloud_configured"] = bool(settings.gemini_api_key)
+                status["fallback_model"] = local_model
+                status["fallback_ready"] = local_ready
+                status["ready"] = bool(settings.gemini_api_key) or local_ready
+                if not settings.gemini_api_key and local_ready:
+                    status["message"] = "Gemini API ist nicht konfiguriert; lokales Qwen wird direkt verwendet."
+                elif not local_ready:
+                    status["message"] = "Gemini ist konfiguriert; lokaler Qwen-Fallback ist derzeit nicht bereit."
         return status
     except ScriptProviderUnavailable as exc:
         return {"ready": False, "provider": None, "model": None, "requested": settings.script_provider, "message": str(exc)}
@@ -359,67 +477,41 @@ def generate_script(
     instructions: str | None = None,
 ) -> dict[str, Any]:
     provider, model = _selected_provider()
+    requested_provider = provider
+    actual_provider = provider
+    actual_model = model
+    fallback_metadata: dict[str, Any] = {}
     prompt = _prompt(request, previous, instructions)
     if provider == "template":
         script = _template(request)
         metrics: dict[str, Any] = {}
     elif provider == "ollama":
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": _system_prompt()},
-                {"role": "user", "content": prompt},
-            ],
-            "format": _response_schema(),
-            "stream": False,
-            "think": False,
-            "keep_alive": settings.ollama_keep_alive,
-            "options": {
-                "num_ctx": settings.ollama_num_ctx,
-                "num_predict": settings.ollama_num_predict,
-                "temperature": 0.35,
-                "top_p": 0.9,
-                "seed": 42,
-            },
-        }
-        if not _OLLAMA_CALL_LOCK.acquire(blocking=False):
-            raise ScriptProviderUnavailable(
-                "Das lokale Modell erstellt bereits ein Skript. Bitte den laufenden Entwurf abwarten und dann erneut versuchen."
-            )
-        try:
-            data = _post_ollama(payload)
-        finally:
-            _OLLAMA_CALL_LOCK.release()
-        try:
-            script = _extract_json(data["message"]["content"])
-        except (KeyError, TypeError) as exc:
-            raise ValueError("Lokales Ollama lieferte keine verwertbare Skriptantwort.") from exc
-        metrics = {
-            "total_duration_ms": round(int(data.get("total_duration") or 0) / 1_000_000),
-            "load_duration_ms": round(int(data.get("load_duration") or 0) / 1_000_000),
-            "prompt_tokens": data.get("prompt_eval_count"),
-            "output_tokens": data.get("eval_count"),
-            "done_reason": data.get("done_reason"),
-            "num_ctx": settings.ollama_num_ctx,
-            "num_predict": settings.ollama_num_predict,
-        }
+        script, metrics = _generate_with_ollama(prompt, model)
     elif provider == "gemini":
-        url = "https://generativelanguage.googleapis.com/v1beta/interactions"
-        data = _post_json(
-            url,
-            {
-                "model": model,
-                "input": f"{_system_prompt()}\n\n{prompt}",
-                "response_format": {
-                    "type": "text",
-                    "mime_type": "application/json",
-                    "schema": _response_schema(),
-                },
-            },
-            {"x-goog-api-key": settings.gemini_api_key},
-        )
-        script = _extract_json(data["output_text"])
-        metrics = {}
+        script, metrics = _generate_with_gemini(prompt, model)
+    elif provider == "gemini_ollama":
+        if not settings.gemini_api_key:
+            actual_provider = "ollama"
+            actual_model = settings.ollama_model
+            fallback_metadata = {"fallback_from": "gemini", "fallback_reason": "gemini_not_configured"}
+            script, metrics = _generate_with_ollama(prompt, actual_model)
+        else:
+            try:
+                actual_provider = "gemini"
+                actual_model = settings.gemini_model
+                script, metrics = _generate_with_gemini(prompt, actual_model)
+            except ProviderHTTPError as exc:
+                if exc.status_code not in _RETRYABLE_GEMINI_STATUS:
+                    raise
+                actual_provider = "ollama"
+                actual_model = settings.ollama_model
+                fallback_metadata = {"fallback_from": "gemini", "fallback_reason": "quota_or_capacity"}
+                script, metrics = _generate_with_ollama(prompt, actual_model)
+            except ProviderConnectionError:
+                actual_provider = "ollama"
+                actual_model = settings.ollama_model
+                fallback_metadata = {"fallback_from": "gemini", "fallback_reason": "connectivity"}
+                script, metrics = _generate_with_ollama(prompt, actual_model)
     else:
         base_url = settings.openai_base_url if provider == "openai" else "https://openrouter.ai/api/v1"
         api_key = settings.openai_api_key if provider == "openai" else settings.openrouter_api_key
@@ -445,13 +537,15 @@ def generate_script(
     audience = script.pop("audience", "")
     tone = script.pop("tone", "")
     script["metadata"] = {
-        "provider": provider,
-        "model": model,
+        "provider": actual_provider,
+        "model": actual_model,
         "audience": audience,
         "tone": tone,
         "fact_check_notes": fact_check_notes,
         "revision": bool(previous),
         "generation_metrics": metrics,
+        **({"requested_provider": requested_provider} if requested_provider == "gemini_ollama" else {}),
+        **fallback_metadata,
     }
     return finalize_scene_plan(script, request.duration_seconds, previous)
 
@@ -460,8 +554,9 @@ def unload_script_model() -> bool:
     """Unload local model memory before CPU/RAM-heavy rendering; never blocks a render on failure."""
     try:
         provider, model = _selected_provider()
-        if provider != "ollama":
+        if provider not in {"ollama", "gemini_ollama"}:
             return False
+        model = settings.ollama_model
         request = urllib.request.Request(
             _ollama_url("/api/generate"),
             data=json.dumps({"model": model, "keep_alive": 0, "stream": False}).encode(),

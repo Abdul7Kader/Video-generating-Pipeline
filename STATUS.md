@@ -1,6 +1,50 @@
 # Entwicklungsstatus – Video Pipeline V2
 
-Letzte Aktualisierung: 2026-09-16
+Letzte Aktualisierung: 2026-09-17
+
+Git-Status der Dokumentation: `STATUS.md` wird lokal von Git verfolgt und war bei der Prüfung bereits auf GitHub in `origin/main` vorhanden. Diese aktualisierte Fassung gehört zum Branch `codex/gemini-notebooklm-integration`.
+
+## Aktiver Auftrag: Gemini CLI, Profilisolation und NotebookLM
+
+Die geplante Einbindung über Gemini CLI ist für die vorhandenen Google-AI-Pro-Konten extern blockiert: Google hat „Login with Google“ für Gemini Code Assist Individual, Google AI Pro und Google AI Ultra am 18. Juni 2026 eingestellt. Der reale Login auf diesem Rechner authentifizierte zunächst bei Google, wurde anschließend aber von Gemini CLI mit `This client is no longer supported for Gemini Code Assist for individuals` abgewiesen. Laut aktueller offizieller Dokumentation bleibt Gemini CLI nur für Code Assist Standard/Enterprise unterstützt; Consumer-Konten sollen zu Antigravity CLI migrieren. Da der Auftrag ausdrücklich ausschließlich Gemini CLI verlangt, wird nicht eigenmächtig migriert und keine kostenpflichtige API aktiviert. Consumer-NotebookLM bleibt beim kontrollierten Dateiimport, weil die programmatische Audio-Overview-API zu NotebookLM Enterprise gehört.
+
+Aktueller CLI-Stand:
+
+- Offizielle Gemini CLI `0.60.0` global installiert.
+- `primary` und `secondary` liegen getrennt unter `%LOCALAPPDATA%\VideoPipeline\gemini-profiles` und verwenden je ein offiziell dokumentiertes `GEMINI_CLI_HOME`.
+- Windows-ACLs geprüft: Vererbung deaktiviert; Zugriff nur für das aktuelle Windows-Konto und `SYSTEM`.
+- Profile besitzen eine CLI-Deny-All-Policy; die Pipeline übergibt Prompts nur über stdin und startet die CLI in einem leeren Profil-Arbeitsordner.
+- Tokens, Cookies und Sitzungsdateien liegen weder in SQLite noch im Repository. Persistiert werden nur Profilname, kategorisierter Status, letzter Erfolg/Fehler und Cooldown.
+- Pooltests beweisen identische Eingabe beim Profilwechsel, Retry-After-Cooldown, Neustartpersistenz und das Nicht-Überschreiben CLI-verwalteter Authentifizierungseinstellungen.
+- Der reguläre interaktive Google-Login für `primary` wurde mit der bewusst gewählten Ordneroption „Don't trust“ vollständig bis zur Google-Authentifizierung getestet. Der nachgelagerte Gemini-CLI-Dienst verweigert dieses Consumer-/Pro-Konto aufgrund der offiziellen Einstellung. Deshalb wurden weder `primary` aktiviert noch `secondary` unnötig angemeldet.
+- Die fünfschrittige, persistente Skriptproduktion ist implementiert: Briefing, Struktur, Sprecher-Skript, Szenenplan und Qualitätsprüfung werden mit vollständiger strukturierter Eingabe/Ausgabe, Hashes, Modell, Profil und Prompt-Version in SQLite gespeichert. Abgeschlossene Schritte werden nach Fehler oder Neustart nicht wiederholt; eine stabile `generation_id` verhindert doppelte Endaufträge.
+- Die Oberfläche erlaubt pro Auftrag die Wahl zwischen lokalem Qwen und Gemini CLI, zeigt Profil-/Fehler-/Cooldown-Status sowie das verwendete Profil und erkannte Qualitätsprobleme. Gemini bleibt bis zum bestandenen Live-Profiltest deaktiviert.
+
+Umsetzungsplan:
+
+1. **Jetzt:** heruntergeladene Gemini-/NotebookLM-MP4s gestreamt importieren, mit ffprobe prüfen, Herkunft und SHA-256 manifestieren und an die aktuelle freigegebene Skriptversion binden.
+2. NotebookLM-Audio/Podcasts importieren und mit Wellenform, Bildern, Transkript und Untertiteln zu einem prüfbaren Video zusammensetzen.
+3. Gemini-Bilder und -Videoclips einzelnen stabilen Szenen zuordnen und in das vorhandene Teil-Neurendering übernehmen.
+4. Optionale Gemini-Medien-APIs für Bild, Video und TTS nur hinter expliziter Kostensperre, Modell-/Kostenanzeige und separatem API-Projekt ergänzen.
+5. Alle externen Ergebnisse durchlaufen weiterhin die bestehende zweite, dateihashgebundene Freigabe vor einem Online-Posting.
+
+Status: **Phase 1 implementiert** – In der Skriptansicht kann nach der Skriptfreigabe ein offiziell heruntergeladenes MP4 aus Gemini oder NotebookLM gewählt werden. Der Server schreibt den Upload begrenzt und gestreamt, verlangt Audio- und Videostream sowie eine positive Laufzeit, speichert ein Herkunfts-/Hashmanifest und übernimmt nur eine weiterhin aktuelle freigegebene Skriptversion in `video_review`. Die vorhandene zweite Freigabe bleibt unverändert zwingend. Phasen 2–5 sind geplant, aber noch nicht implementiert.
+
+Vollständige Spezifikationen: `SPEC-gemini-cli-pool.md` und `SPEC-gemini-notebooklm-integration.md`; ausführbarer Plan: `tasks/plan.md`; Arbeitsliste: `tasks/todo.md`.
+
+Offizielle Grundlagen: https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals, https://antigravity.google/docs/cli/gcli-migration, https://geminicli.com/docs/get-started/authentication/, https://geminicli.com/docs/reference/configuration/, https://geminicli.com/docs/cli/headless/, https://geminicli.com/docs/reference/policy-engine/, https://support.google.com/gemininotebook/answer/16212820, https://docs.cloud.google.com/gemini/enterprise/notebooklm-enterprise/docs/api-audio-overview
+
+## Aktiver Auftrag: Multi-Channel-Produktion und Veröffentlichung
+
+Die Pipeline erhält eine additive Mehrfachziel-Auswahl und einen Zielstatus pro Plattform. YouTube bleibt ein echter automatischer Adapter; Mastodon wird als zweiter direkter Adapter ergänzt. TikTok, Meta, LinkedIn, X und Bluesky werden nur dann automatisch aktiviert, wenn die jeweils vorgeschriebenen Entwickler-Apps, OAuth-Rechte und Plattformprüfungen eingerichtet sind. Podcastziele folgen über einen öffentlich gehosteten RSS-Feed; Spotify Music und Apple Music benötigen für unabhängige Musikveröffentlichungen einen Distributor. Die Oberfläche wird diese Unterschiede sichtbar machen und keinen Export als Veröffentlichung ausgeben.
+
+Status: **erste Multi-Channel-Scheibe implementiert** – Aufträge akzeptieren mehrere Ziele, die Datenbank migriert ältere Einzelziele additiv und führt je Plattform einen eigenen Status. Ein einziger Freigabeschritt reiht alle vollständig konfigurierten automatischen Ziele ein. Die Beanspruchung ist atomar; Fehler werden nicht automatisch wiederholt und ein Neustart während einer Übertragung erzeugt den sichtbaren Status `unknown`. YouTube läuft über den neuen Dispatcher, Mastodon ist als zweiter echter Adapter mit gestreamtem Medienupload, privater Standardsichtbarkeit und Idempotency-Key implementiert. Alle anderen Ziele bleiben bis zu ihrer offiziellen Einrichtung als Setup/RSS/Distributor gekennzeichnet.
+
+Qualitätsausbau: Jede Plattform erhält ein Formatprofil. In der nächsten Scheibe erzeugt die Pipeline freigabebindbare 9:16-, 16:9- und 1:1-Varianten sowie Podcast-Audio mit Loudness-Prüfung. Eine echte Songproduktion bleibt ein eigener Adapter und wird nicht durch Sprach-TTS simuliert.
+
+Bereits umgesetzt ist eine produktionsweite Lautheitsnormalisierung der Sprecher-Audiospur auf -16 LUFS mit -1,5 dB True-Peak-Reserve. Damit startet jedes neue lokale Rendering mit konsistenterer, plattformtauglicher Lautstärke.
+
+Vollständige Spezifikation: `SPEC-multichannel-publishing.md`.
 
 ## Aktiver Auftrag: vollständig lokale Skripterstellung
 
@@ -13,7 +57,7 @@ Handyzugang und Cloud-Anbieter sind zurückgestellt. Der lokale Ausbau erfolgt i
 
 Etappenstatus: **1 abgeschlossen**, **2 in Arbeit**, Adapter aus Etappe 3 bereits implementiert und testgedeckt, Etappe 4 wartet auf den bestandenen realen Benchmark.
 
-Aktueller Befund: Ollama 0.34.1 ist projektlokal installiert und läuft mit deaktivierter Cloud-/Verlaufsfunktion ausschließlich auf `127.0.0.1:11434`. Qwen3.5 9B Q4_K_M wurde nach erfolgreicher SHA-256-Prüfung installiert (Ollama-ID `6488c96fa5fa`, 6,6 GB). Vor der Inferenz sind von 22 GiB RAM 19 GiB verfügbar und 8 GiB Swap vollständig frei; 138 GiB Plattenplatz bleiben frei. Qwen3.5 27B Q4_K_M benötigt bereits 17 GB Modellgewicht; GLM-4.7-Flash Q4_K_M 19 GB. Beide lassen auf diesem Rechner keine belastbare Laufzeit- und Renderreserve und werden deshalb nicht heruntergeladen. Quellen: https://ollama.com/library/qwen3.5/tags, https://ollama.com/library/glm-4.7-flash
+Aktueller Befund: Ollama läuft mit deaktivierter Cloud-/Verlaufsfunktion ausschließlich auf `127.0.0.1:11434`. Der Nutzer hat die stärkere Quantisierung `qwen3.5:9b-q8_0` installiert (Ollama-ID `441ec31e4d2a`, 10 GB); Konfiguration, Compose und lokale Startskripte verwenden jetzt genau dieses Modell. Der Live-Healthcheck der Pipeline meldete `ready=true`, Anbieter `ollama`, Modell `qwen3.5:9b-q8_0`. Die früheren Q4-Benchmarkdateien bleiben als historische Messdaten unverändert.
 
 ## Ziel
 
@@ -101,6 +145,16 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 
 ## Bisherige Tests
 
+- 2026-09-17: Qwen-Q8-Bindung live bestanden: Ollama nur auf localhost gestartet; `/api/health` meldete `ollama / qwen3.5:9b-q8_0` bereit.
+- 2026-09-17: Gemini-CLI-Profilpool: offizielle CLI 0.60.0 installiert; Profil-ACLs für `primary` und `secondary` verifiziert. Acht Pooltests prüfen Namen/Traversal, tool-lose Policy, stdin/isoliertes Home, Rate-Limit-Failover mit identischer Eingabe, Statuspersistenz ohne Credentials, CLI-Fehlercode 41, Consumer-Deprecation und Erhalt CLI-verwalteter Authentifizierung.
+- 2026-09-17: Realer `primary`-Login: leeres Workspace ausdrücklich nicht vertraut, Google-OAuth erfolgreich, anschließend offizielle serverseitige Ablehnung des Consumer-/Pro-Zugangs. Keine Umgehung, kein API-Schlüssel und kein zweites Konto verwendet. Gemini bleibt deaktiviert; Qwen bleibt bereit.
+- 2026-09-17: Persistenter Gemini-Workflow: drei Tests belegen fünf schema-validierte Schritte, Wiederaufnahme exakt am ersten offenen Schritt, keine erneute Erzeugung fertiger Schritte, unveränderliche Auftrags-IDs und Ablehnung ungültiger Teilausgaben. Gesamtsuite 63/63 bestanden; Compileall, JavaScript-Syntax und `git diff --check` bestanden.
+- 2026-09-17: Lokaler Dienst nach Neustart ausschließlich auf `127.0.0.1:8080`: Qwen Q8 bereit, `primary` sichtbar als `access_denied`, `secondary` unangemeldet, Gemini bewusst inaktiv. Frischer Browser-Smoke-Test zeigt Anbieterwahl und Profilstatus; Browserkonsole ohne Fehler oder Warnungen.
+- 2026-09-17: Multi-Channel-Scheibe: 48/48 Python-Tests bestanden. Neue Tests prüfen Mehrfachziel-Normalisierung, Plattformmodi, Konfigurationsstatus ohne Secret-Leak, unabhängige Zielzustände, atomare Beanspruchung, Teilfehler, Neustartstatus `unknown`, Mastodon-HTTPS-/Payload-/Idempotenzregeln und -16-LUFS-Normalisierung.
+- 2026-09-17: Echte lokale FFmpeg-Loudness-Normalisierung erfolgreich geprüft: 1,0 s Eingang ergab 1,0 s, 48 kHz und eine valide WAV-Ausgabe. Python-Compileall, JavaScript-Syntax und `git diff --check` bestanden. Laufender Dienst meldet FFmpeg/ffprobe bereit und 15 Plattformprofile. Browser-Smoke-Test zeigte die Mehrfachauswahl und alle Setup-/Formatangaben ohne Konsolenfehler.
+- 2026-09-17: Gemini-/NotebookLM-Phase 1: 39/39 Python-Tests bestanden. Neue Tests prüfen Uploadlimit und Entfernung von Teildateien, Audio-/Videostream-Pflicht, Herkunftsmanifest, unbekannte Quellen, aktuelle Skriptfreigabe sowie den vollständigen API-zu-`video_review`-Ablauf.
+- 2026-09-17: Python-Compileall, JavaScript-Syntax und `git diff --check` bestanden. Laufender Dienst nach Neustart gesund; Windows-ffprobe erkannt und Importendpunkt im OpenAPI-Schema vorhanden. Die lokale Oberfläche lädt die neue `app.js` ohne Browserwarnungen oder -fehler.
+
 - 2026-09-15: V1-Datenbank-Workflow: 3/3 Tests bestanden.
 - 2026-09-15: Python-Bytecodeprüfung des Backends bestanden.
 - 2026-09-15: Neuer Skriptplaner: 5/5 Tests für fehlende Konfiguration, Stilverzweigung, Revision, strukturiertes Gemini-Ergebnis/Provenienz und gesperrten Template-Fallback bestanden; zusammen 8/8 Python-Tests grün.
@@ -132,6 +186,7 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 
 ## Offene Probleme/Risiken
 
+- Die Docker-CLI ist in dieser Windows-Sitzung nicht installiert beziehungsweise nicht im PATH; `docker compose config --quiet` konnte deshalb im finalen Durchgang nicht erneut ausgeführt werden. Der projektlokale FastAPI-/Ollama-Betrieb und alle automatisierten Tests funktionieren unabhängig davon.
 - Die CPU-Laufzeit liegt bei etwa acht Minuten je Entwurf und die Speicherreserve ist gut. Die Struktur ist inzwischen zuverlässig, aber der dritte Lauf fiel am redaktionellen Qualitätsgate durch. Die nochmals verschärften Regeln müssen daher in einem letzten vollständigen Wiederholungslauf belegt werden.
 - V1-Nutzdaten und bereits gerenderte Videos werden erhalten und nicht migriert oder gelöscht.
 - Die tatsächliche Medienstrategie pro Stil und mögliche generative Videokosten werden vor Aktivierung kostenpflichtiger Adapter konkret verglichen.
@@ -139,7 +194,7 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 
 ## Erledigter Zwischenstand
 
-- Standard ist jetzt `SCRIPT_PROVIDER=ollama` mit `qwen3.5:9b-q4_K_M`; ohne erreichbares lokales Modell entsteht kein Schein-Skript.
+- Standard ist jetzt `SCRIPT_PROVIDER=ollama` mit `qwen3.5:9b-q8_0`; ohne erreichbares lokales Modell entsteht kein Schein-Skript.
 - Der Ollama-Adapter erzwingt strukturiertes JSON, begrenzt Kontext und Ausgabe, serialisiert Modellaufrufe und entlädt das Modell vor einem Render. Nicht-lokale Ollama-Adressen werden abgewiesen.
 - Aktuelle strukturierte Gemini-`interactions`-Integration, OpenAI-kompatibler Adapter und expliziter OpenRouter-Adapter sind vorhanden.
 - Visuelle Regie ist je Stil getrennt und umfasst realen Medientyp, sichtbare Einstellung, Asset-Prompt, Kamera, bewusste Texteinblendung und Übergang.
@@ -157,4 +212,8 @@ Status: wartet bewusst auf gemeinsame Zugangsentscheidung
 
 ## Nächster konkreter Arbeitsschritt
 
-Den vollständigen Drei-Lauf-Benchmark mit dem strengen redaktionellen Prompt und Platzhalter-Guard wiederholen. Nur bei drei schema-validen und fachlich vertretbaren Ergebnissen Laufzeit/RAM/Swap und Inhalt abschließend bewerten und den besseren Entwurf dokumentieren. Anschließend den isolierten echten API-Ablauf Thema → Entwurf → Revision → hashgebundene Freigabe testen. Ein Video wird erst nach Nutzerfreigabe mit vorhandenem Testmaterial gerendert; Handyzugang bleibt zurückgestellt.
+Für den Gemini-Pfad ist eine Nutzerentscheidung erforderlich: Entweder beim ausdrücklich verlangten Gemini CLI bleiben und ein separat vorhandenes Code-Assist-Standard/Enterprise-Profil verwenden, oder die von Google vorgeschlagene Migration zu Antigravity CLI als neuen Auftrag freigeben. Bis dahin bleibt `GEMINI_CLI_ENABLED=0`; der lokale Qwen-Pfad ist vollständig nutzbar. Nach einer unterstützten Anmeldung folgen echter Einzeltest und der bereits automatisiert simulierte Profilwechseltest mit zwei Profilen.
+
+Für Multi-Channel als Nächstes aus einem freigegebenen Master hashgebundene 9:16-, 16:9- und 1:1-Ausgaben sowie ein Podcast-Audioartefakt erzeugen. Erst wenn ein valider Feed samt öffentlichem Hosting konfiguriert ist, darf ein Podcastziel von `setup_required` auf export- oder veröffentlichungsbereit wechseln. Danach folgen – jeweils nur mit offiziellen Entwicklerrechten – weitere direkte Social-Adapter. Eine Songproduktion bleibt getrennt und benötigt einen echten Musikgenerator sowie einen Distributor.
+
+Für den lokalen Skriptpfad bleibt parallel der vollständige Drei-Lauf-Benchmark mit strengem redaktionellem Prompt und Platzhalter-Guard offen. Ein Video wird weiterhin erst nach Nutzerfreigabe gerendert oder veröffentlicht; Handyzugang bleibt zurückgestellt.

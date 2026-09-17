@@ -5,6 +5,13 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
+PlatformId = Literal[
+    "download", "youtube", "mastodon", "tiktok", "instagram_reels", "facebook_reels",
+    "linkedin", "x", "bluesky", "spotify_podcast", "apple_podcasts",
+    "amazon_music_podcast", "soundcloud", "spotify_music", "apple_music",
+]
+
+
 class Scene(BaseModel):
     scene_id: str = Field(default="", max_length=64)
     narration: str = Field(min_length=2, max_length=1200)
@@ -41,12 +48,25 @@ class JobCreate(BaseModel):
     duration_seconds: int = Field(default=60, ge=15, le=600)
     aspect_ratio: Literal["9:16", "16:9", "1:1"] = "9:16"
     video_type: Literal["stickman", "explainer", "social", "podcast", "generated"] = "stickman"
-    target_platform: Literal["download", "youtube"] = "download"
+    target_platform: PlatformId = "download"
+    target_platforms: list[PlatformId] = Field(default_factory=list, max_length=15)
+    script_generator: Literal["qwen", "gemini_cli"] = "qwen"
+    generation_id: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+    )
 
     @field_validator("topic")
     @classmethod
     def normalize_topic(cls, value: str) -> str:
         return " ".join(value.split())
+
+    @model_validator(mode="after")
+    def normalize_targets(self):
+        selected = self.target_platforms or [self.target_platform]
+        self.target_platforms = list(dict.fromkeys(selected))
+        self.target_platform = self.target_platforms[0]
+        return self
 
 
 class ScriptUpdate(BaseModel):

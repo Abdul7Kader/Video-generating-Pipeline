@@ -24,7 +24,7 @@ case "${1:-serve}" in
     exec "$ollama_bin" serve
     ;;
   pull)
-    exec "$ollama_bin" pull "${2:-qwen3.5:9b-q4_K_M}"
+    exec "$ollama_bin" pull "${2:-qwen3.5:9b-q8_0}"
     ;;
   list)
     exec "$ollama_bin" list
@@ -33,7 +33,7 @@ case "${1:-serve}" in
     exec "$ollama_bin" ps
     ;;
   stop-model)
-    exec "$ollama_bin" stop "${2:-qwen3.5:9b-q4_K_M}"
+    exec "$ollama_bin" stop "${2:-qwen3.5:9b-q8_0}"
     ;;
   *)
     echo "Nutzung: $0 {serve|pull [MODELL]|list|ps|stop-model [MODELL]}"

@@ -24,9 +24,31 @@ def find_ffprobe() -> str | None:
     if system:
         return system
     project_root = Path(__file__).resolve().parent.parent
-    for platform in ("compositor-linux-x64-gnu", "compositor-linux-x64-musl"):
-        candidate = project_root / "renderer" / "node_modules" / "@remotion" / platform / "ffprobe"
-        if candidate.is_file() and candidate.stat().st_mode & 0o111:
+    candidates = (
+        ("compositor-win32-x64-msvc", "ffprobe.exe"),
+        ("compositor-linux-x64-gnu", "ffprobe"),
+        ("compositor-linux-x64-musl", "ffprobe"),
+    )
+    for platform, filename in candidates:
+        candidate = project_root / "renderer" / "node_modules" / "@remotion" / platform / filename
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def find_ffmpeg() -> str | None:
+    system = shutil.which("ffmpeg")
+    if system:
+        return system
+    project_root = Path(__file__).resolve().parent.parent
+    candidates = (
+        ("compositor-win32-x64-msvc", "ffmpeg.exe"),
+        ("compositor-linux-x64-gnu", "ffmpeg"),
+        ("compositor-linux-x64-musl", "ffmpeg"),
+    )
+    for platform, filename in candidates:
+        candidate = project_root / "renderer" / "node_modules" / "@remotion" / platform / filename
+        if candidate.is_file():
             return str(candidate)
     return None
 
@@ -43,6 +65,11 @@ def _probe(path: Path) -> dict[str, Any]:
         check=True,
     )
     return json.loads(result.stdout)
+
+
+def probe_media(path: Path) -> dict[str, Any]:
+    """Return ffprobe metadata for a local media file."""
+    return _probe(path)
 
 
 def run_quality_gate(

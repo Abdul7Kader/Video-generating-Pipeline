@@ -104,6 +104,75 @@ class WorkflowTests(unittest.TestCase):
         approved = self.db.approve_video(self.job_id, 1, output_hash, False)
         self.assertEqual(approved["approved_output_sha256"], output_hash)
 
+    def test_external_video_requires_current_approved_script(self):
+        with self.assertRaisesRegex(ValueError, "script_not_approved"):
+            self.db.attach_imported_video(
+                self.job_id, 1, self.script_hash, f"{self.job_id}/v1/imported-video.mp4", "e" * 64, "notebooklm"
+            )
+
+        self.db.approve_script(self.job_id, 1, self.script_hash)
+        imported = self.db.attach_imported_video(
+            self.job_id, 1, self.script_hash, f"{self.job_id}/v1/imported-video.mp4", "e" * 64, "notebooklm"
+        )
+        self.assertEqual(imported["status"], "video_review")
+        self.assertEqual(imported["render_version"], 1)
+        self.assertEqual(imported["render_script_hash"], self.script_hash)
+        self.assertEqual(imported["output_sha256"], "e" * 64)
+        self.assertEqual(imported["tts_mode"], "import:notebooklm")
+        self.assertEqual(imported["events"][0]["event_type"], "external_video_imported")
+        self.assertEqual(imported["events"][0]["metadata"]["source"], "notebooklm")
+
+    def test_multiple_publication_targets_have_independent_status(self):
+        multi_values = {
+            **VALUES,
+            "target_platform": "youtube",
+            "target_platforms": ["youtube", "mastodon", "tiktok", "spotify_podcast", "download"],
+        }
+        job_id = self.db.create_job(multi_values, SCRIPT)
+        script_hash = self.db.get_job(job_id)["script"]["content_hash"]
+        self.db.approve_script(job_id, 1, script_hash)
+        self.db.queue_render(job_id, 1, script_hash)
+        self.db.claim_render()
+        output_hash = "f" * 64
+        self.db.finish_render(job_id, 1, f"{job_id}/v1/video.mp4", output_hash, "piper")
+
+        approved = self.db.approve_video(job_id, 1, output_hash, {"youtube", "mastodon"})
+        statuses = {target["platform"]: target["status"] for target in approved["publication_targets"]}
+        self.assertEqual(statuses["youtube"], "queued")
+        self.assertEqual(statuses["mastodon"], "queued")
+        self.assertEqual(statuses["tiktok"], "setup_required")
+        self.assertEqual(statuses["spotify_podcast"], "setup_required")
+        self.assertEqual(statuses["download"], "ready")
+
+        first = self.db.claim_publication()
+        second = self.db.claim_publication()
+        self.assertEqual({first["publication_target"]["platform"], second["publication_target"]["platform"]}, {"youtube", "mastodon"})
+        youtube = first if first["publication_target"]["platform"] == "youtube" else second
+        mastodon = second if youtube is first else first
+        self.db.finish_publication(job_id, "youtube", "youtube-id", "https://youtube.example/watch/youtube-id")
+        self.db.fail_publication(job_id, "mastodon", "Netzwerkstatus unbekannt")
+        result = self.db.get_job(job_id)
+        statuses = {target["platform"]: target["status"] for target in result["publication_targets"]}
+        self.assertEqual(statuses["youtube"], "published")
+        self.assertEqual(statuses["mastodon"], "failed")
+        self.assertEqual(result["status"], "publish_failed")
+        self.assertIsNone(self.db.claim_publication())
+
+    def test_interrupted_target_is_unknown_and_not_retried(self):
+        multi_values = {**VALUES, "target_platform": "mastodon", "target_platforms": ["mastodon"]}
+        job_id = self.db.create_job(multi_values, SCRIPT)
+        script_hash = self.db.get_job(job_id)["script"]["content_hash"]
+        self.db.approve_script(job_id, 1, script_hash)
+        self.db.queue_render(job_id, 1, script_hash)
+        self.db.claim_render()
+        self.db.finish_render(job_id, 1, f"{job_id}/v1/video.mp4", "9" * 64, "piper")
+        self.db.approve_video(job_id, 1, "9" * 64, {"mastodon"})
+        self.assertEqual(self.db.claim_publication()["publication_target"]["status"], "publishing")
+        self.db.recover_interrupted()
+        target = self.db.get_job(job_id)["publication_targets"][0]
+        self.assertEqual(target["status"], "unknown")
+        self.assertIsNone(self.db.claim_publication())
+
 
 if __name__ == "__main__":
     unittest.main()

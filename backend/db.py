@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from .plan import canonical_script_hash
+from .publishing import profile_for
 
 
 def utcnow() -> str:
@@ -84,6 +85,23 @@ class Database:
                 );
                 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status, created_at);
                 CREATE INDEX IF NOT EXISTS idx_events_job ON events(job_id, id);
+                CREATE TABLE IF NOT EXISTS publication_targets (
+                    job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+                    platform TEXT NOT NULL,
+                    position INTEGER NOT NULL DEFAULT 0,
+                    delivery_mode TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'planned',
+                    approved_output_sha256 TEXT,
+                    idempotency_key TEXT UNIQUE,
+                    remote_id TEXT,
+                    remote_url TEXT,
+                    error TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY(job_id, platform)
+                );
+                CREATE INDEX IF NOT EXISTS idx_publication_targets_status
+                ON publication_targets(status, updated_at);
                 """
             )
             script_columns = {row["name"] for row in conn.execute("PRAGMA table_info(script_versions)").fetchall()}
@@ -104,13 +122,28 @@ class Database:
                     "UPDATE script_versions SET content_hash=? WHERE job_id=? AND version=?",
                     (digest, row["job_id"], row["version"]),
                 )
+            legacy_targets = conn.execute("SELECT id,target_platform,created_at,updated_at FROM jobs").fetchall()
+            for row in legacy_targets:
+                try:
+                    mode = profile_for(row["target_platform"])["delivery_mode"]
+                except ValueError:
+                    mode = "download"
+                conn.execute(
+                    """INSERT OR IGNORE INTO publication_targets
+                    (job_id,platform,position,delivery_mode,status,created_at,updated_at)
+                    VALUES(?,?,?,?, 'planned',?,?)""",
+                    (row["id"], row["target_platform"], 0, mode, row["created_at"], row["updated_at"]),
+                )
             conn.commit()
 
-    def create_job(self, values: dict[str, Any], script: dict[str, Any]) -> str:
-        job_id = str(uuid.uuid4())
+    def create_job(self, values: dict[str, Any], script: dict[str, Any], *, job_id: str | None = None) -> str:
+        job_id = job_id or str(uuid.uuid4())
         now = utcnow()
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
+            if conn.execute("SELECT 1 FROM jobs WHERE id=?", (job_id,)).fetchone():
+                conn.commit()
+                return job_id
             conn.execute(
                 """INSERT INTO jobs
                 (id, created_at, updated_at, topic, language, duration_seconds, aspect_ratio,
@@ -120,6 +153,15 @@ class Database:
                  values["aspect_ratio"], values["video_type"], values["target_platform"]),
             )
             self._insert_script(conn, job_id, 1, script, now)
+            targets = values.get("target_platforms") or [values["target_platform"]]
+            for position, platform in enumerate(dict.fromkeys(targets)):
+                mode = profile_for(platform)["delivery_mode"]
+                conn.execute(
+                    """INSERT INTO publication_targets
+                    (job_id,platform,position,delivery_mode,status,created_at,updated_at)
+                    VALUES(?,?,?,?, 'planned',?,?)""",
+                    (job_id, platform, position, mode, now, now),
+                )
             self._event(conn, job_id, "job_created", "Skriptentwurf wurde erstellt.")
             conn.commit()
         return job_id
@@ -174,6 +216,12 @@ class Database:
                 "SELECT event_type,message,metadata_json,created_at FROM events WHERE job_id=? ORDER BY id DESC LIMIT 30",
                 (job_id,),
             ).fetchall()
+            publication_targets = conn.execute(
+                """SELECT platform,position,delivery_mode,status,approved_output_sha256,
+                remote_id,remote_url,error,updated_at FROM publication_targets
+                WHERE job_id=? ORDER BY position,platform""",
+                (job_id,),
+            ).fetchall()
         job["script"] = dict(script)
         job["script"]["scenes"] = json.loads(job["script"].pop("scenes_json"))
         job["script"]["metadata"] = json.loads(job["script"].pop("metadata_json"))
@@ -184,6 +232,8 @@ class Database:
         job["events"] = [{**dict(e), "metadata": json.loads(e["metadata_json"])} for e in events]
         for event in job["events"]:
             event.pop("metadata_json", None)
+        job["publication_targets"] = [dict(target) for target in publication_targets]
+        job["target_platforms"] = [target["platform"] for target in job["publication_targets"]]
         return job
 
     def update_script(self, job_id: str, expected: int, script: dict[str, Any]) -> dict[str, Any]:
@@ -204,6 +254,11 @@ class Database:
                 output_path=NULL, output_sha256=NULL, approved_output_sha256=NULL,
                 error=NULL, youtube_video_id=NULL, publish_key=NULL WHERE id=?""",
                 (now, version, job_id),
+            )
+            conn.execute(
+                """UPDATE publication_targets SET status='planned',approved_output_sha256=NULL,
+                idempotency_key=NULL,remote_id=NULL,remote_url=NULL,error=NULL,updated_at=? WHERE job_id=?""",
+                (now, job_id),
             )
             self._event(conn, job_id, "script_updated", f"Skriptversion {version} gespeichert; frühere Freigaben sind ungültig.")
             conn.commit()
@@ -262,6 +317,11 @@ class Database:
                 updated_at=?,error=NULL WHERE id=?""",
                 (expected, actual_hash, now, job_id),
             )
+            conn.execute(
+                """UPDATE publication_targets SET status='planned',approved_output_sha256=NULL,
+                idempotency_key=NULL,remote_id=NULL,remote_url=NULL,error=NULL,updated_at=? WHERE job_id=?""",
+                (now, job_id),
+            )
             self._event(
                 conn, job_id, "render_queued", f"Video für Skriptversion {expected} eingereiht.",
                 {"script_hash": actual_hash},
@@ -307,6 +367,54 @@ class Database:
             )
             conn.commit()
 
+    def attach_imported_video(
+        self,
+        job_id: str,
+        expected: int,
+        expected_hash: str,
+        output_path: str,
+        output_sha256: str,
+        source: str,
+    ) -> dict[str, Any]:
+        now = utcnow()
+        with self._write_lock, self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+            if not row:
+                raise KeyError(job_id)
+            actual_hash = self._verified_script_hash(conn, job_id, expected)
+            if actual_hash != expected_hash:
+                raise ValueError("hash_conflict")
+            if (
+                row["script_version"] != expected
+                or row["approved_script_version"] != expected
+                or row["approved_script_hash"] != actual_hash
+            ):
+                raise ValueError("script_not_approved")
+            if row["status"] in {"render_queued", "rendering", "publish_queued", "publishing"}:
+                raise ValueError("job_busy")
+            conn.execute(
+                """UPDATE jobs SET status='video_review',render_version=?,render_script_hash=?,
+                output_path=?,output_sha256=?,tts_mode=?,approved_render_version=NULL,
+                approved_output_sha256=NULL,publish_key=NULL,youtube_video_id=NULL,
+                updated_at=?,error=NULL WHERE id=?""",
+                (expected, actual_hash, output_path, output_sha256, f"import:{source}", now, job_id),
+            )
+            conn.execute(
+                """UPDATE publication_targets SET status='planned',approved_output_sha256=NULL,
+                idempotency_key=NULL,remote_id=NULL,remote_url=NULL,error=NULL,updated_at=? WHERE job_id=?""",
+                (now, job_id),
+            )
+            self._event(
+                conn,
+                job_id,
+                "external_video_imported",
+                "Externes Video wurde geprüft und ist zur Freigabe bereit.",
+                {"source": source, "script_hash": actual_hash, "output_sha256": output_sha256},
+            )
+            conn.commit()
+        return self.get_job(job_id)  # type: ignore[return-value]
+
     def fail_render(self, job_id: str, message: str) -> None:
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
@@ -314,8 +422,32 @@ class Database:
             self._event(conn, job_id, "render_failed", "Videoproduktion fehlgeschlagen.", {"error": message[:500]})
             conn.commit()
 
-    def approve_video(self, job_id: str, expected: int, expected_hash: str, youtube_enabled: bool) -> dict[str, Any]:
+    def _refresh_publication_job_state(self, conn: sqlite3.Connection, job_id: str) -> str:
+        statuses = [row["status"] for row in conn.execute(
+            "SELECT status FROM publication_targets WHERE job_id=?", (job_id,)
+        ).fetchall()]
+        if "publishing" in statuses:
+            status = "publishing"
+        elif "queued" in statuses:
+            status = "publish_queued"
+        elif any(value in {"failed", "unknown"} for value in statuses):
+            status = "publish_failed"
+        elif "published" in statuses:
+            status = "published" if all(value in {"published", "ready"} for value in statuses) else "published_partial"
+        else:
+            status = "ready_to_publish"
+        conn.execute("UPDATE jobs SET status=?,updated_at=? WHERE id=?", (status, utcnow(), job_id))
+        return status
+
+    def approve_video(
+        self,
+        job_id: str,
+        expected: int,
+        expected_hash: str,
+        enabled_platforms: set[str] | bool,
+    ) -> dict[str, Any]:
         now = utcnow()
+        enabled = {"youtube"} if enabled_platforms is True else set() if enabled_platforms is False else set(enabled_platforms)
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             row = conn.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
@@ -331,54 +463,146 @@ class Database:
             actual_script_hash = self._verified_script_hash(conn, job_id, expected)
             if row["render_script_hash"] != actual_script_hash:
                 raise ValueError("render_script_hash_mismatch")
-            publish_key = row["publish_key"] or f"{job_id}:{expected}:{expected_hash}:{row['target_platform']}"
-            should_publish = row["target_platform"] == "youtube" and youtube_enabled
-            status = "publish_queued" if should_publish else "ready_to_publish"
+            targets = conn.execute(
+                "SELECT platform,delivery_mode FROM publication_targets WHERE job_id=? ORDER BY position",
+                (job_id,),
+            ).fetchall()
+            if row["target_platform"] not in {target["platform"] for target in targets} and len(targets) == 1:
+                conn.execute("DELETE FROM publication_targets WHERE job_id=?", (job_id,))
+                mode = profile_for(row["target_platform"])["delivery_mode"]
+                conn.execute(
+                    """INSERT INTO publication_targets
+                    (job_id,platform,position,delivery_mode,status,created_at,updated_at)
+                    VALUES(?,?,?,?, 'planned',?,?)""",
+                    (job_id, row["target_platform"], 0, mode, row["created_at"], now),
+                )
+                targets = conn.execute(
+                    "SELECT platform,delivery_mode FROM publication_targets WHERE job_id=? ORDER BY position",
+                    (job_id,),
+                ).fetchall()
+            for target in targets:
+                platform = target["platform"]
+                mode = target["delivery_mode"]
+                if platform == "download":
+                    target_status = "ready"
+                elif mode == "automatic" and platform in enabled:
+                    target_status = "queued"
+                elif mode == "automatic":
+                    target_status = "setup_required"
+                else:
+                    # RSS feeds and distributor release packages are planned artifacts,
+                    # but do not exist merely because a video was approved.
+                    target_status = "setup_required"
+                key = f"publish:v1:{job_id}:{platform}:{expected_hash}"
+                conn.execute(
+                    """UPDATE publication_targets SET status=?,approved_output_sha256=?,
+                    idempotency_key=?,remote_id=NULL,remote_url=NULL,error=NULL,updated_at=?
+                    WHERE job_id=? AND platform=?""",
+                    (target_status, expected_hash, key, now, job_id, platform),
+                )
+            publish_key = row["publish_key"] or f"{job_id}:{expected}:{expected_hash}"
             conn.execute(
-                """UPDATE jobs SET approved_render_version=?,approved_output_sha256=?,status=?,publish_key=?,
+                """UPDATE jobs SET approved_render_version=?,approved_output_sha256=?,publish_key=?,
                 updated_at=?,error=NULL WHERE id=?""",
-                (expected, expected_hash, status, publish_key, now, job_id),
+                (expected, expected_hash, publish_key, now, job_id),
             )
+            self._refresh_publication_job_state(conn, job_id)
             self._event(
                 conn, job_id, "video_approved", f"Videoversion {expected} zur Veröffentlichung freigegeben.",
-                {"output_sha256": expected_hash, "script_hash": actual_script_hash},
+                {"output_sha256": expected_hash, "script_hash": actual_script_hash, "targets": [target["platform"] for target in targets]},
             )
             conn.commit()
         return self.get_job(job_id)  # type: ignore[return-value]
 
-    def claim_publish(self) -> dict[str, Any] | None:
+    def claim_publication(self) -> dict[str, Any] | None:
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             row = conn.execute(
-                """SELECT id FROM jobs WHERE status='publish_queued' AND youtube_video_id IS NULL
-                AND output_sha256 IS NOT NULL AND approved_output_sha256=output_sha256
-                ORDER BY updated_at LIMIT 1"""
+                """SELECT target.job_id,target.platform FROM publication_targets target
+                JOIN jobs ON jobs.id=target.job_id
+                WHERE target.status='queued' AND target.approved_output_sha256=jobs.output_sha256
+                AND jobs.approved_output_sha256=jobs.output_sha256
+                ORDER BY target.updated_at,target.position LIMIT 1"""
             ).fetchone()
             if not row:
                 conn.rollback()
                 return None
-            conn.execute("UPDATE jobs SET status='publishing',updated_at=? WHERE id=?", (utcnow(), row["id"]))
-            self._event(conn, row["id"], "publish_started", "YouTube-Upload gestartet.")
+            now = utcnow()
+            updated = conn.execute(
+                """UPDATE publication_targets SET status='publishing',updated_at=?
+                WHERE job_id=? AND platform=? AND status='queued'""",
+                (now, row["job_id"], row["platform"]),
+            )
+            if updated.rowcount != 1:
+                conn.rollback()
+                return None
+            self._refresh_publication_job_state(conn, row["job_id"])
+            self._event(
+                conn,
+                row["job_id"],
+                "publish_started",
+                f"Veröffentlichung auf {row['platform']} gestartet.",
+                {"platform": row["platform"]},
+            )
             conn.commit()
-        return self.get_job(row["id"])
+        job = self.get_job(row["job_id"])
+        if job:
+            job["publication_target"] = next(
+                target for target in job["publication_targets"] if target["platform"] == row["platform"]
+            )
+        return job
+
+    def finish_publication(self, job_id: str, platform: str, remote_id: str, remote_url: str | None) -> None:
+        with self._write_lock, self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            now = utcnow()
+            updated = conn.execute(
+                """UPDATE publication_targets SET status='published',remote_id=?,remote_url=?,
+                error=NULL,updated_at=? WHERE job_id=? AND platform=? AND status='publishing'""",
+                (remote_id, remote_url, now, job_id, platform),
+            )
+            if updated.rowcount != 1:
+                raise ValueError("publication_not_claimed")
+            if platform == "youtube":
+                conn.execute("UPDATE jobs SET youtube_video_id=? WHERE id=?", (remote_id, job_id))
+            self._refresh_publication_job_state(conn, job_id)
+            self._event(
+                conn,
+                job_id,
+                "published",
+                f"Freigegebener Inhalt wurde auf {platform} veröffentlicht.",
+                {"platform": platform, "remote_id": remote_id, "remote_url": remote_url},
+            )
+            conn.commit()
+
+    def fail_publication(self, job_id: str, platform: str, message: str) -> None:
+        with self._write_lock, self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            now = utcnow()
+            conn.execute(
+                """UPDATE publication_targets SET status='failed',error=?,updated_at=?
+                WHERE job_id=? AND platform=? AND status='publishing'""",
+                (message[:2000], now, job_id, platform),
+            )
+            conn.execute("UPDATE jobs SET error=? WHERE id=?", (f"{platform}: {message}"[:2000], job_id))
+            self._refresh_publication_job_state(conn, job_id)
+            self._event(
+                conn,
+                job_id,
+                "publish_failed",
+                f"Veröffentlichung auf {platform} fehlgeschlagen und wird nicht automatisch wiederholt.",
+                {"platform": platform, "error": message[:500]},
+            )
+            conn.commit()
+
+    def claim_publish(self) -> dict[str, Any] | None:
+        return self.claim_publication()
 
     def finish_publish(self, job_id: str, youtube_video_id: str) -> None:
-        with self._write_lock, self.connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
-            conn.execute(
-                "UPDATE jobs SET status='published',youtube_video_id=?,updated_at=?,error=NULL WHERE id=? AND youtube_video_id IS NULL",
-                (youtube_video_id, utcnow(), job_id),
-            )
-            self._event(conn, job_id, "published", "Freigegebenes Video wurde auf YouTube hochgeladen.", {"youtube_video_id": youtube_video_id})
-            conn.commit()
+        self.finish_publication(job_id, "youtube", youtube_video_id, f"https://www.youtube.com/watch?v={youtube_video_id}")
 
     def fail_publish(self, job_id: str, message: str) -> None:
-        """A failed upload is never retried automatically to avoid duplicate publication."""
-        with self._write_lock, self.connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
-            conn.execute("UPDATE jobs SET status='publish_failed',error=?,updated_at=? WHERE id=?", (message[:2000], utcnow(), job_id))
-            self._event(conn, job_id, "publish_failed", "YouTube-Upload fehlgeschlagen und wird nicht automatisch wiederholt.", {"error": message[:500]})
-            conn.commit()
+        self.fail_publication(job_id, "youtube", message)
 
     def recover_interrupted(self) -> None:
         with self._write_lock, self.connect() as conn:
@@ -387,8 +611,25 @@ class Database:
             for row in rows:
                 conn.execute("UPDATE jobs SET status='render_queued',updated_at=? WHERE id=?", (utcnow(), row["id"]))
                 self._event(conn, row["id"], "render_recovered", "Unterbrochener Auftrag erneut eingereiht.")
-            publishing = conn.execute("SELECT id FROM jobs WHERE status='publishing'").fetchall()
+            publishing = conn.execute(
+                "SELECT job_id,platform FROM publication_targets WHERE status='publishing'"
+            ).fetchall()
+            affected: set[str] = set()
             for row in publishing:
-                conn.execute("UPDATE jobs SET status='publish_failed',error=?,updated_at=? WHERE id=?", ("Upload wurde durch einen Neustart unterbrochen; Status muss vor einem neuen Versuch manuell geprüft werden.", utcnow(), row["id"]))
-                self._event(conn, row["id"], "publish_interrupted", "Unterbrochener Upload wurde aus Sicherheitsgründen nicht automatisch wiederholt.")
+                message = "Upload wurde durch einen Neustart unterbrochen; externer Status ist unbekannt und muss manuell geprüft werden."
+                conn.execute(
+                    """UPDATE publication_targets SET status='unknown',error=?,updated_at=?
+                    WHERE job_id=? AND platform=?""",
+                    (message, utcnow(), row["job_id"], row["platform"]),
+                )
+                affected.add(row["job_id"])
+                self._event(
+                    conn,
+                    row["job_id"],
+                    "publish_interrupted",
+                    f"Unterbrochener Upload auf {row['platform']} wird nicht automatisch wiederholt.",
+                    {"platform": row["platform"]},
+                )
+            for job_id in affected:
+                self._refresh_publication_job_state(conn, job_id)
             conn.commit()
