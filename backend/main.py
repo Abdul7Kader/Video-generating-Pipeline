@@ -153,6 +153,18 @@ def list_jobs():
 @app.post("/api/jobs", status_code=201)
 def create_job(payload: JobCreate):
     try:
+        job_id = None
+        if payload.generation_id:
+            provider_key = "gemini-cli" if payload.script_generator == "gemini_cli" else payload.script_generator
+            job_id = str(
+                uuid.uuid5(
+                    uuid.NAMESPACE_URL,
+                    f"video-pipeline:{provider_key}:{payload.generation_id}",
+                )
+            )
+            existing = db.get_job(job_id)
+            if existing:
+                return existing
         if payload.script_generator == "gemini_cli":
             if not settings.gemini_cli_enabled or not _gemini_profile_names:
                 raise ScriptProviderUnavailable(
@@ -161,7 +173,6 @@ def create_job(payload: JobCreate):
             if not payload.generation_id:
                 raise HTTPException(422, "Für Gemini CLI fehlt die generation_id zur sicheren Wiederaufnahme.")
             script = gemini_script_workflow.run(payload.generation_id, payload.model_dump())
-            job_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"video-pipeline:gemini-cli:{payload.generation_id}"))
             db.create_job(payload.model_dump(), script, job_id=job_id)
             gemini_script_workflow.attach_job(payload.generation_id, job_id)
             return require_job(job_id)
@@ -174,7 +185,7 @@ def create_job(payload: JobCreate):
         raise HTTPException(422, str(exc)) from exc
     except Exception as exc:
         raise HTTPException(502, f"Skripterstellung fehlgeschlagen: {exc}") from exc
-    return require_job(db.create_job(payload.model_dump(), script))
+    return require_job(db.create_job(payload.model_dump(), script, job_id=job_id))
 
 
 @app.get("/api/script-generations/{generation_id}")

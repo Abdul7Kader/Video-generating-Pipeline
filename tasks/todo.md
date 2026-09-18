@@ -1,4 +1,20 @@
-# Aufgaben
+# Aktueller Auftrag: Qualitätsorientierte Produktionsverfahren
+
+- [x] Unterbrochenen Sperr-/Idempotenz-Fix abschließen
+- [x] 69/69 Tests sowie Syntax- und Diff-Prüfungen bestehen
+- [x] Antigravity-Headless-Automatisierung mit strukturiertem JSON real nachweisen
+- [x] MoneyPrinterTurbo ohne Installation quellenbasiert bewerten
+- [ ] Nutzerfreigabe für die dokumentierte Architekturentscheidung einholen
+- [ ] Provider-Verträge und Produktionsprofil-Dropdown implementieren
+- [ ] Antigravity-Skriptadapter sicher und testgetrieben integrieren
+- [ ] MoneyPrinterTurbo-Adapter als isolierten Pilot implementieren und qualitätsbasiert vergleichen
+- [ ] End-to-End-Freigaben prüfen, Abschluss dokumentieren, committen und pushen
+
+Fortsetzungspunkt: Schritt 3, Architekturfreigabe. Vor der Freigabe keine Umsetzung von Schritt 4.
+
+---
+
+# Bisherige Aufgaben
 
 - [x] Offizielle Produktgrenzen und unterstützte Wege prüfen
 - [x] Spezifikation und Phasenplan erstellen

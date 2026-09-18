@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import threading
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -8,7 +9,6 @@ from unittest.mock import patch
 from backend.planner import (
     ProviderHTTPError,
     ScriptProviderUnavailable,
-    _OLLAMA_CALL_LOCK,
     _prompt,
     _validate_editorial_output,
     generate_script,
@@ -206,15 +206,41 @@ class PlannerTests(unittest.TestCase):
             with self.assertRaisesRegex(ScriptProviderUnavailable, "muss lokal"):
                 generate_script(REQUEST)
 
-    def test_second_ollama_call_fails_fast_so_application_stays_responsive(self):
+    def test_identical_concurrent_ollama_calls_share_the_running_result(self):
         configured = settings(script_provider="ollama")
-        _OLLAMA_CALL_LOCK.acquire()
-        try:
-            with patch("backend.planner.settings", configured):
-                with self.assertRaisesRegex(ScriptProviderUnavailable, "bereits ein Skript"):
-                    generate_script(REQUEST)
-        finally:
-            _OLLAMA_CALL_LOCK.release()
+        entered = threading.Event()
+        release = threading.Event()
+        results = []
+        errors = []
+
+        def slow_post(_payload, **_kwargs):
+            entered.set()
+            release.wait(timeout=2)
+            return ollama_response()
+
+        def generate():
+            try:
+                results.append(generate_script(REQUEST))
+            except Exception as exc:  # pragma: no cover - asserted below
+                errors.append(exc)
+
+        with patch("backend.planner.settings", configured), patch(
+            "backend.planner._post_ollama", side_effect=slow_post
+        ) as post:
+            first = threading.Thread(target=generate)
+            second = threading.Thread(target=generate)
+            first.start()
+            self.assertTrue(entered.wait(timeout=1))
+            second.start()
+            second.join(timeout=0.2)
+            release.set()
+            first.join(timeout=2)
+            second.join(timeout=2)
+
+        self.assertEqual(errors, [])
+        self.assertEqual(len(results), 2)
+        self.assertEqual(post.call_count, 1)
+        self.assertEqual(results[0]["title"], results[1]["title"])
 
     def test_unload_is_best_effort_and_local_only(self):
         configured = settings(script_provider="ollama")

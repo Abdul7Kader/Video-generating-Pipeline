@@ -1,6 +1,27 @@
 # Entwicklungsstatus – Video Pipeline V2
 
-Letzte Aktualisierung: 2026-09-17
+Letzte Aktualisierung: 2026-09-18
+
+## Aktiver Auftrag: qualitätsorientierte, auswählbare Produktionsverfahren
+
+### Kurzer Arbeitsplan
+
+1. **Unterbrochenen Sperr-/Idempotenz-Fix sichern und abschließen.** Prüfung: gezielte Regressionstests, Gesamtsuite, Python-/JavaScript-Syntax und Diff-Hygiene.
+2. **Antigravity und MoneyPrinterTurbo nachweisen beziehungsweise bewerten.** Prüfung: offizielle Dokumentation, lokal installierte Version und ein minimaler sicherer Automatisierungstest; MoneyPrinterTurbo wird nicht installiert.
+3. **Architekturentscheidung zur Freigabe vorlegen.** Prüfung: Skript, Fakten, passende Bilder, Stimme, sichtbare Fehler, Nachbearbeitung, Kosten- und Sicherheitsgrenzen werden getrennt berücksichtigt. Vor Freigabe kein grundlegender Umbau.
+4. **Nach Freigabe Provider-Verträge und Produktionsprofil-Auswahl implementieren.** Das Produktionsverfahren wird im Dropdown gewählt; Skripterstellung, Medienerzeugung, Stimme und Schnitt bleiben getrennte, sichtbar ausgewiesene Komponenten.
+5. **Antigravity als bevorzugten Cloud-Skriptpfad anbinden.** Nur Headless-JSON mit Schema, Sandbox, isoliertem leerem Arbeitsverzeichnis und ohne freigegebene Tools; Qwen nur als letzte Ausweichlösung.
+6. **MoneyPrinterTurbo als optionalen Produktionsadapter pilotieren.** Nicht als Ersatz für Freigaben und Provenienz; erst gleicher Testauftrag gegen den bestehenden Remotion-/Stockpfad, dann Qualitätsentscheidung.
+7. **Gesamtablauf prüfen und sichern.** Thema → Skript/Szenenplan → Skriptfreigabe → Video → Videofreigabe → Veröffentlichung; keine Kosten oder öffentlichen Zugänge ohne Freigabe.
+
+### Ergebnisse und Fortsetzungspunkt
+
+- **Schritt 1 abgeschlossen:** Identische gleichzeitige Ollama-Anfragen teilen sich einen Modellaufruf; unterschiedliche Aufrufe warten statt mit „erstellt bereits ein Skript“ abgewiesen zu werden. Browser und API verwenden nun für Qwen und Gemini eine stabile `generation_id`; eine Wiederholung erzeugt weder ein zweites Skript noch einen zweiten Auftrag. Das bestehende Gemini-ID-Format bleibt kompatibel. 69/69 Tests bestanden; `compileall`, `node --check web/app.js` und `git diff --check` bestanden.
+- **Schritt 2 abgeschlossen:** Antigravity CLI `1.0.2` ist bereits installiert. Offizielle Dokumentation bestätigt Headless-Aufrufe, JSON-/Streaming-Ausgabe, JSON-Schema, Modellwahl, Exitcodes und Sandbox. Ein realer Aufruf mit dem vorhandenen Konto lieferte im Sandbox-Modus `SUCCESS` und die geforderte strukturierte Ausgabe `{status: ok}`. Es wurden keine neuen Kosten, Schlüssel oder öffentlichen Zugänge aktiviert. Der Standardmodus darf nicht direkt im Projektverzeichnis laufen, weil Antigravity dort Lesen/Schreiben automatisch erlauben kann; die spätere Integration muss deshalb ein leeres isoliertes Arbeitsverzeichnis und restriktive Richtlinien erzwingen.
+- **MoneyPrinterTurbo-Befund:** API und CLI sind automationsfähig; Stockmedien, generative Clips, mehrere TTS-Anbieter, Untertitel und drei Seitenverhältnisse sind vorhanden. Das Projekt bringt jedoch eigene Orchestrierung, Konfiguration und Anbieterzugänge mit. Im geprüften Quellstand ist kein belastbarer Faktencheck und kein mit dieser Pipeline vergleichbares zweistufiges, versions-/hashgebundenes Freigabegate belegt. Deshalb ist es nur als optionaler Produktionsadapter, nicht als ungeprüfter Ersatz der Pipeline geeignet.
+- **Schritt 3 wartet auf Nutzerfreigabe:** Empfohlene Architektur ist: Die bestehende Anwendung bleibt Orchestrator und alleinige Freigabe-/Provenienzinstanz. Ein Produktionsprofil wählt eine geprüfte Kombination aus vier getrennten Slots (`Skript`, `Medien`, `Stimme`, `Schnitt`). Antigravity wird bevorzugter Skriptanbieter, Qwen letzter Fallback. Remotion bleibt ein Schnittweg; MoneyPrinterTurbo wird als isolierter alternativer Medien-/Schnittweg per Pilot verglichen. Erst nach Zustimmung beginnt Schritt 4.
+
+Offizielle Grundlagen: https://antigravity.google/docs/cli/headless/, https://antigravity.google/docs/cli/install/, https://antigravity.google/docs/plans/, https://github.com/harry0703/MoneyPrinterTurbo/blob/main/README-en.md, https://github.com/harry0703/MoneyPrinterTurbo/blob/main/LICENSE
 
 Git-Status der Dokumentation: `STATUS.md` wird lokal von Git verfolgt und war bei der Prüfung bereits auf GitHub in `origin/main` vorhanden. Diese aktualisierte Fassung gehört zum Branch `codex/gemini-notebooklm-integration`.
 

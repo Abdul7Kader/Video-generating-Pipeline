@@ -1,4 +1,20 @@
-# Implementierungsplan Gemini/NotebookLM
+# Aktiver Implementierungsplan: Qualitätsorientierte Produktionsverfahren
+
+Stand: 2026-09-18
+
+1. [x] Unterbrochenen Sperr- und Idempotenz-Fix abschließen und vollständig prüfen.
+2. [x] Antigravity-Automatisierung praktisch nachweisen und MoneyPrinterTurbo quellenbasiert bewerten.
+3. [ ] Architekturentscheidung vom Nutzer freigeben lassen.
+4. [ ] Provider-Verträge und Produktionsprofil-Dropdown implementieren; Skript, Medien, Stimme und Schnitt getrennt ausweisen.
+5. [ ] Antigravity als bevorzugten schemavalidierten Cloud-Skriptpfad integrieren; Qwen nur als letzten Fallback erhalten.
+6. [ ] MoneyPrinterTurbo isoliert als optionalen Produktionsadapter pilotieren und mit dem vorhandenen Pfad anhand desselben Auftrags vergleichen.
+7. [ ] Gesamtablauf mit beiden Freigabegates prüfen, dokumentieren, committen und pushen.
+
+Architektur-Freigabepunkt: Die bestehende FastAPI-/SQLite-Anwendung soll Orchestrator sowie Freigabe- und Provenienzinstanz bleiben. Produktionsprofile kombinieren vier getrennte Provider-Slots. Antigravity soll nur headless, schemavalidiert, sandboxed und in einem leeren Arbeitsverzeichnis laufen. MoneyPrinterTurbo soll nicht übernommen, sondern hinter einem Adapter gegen den vorhandenen Produktionspfad getestet werden. Schritt 4 beginnt erst nach Nutzerzustimmung.
+
+---
+
+# Bisheriger Implementierungsplan Gemini/NotebookLM
 
 Stand: 2026-09-17
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import copy
+import hashlib
 import json
 import re
 import threading
@@ -7,6 +9,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import Future, TimeoutError as FutureTimeoutError
 from typing import Any
 
 from .config import settings
@@ -33,6 +36,8 @@ class ProviderConnectionError(RuntimeError):
 
 
 _OLLAMA_CALL_LOCK = threading.Lock()
+_OLLAMA_INFLIGHT_LOCK = threading.Lock()
+_OLLAMA_INFLIGHT: dict[str, Future[tuple[dict[str, Any], dict[str, Any]]]] = {}
 _LOCAL_OLLAMA_HOSTS = {"127.0.0.1", "localhost", "ollama"}
 _RETRYABLE_GEMINI_STATUS = {429, 500, 502, 503, 504}
 
@@ -371,28 +376,56 @@ def _generate_with_ollama(prompt: str, model: str) -> tuple[dict[str, Any], dict
             "seed": 42,
         },
     }
-    if not _OLLAMA_CALL_LOCK.acquire(blocking=False):
-        raise ScriptProviderUnavailable(
-            "Das lokale Modell erstellt bereits ein Skript. Bitte den laufenden Entwurf abwarten und dann erneut versuchen."
-        )
+    request_key = hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    with _OLLAMA_INFLIGHT_LOCK:
+        in_flight = _OLLAMA_INFLIGHT.get(request_key)
+        leader = in_flight is None
+        if leader:
+            in_flight = Future()
+            _OLLAMA_INFLIGHT[request_key] = in_flight
+
+    if not leader:
+        try:
+            return copy.deepcopy(in_flight.result(timeout=settings.ollama_timeout_seconds + 30))
+        except FutureTimeoutError as exc:
+            raise ScriptProviderUnavailable(
+                "Der laufende identische Skriptentwurf reagiert nicht mehr. Bitte den Server neu starten."
+            ) from exc
+
     try:
-        data = _post_ollama(payload)
+        if not _OLLAMA_CALL_LOCK.acquire(timeout=settings.ollama_timeout_seconds + 30):
+            raise ScriptProviderUnavailable(
+                "Die Warteschlange für das lokale Modell hat das Zeitlimit überschritten."
+            )
+        try:
+            data = _post_ollama(payload)
+        finally:
+            _OLLAMA_CALL_LOCK.release()
+        try:
+            script = _extract_json(data["message"]["content"])
+        except (KeyError, TypeError) as exc:
+            raise ValueError("Lokales Ollama lieferte keine verwertbare Skriptantwort.") from exc
+        metrics = {
+            "total_duration_ms": round(int(data.get("total_duration") or 0) / 1_000_000),
+            "load_duration_ms": round(int(data.get("load_duration") or 0) / 1_000_000),
+            "prompt_tokens": data.get("prompt_eval_count"),
+            "output_tokens": data.get("eval_count"),
+            "done_reason": data.get("done_reason"),
+            "num_ctx": settings.ollama_num_ctx,
+            "num_predict": settings.ollama_num_predict,
+        }
+        result = (script, metrics)
+        in_flight.set_result(copy.deepcopy(result))
+        return result
+    except BaseException as exc:
+        in_flight.set_exception(exc)
+        raise
     finally:
-        _OLLAMA_CALL_LOCK.release()
-    try:
-        script = _extract_json(data["message"]["content"])
-    except (KeyError, TypeError) as exc:
-        raise ValueError("Lokales Ollama lieferte keine verwertbare Skriptantwort.") from exc
-    metrics = {
-        "total_duration_ms": round(int(data.get("total_duration") or 0) / 1_000_000),
-        "load_duration_ms": round(int(data.get("load_duration") or 0) / 1_000_000),
-        "prompt_tokens": data.get("prompt_eval_count"),
-        "output_tokens": data.get("eval_count"),
-        "done_reason": data.get("done_reason"),
-        "num_ctx": settings.ollama_num_ctx,
-        "num_predict": settings.ollama_num_predict,
-    }
-    return script, metrics
+        with _OLLAMA_INFLIGHT_LOCK:
+            if _OLLAMA_INFLIGHT.get(request_key) is in_flight:
+                _OLLAMA_INFLIGHT.pop(request_key, None)
 
 
 def _generate_with_gemini(prompt: str, model: str) -> tuple[dict[str, Any], dict[str, Any]]:
