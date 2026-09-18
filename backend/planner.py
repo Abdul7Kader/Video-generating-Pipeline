@@ -68,6 +68,14 @@ STYLE_DIRECTIONS = {
     ),
 }
 
+MEDIA_PROVIDER_DIRECTIONS = {
+    "procedural_stickman": "Use only stickman as visual_type for every scene.",
+    "pexels_stock": (
+        "Use only stock_image or stock_video as visual_type for every scene. "
+        "Every scene must contain a concrete two-to-eight-word English asset_query suitable for Pexels."
+    ),
+}
+
 
 def _response_schema() -> dict[str, Any]:
     scene_properties: dict[str, Any] = {
@@ -202,6 +210,13 @@ def _prompt(request: JobCreate, previous: dict[str, Any] | None = None, instruct
             f"\nRequested changes: {instructions}\n"
             f"Existing draft JSON:\n{json.dumps(clean_previous, ensure_ascii=False)}\n"
         )
+    production_config = request.production_config
+    if isinstance(production_config, dict):
+        media_provider = production_config.get("media_provider")
+    else:
+        media_provider = production_config.media_provider if production_config else None
+    media_direction = MEDIA_PROVIDER_DIRECTIONS.get(str(media_provider), "")
+    media_block = f"\nMedia provider contract\n{media_direction}\n" if media_direction else ""
     return f"""{mode}
 
 Brief
@@ -216,6 +231,7 @@ Brief
 
 Style direction
 {STYLE_DIRECTIONS[request.video_type]}
+{media_block}
 
 Editorial requirements
 - Start with a subject-specific hook, then build a coherent argument or story with a satisfying conclusion.

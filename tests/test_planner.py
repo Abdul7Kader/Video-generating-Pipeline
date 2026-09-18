@@ -113,6 +113,22 @@ class PlannerTests(unittest.TestCase):
         self.assertIn("Never copy the visual instruction", generated)
         self.assertNotEqual(explainer, generated)
 
+    def test_production_media_provider_constrains_the_scene_plan(self):
+        request = REQUEST.model_copy(update={
+            "production_config": {
+                "profile_id": "stock_explainer",
+                "video_type": "explainer",
+                "script_provider": "qwen",
+                "media_provider": "pexels_stock",
+                "voice_provider": "piper",
+                "editor": "remotion",
+            }
+        })
+
+        prompt = _prompt(request)
+
+        self.assertIn("Use only stock_image or stock_video", prompt)
+
     def test_revision_contains_request_and_existing_draft(self):
         previous = {"title": "Alt", "description": "Alt", "scenes": [{"narration": "Alt"}], "metadata": {"provider": "gemini"}}
         prompt = _prompt(REQUEST, previous, "Szene zwei konkreter machen")

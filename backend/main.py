@@ -18,9 +18,10 @@ from .gemini_workflow import GeminiScriptWorkflow
 from .imported_media import ImportedMediaError, inspect_imported_video, save_stream, write_provenance_manifest
 from .plan import file_sha256, finalize_scene_plan, script_hash
 from .planner import ScriptProviderUnavailable, generate_script, script_provider_status, unload_script_model
+from .production import build_production_catalog, normalize_production_config, production_plan_readiness
 from .publishing import configured_automatic_platforms, platform_catalog, publish_to_target
 from .rendering import dependency_status, render_job
-from .schemas import JobCreate, Scene, SceneUpdate, ScriptRevision, ScriptUpdate, VersionAction
+from .schemas import JobCreate, ProductionConfigUpdate, Scene, SceneUpdate, ScriptRevision, ScriptUpdate, VersionAction
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("video-pipeline")
@@ -135,6 +136,31 @@ def publication_platforms():
     return platform_catalog()
 
 
+@app.get("/api/production-options")
+def production_options():
+    dependencies = dependency_status()
+    script_status = script_provider_status()
+    profiles = gemini_cli_pool.statuses()
+    qwen_ready = bool(
+        (script_status.get("provider") == "ollama" and script_status.get("ready"))
+        or script_status.get("fallback_ready")
+    )
+    return build_production_catalog(
+        qwen_ready=qwen_ready,
+        gemini_cli_ready=bool(
+            settings.gemini_cli_enabled
+            and any(profile.get("status") == "available" for profile in profiles)
+        ),
+        pexels_ready=bool(settings.pexels_api_key),
+        piper_ready=bool(dependencies.get("piper_voice") or settings.piper_auto_download),
+        gemini_tts_ready=bool(settings.allow_cloud_tts and settings.gemini_api_key),
+        remotion_ready=all(
+            bool(dependencies.get(name))
+            for name in ("ffmpeg", "ffprobe", "node", "renderer")
+        ),
+    )
+
+
 @app.get("/api/gemini-profiles")
 def gemini_profiles():
     return {
@@ -153,9 +179,20 @@ def list_jobs():
 @app.post("/api/jobs", status_code=201)
 def create_job(payload: JobCreate):
     try:
+        values = payload.model_dump()
+        production_config = normalize_production_config(
+            values.get("production_config"),
+            legacy_video_type=payload.video_type,
+            legacy_script_provider=payload.script_generator,
+        )
+        values["production_config"] = production_config
+        values["video_type"] = production_config["video_type"]
+        script_provider = production_config["script_provider"]
+        if script_provider == "antigravity":
+            raise HTTPException(409, "Antigravity wird erst in Schritt 5 integriert und ist noch nicht auswählbar.")
         job_id = None
         if payload.generation_id:
-            provider_key = "gemini-cli" if payload.script_generator == "gemini_cli" else payload.script_generator
+            provider_key = "gemini-cli" if script_provider == "gemini_cli" else script_provider
             job_id = str(
                 uuid.uuid5(
                     uuid.NAMESPACE_URL,
@@ -165,18 +202,18 @@ def create_job(payload: JobCreate):
             existing = db.get_job(job_id)
             if existing:
                 return existing
-        if payload.script_generator == "gemini_cli":
+        if script_provider == "gemini_cli":
             if not settings.gemini_cli_enabled or not _gemini_profile_names:
                 raise ScriptProviderUnavailable(
                     "Gemini CLI ist noch nicht aktiviert oder es ist kein angemeldetes Profil eingerichtet."
                 )
             if not payload.generation_id:
                 raise HTTPException(422, "Für Gemini CLI fehlt die generation_id zur sicheren Wiederaufnahme.")
-            script = gemini_script_workflow.run(payload.generation_id, payload.model_dump())
-            db.create_job(payload.model_dump(), script, job_id=job_id)
+            script = gemini_script_workflow.run(payload.generation_id, values)
+            db.create_job(values, script, job_id=job_id)
             gemini_script_workflow.attach_job(payload.generation_id, job_id)
             return require_job(job_id)
-        script = generate_script(payload)
+        script = generate_script(payload.model_copy(update={"video_type": production_config["video_type"]}))
     except ScriptProviderUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc
     except HTTPException:
@@ -185,7 +222,7 @@ def create_job(payload: JobCreate):
         raise HTTPException(422, str(exc)) from exc
     except Exception as exc:
         raise HTTPException(502, f"Skripterstellung fehlgeschlagen: {exc}") from exc
-    return require_job(db.create_job(payload.model_dump(), script, job_id=job_id))
+    return require_job(db.create_job(values, script, job_id=job_id))
 
 
 @app.get("/api/script-generations/{generation_id}")
@@ -264,6 +301,7 @@ def revise_script(job_id: str, payload: ScriptRevision):
         "aspect_ratio": current["aspect_ratio"],
         "video_type": current["video_type"],
         "target_platform": current["target_platform"],
+        "production_config": current["production_config"],
     })
     try:
         revised = generate_script(request, previous=current["script"], instructions=payload.instructions)
@@ -292,10 +330,33 @@ def approve_script(job_id: str, payload: VersionAction):
         raise HTTPException(409, "Nur die aktuelle Skriptversion kann freigegeben werden.") from exc
 
 
+@app.put("/api/jobs/{job_id}/production-config")
+def update_production_config(job_id: str, payload: ProductionConfigUpdate):
+    try:
+        return db.update_production_config(
+            job_id,
+            payload.expected_version,
+            payload.production_config.model_dump(),
+        )
+    except KeyError as exc:
+        raise HTTPException(404, "Auftrag nicht gefunden") from exc
+    except ValueError as exc:
+        if str(exc) == "version_conflict":
+            raise HTTPException(409, "Der Auftrag wurde zwischenzeitlich geändert. Bitte neu laden.") from exc
+        if str(exc) == "job_busy":
+            raise HTTPException(409, "Während Produktion oder Veröffentlichung kann das Produktionsprofil nicht geändert werden.") from exc
+        if str(exc) == "configuration_unchanged":
+            raise HTTPException(409, "Die Produktionskonfiguration wurde nicht verändert.") from exc
+        raise HTTPException(422, str(exc)) from exc
+
+
 @app.post("/api/jobs/{job_id}/render")
 def queue_render(job_id: str, payload: VersionAction):
     job = require_job(job_id)
-    readiness_issues = render_plan_readiness(job["script"]["scenes"])
+    readiness_issues = [
+        *production_plan_readiness(job["production_config"], job["script"]["scenes"]),
+        *render_plan_readiness(job["script"]["scenes"]),
+    ]
     if readiness_issues:
         raise HTTPException(
             409,

@@ -4,13 +4,23 @@ Stand: 2026-09-18
 
 1. [x] Unterbrochenen Sperr- und Idempotenz-Fix abschließen und vollständig prüfen.
 2. [x] Antigravity-Automatisierung praktisch nachweisen und MoneyPrinterTurbo quellenbasiert bewerten.
-3. [ ] Architekturentscheidung vom Nutzer freigeben lassen.
-4. [ ] Provider-Verträge und Produktionsprofil-Dropdown implementieren; Skript, Medien, Stimme und Schnitt getrennt ausweisen.
+3. [x] Modulare Architekturentscheidung vom Nutzer freigeben lassen (Option A).
+4. [x] Provider-Verträge und Produktionsprofil-Dropdown implementieren; Skript, Medien, Stimme und Schnitt getrennt ausweisen. Die Konfiguration wird auf Auftrag und Skriptversion gespeichert; Änderungen erzeugen eine neue Version und entwerten vorhandene Freigaben. Nicht verfügbare Profile und Provider bleiben sichtbar, aber deaktiviert und begründet.
 5. [ ] Antigravity als bevorzugten schemavalidierten Cloud-Skriptpfad integrieren; Qwen nur als letzten Fallback erhalten.
 6. [ ] MoneyPrinterTurbo isoliert als optionalen Produktionsadapter pilotieren und mit dem vorhandenen Pfad anhand desselben Auftrags vergleichen.
 7. [ ] Gesamtablauf mit beiden Freigabegates prüfen, dokumentieren, committen und pushen.
+8. [ ] Quellenbasierte Recherche und unabhängige Faktenprüfung mit belegbarer Quellenprovenienz integrieren.
+9. [ ] Freigegebene Bild- und Videogeneratoren als szenenweise Adapter mit Kosten-, Datenschutz- und Rechtekontrollen integrieren.
+10. [ ] Hochwertige Rendererprofile für Erklärvideo, Social Clip, Podcast/Wellenform, Motion Graphics und bei nachgewiesenem Bedarf 3D/Manim ergänzen.
+11. [ ] Stimmenqualität um Aussprachewörterbuch, Emotion, Mehrsprecherbetrieb und einen nachvollziehbaren Anbieterbenchmark erweitern.
+12. [ ] Semantische Qualitätsprüfung für Skript-Bild-Passung, Artefakte, Text, Gesichter, Kontinuität und fehlerhafte Frames samt gezielter Nachproduktion ergänzen.
+13. [ ] Plattformgerechte Ausgabevarianten und weitere offizielle Veröffentlichungsadapter vollständig implementieren.
+14. [ ] Eigenständige Podcast-, Audio- und Song-Pipelines einschließlich RSS- beziehungsweise Distributor-Paketen ergänzen; Sprach-TTS nicht als Musikgenerator ausgeben.
+15. [ ] Repräsentativen Qualitätsbenchmark über Themen und Produktionsverfahren sowie Lizenz-, Urheberrechts-, Moderations- und Kostenkontrollen abschließen.
 
-Architektur-Freigabepunkt: Die bestehende FastAPI-/SQLite-Anwendung soll Orchestrator sowie Freigabe- und Provenienzinstanz bleiben. Produktionsprofile kombinieren vier getrennte Provider-Slots. Antigravity soll nur headless, schemavalidiert, sandboxed und in einem leeren Arbeitsverzeichnis laufen. MoneyPrinterTurbo soll nicht übernommen, sondern hinter einem Adapter gegen den vorhandenen Produktionspfad getestet werden. Schritt 4 beginnt erst nach Nutzerzustimmung.
+Architekturentscheidung: Option A ist freigegeben. Die bestehende FastAPI-/SQLite-Anwendung bleibt Orchestrator sowie Freigabe- und Provenienzinstanz. Produktionsprofile kombinieren vier getrennte Provider-Slots. Antigravity soll nur headless, schemavalidiert, sandboxed und in einem leeren Arbeitsverzeichnis laufen. MoneyPrinterTurbo wird nicht übernommen, sondern hinter einem Adapter gegen den vorhandenen Produktionspfad getestet.
+
+Prüfung Schritt 4: 79/79 Python-Tests, Python-Compileall, `node --check web/app.js` und `git diff --check` bestanden. Ein isolierter Browser-Smoke-Test bestätigte die Profil- und Providerauswahl, deaktivierte Optionen mit Gründen, responsive Darstellung und eine fehlerfreie Browserkonsole. Fortsetzungspunkt ist Schritt 5; Beginn erst nach erneuter Nutzerfreigabe.
 
 ---
 

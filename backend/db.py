@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from .plan import canonical_script_hash
+from .production import legacy_production_config, normalize_production_config
 from .publishing import profile_for
 
 
@@ -48,6 +49,7 @@ class Database:
                     duration_seconds INTEGER NOT NULL,
                     aspect_ratio TEXT NOT NULL,
                     video_type TEXT NOT NULL,
+                    production_config_json TEXT NOT NULL DEFAULT '{}',
                     target_platform TEXT NOT NULL,
                     status TEXT NOT NULL,
                     script_version INTEGER NOT NULL DEFAULT 1,
@@ -71,6 +73,7 @@ class Database:
                     description TEXT NOT NULL,
                     scenes_json TEXT NOT NULL,
                     metadata_json TEXT NOT NULL DEFAULT '{}',
+                    production_config_json TEXT NOT NULL DEFAULT '{}',
                     content_hash TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     PRIMARY KEY(job_id, version)
@@ -109,10 +112,30 @@ class Database:
                 conn.execute("ALTER TABLE script_versions ADD COLUMN metadata_json TEXT NOT NULL DEFAULT '{}'")
             if "content_hash" not in script_columns:
                 conn.execute("ALTER TABLE script_versions ADD COLUMN content_hash TEXT")
+            if "production_config_json" not in script_columns:
+                conn.execute("ALTER TABLE script_versions ADD COLUMN production_config_json TEXT NOT NULL DEFAULT '{}'")
             job_columns = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
             for name in ("approved_script_hash", "render_script_hash", "output_sha256", "approved_output_sha256"):
                 if name not in job_columns:
                     conn.execute(f"ALTER TABLE jobs ADD COLUMN {name} TEXT")
+            if "production_config_json" not in job_columns:
+                conn.execute("ALTER TABLE jobs ADD COLUMN production_config_json TEXT NOT NULL DEFAULT '{}'")
+            legacy_jobs = conn.execute(
+                "SELECT id,video_type,production_config_json FROM jobs"
+            ).fetchall()
+            for row in legacy_jobs:
+                if row["production_config_json"] not in {None, "", "{}"}:
+                    continue
+                config = legacy_production_config(row["video_type"])
+                conn.execute(
+                    "UPDATE jobs SET production_config_json=? WHERE id=?",
+                    (json.dumps(config, ensure_ascii=False), row["id"]),
+                )
+            conn.execute(
+                """UPDATE script_versions SET production_config_json=(
+                    SELECT jobs.production_config_json FROM jobs WHERE jobs.id=script_versions.job_id
+                ) WHERE production_config_json IS NULL OR production_config_json='' OR production_config_json='{}'"""
+            )
             unhashed = conn.execute(
                 "SELECT job_id,version,title,description,scenes_json FROM script_versions WHERE content_hash IS NULL OR content_hash=''"
             ).fetchall()
@@ -139,6 +162,11 @@ class Database:
     def create_job(self, values: dict[str, Any], script: dict[str, Any], *, job_id: str | None = None) -> str:
         job_id = job_id or str(uuid.uuid4())
         now = utcnow()
+        production_config = normalize_production_config(
+            values.get("production_config"),
+            legacy_video_type=values["video_type"],
+            legacy_script_provider=values.get("script_generator", "qwen"),
+        )
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             if conn.execute("SELECT 1 FROM jobs WHERE id=?", (job_id,)).fetchone():
@@ -147,12 +175,13 @@ class Database:
             conn.execute(
                 """INSERT INTO jobs
                 (id, created_at, updated_at, topic, language, duration_seconds, aspect_ratio,
-                 video_type, target_platform, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'script_review')""",
+                 video_type, production_config_json, target_platform, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'script_review')""",
                 (job_id, now, now, values["topic"], values["language"], values["duration_seconds"],
-                 values["aspect_ratio"], values["video_type"], values["target_platform"]),
+                 values["aspect_ratio"], production_config["video_type"],
+                 json.dumps(production_config, ensure_ascii=False), values["target_platform"]),
             )
-            self._insert_script(conn, job_id, 1, script, now)
+            self._insert_script(conn, job_id, 1, script, now, production_config)
             targets = values.get("target_platforms") or [values["target_platform"]]
             for position, platform in enumerate(dict.fromkeys(targets)):
                 mode = profile_for(platform)["delivery_mode"]
@@ -166,16 +195,31 @@ class Database:
             conn.commit()
         return job_id
 
-    def _insert_script(self, conn: sqlite3.Connection, job_id: str, version: int, script: dict[str, Any], now: str) -> str:
+    def _insert_script(
+        self,
+        conn: sqlite3.Connection,
+        job_id: str,
+        version: int,
+        script: dict[str, Any],
+        now: str,
+        production_config: dict[str, Any] | None = None,
+    ) -> str:
         metadata = script.get("metadata") or {"provider": "manual_or_legacy", "model": None}
         content_hash = canonical_script_hash(script["title"], script.get("description", ""), script["scenes"])
+        if production_config is None:
+            row = conn.execute("SELECT production_config_json FROM jobs WHERE id=?", (job_id,)).fetchone()
+            if not row:
+                raise KeyError(job_id)
+            production_config = json.loads(row["production_config_json"])
         conn.execute(
             """INSERT INTO script_versions
-            (job_id, version, title, description, scenes_json, metadata_json, content_hash, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (job_id, version, title, description, scenes_json, metadata_json,
+             production_config_json, content_hash, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (job_id, version, script["title"], script.get("description", ""),
              json.dumps(script["scenes"], ensure_ascii=False),
-             json.dumps(metadata, ensure_ascii=False), content_hash, now),
+             json.dumps(metadata, ensure_ascii=False),
+             json.dumps(production_config, ensure_ascii=False), content_hash, now),
         )
         return content_hash
 
@@ -200,7 +244,10 @@ class Database:
     def list_jobs(self) -> list[dict[str, Any]]:
         with self.connect() as conn:
             rows = conn.execute("SELECT * FROM jobs ORDER BY created_at DESC").fetchall()
-        return [dict(row) for row in rows]
+        jobs = [dict(row) for row in rows]
+        for job in jobs:
+            job["production_config"] = json.loads(job.pop("production_config_json"))
+        return jobs
 
     def get_job(self, job_id: str) -> dict[str, Any] | None:
         with self.connect() as conn:
@@ -223,8 +270,10 @@ class Database:
                 (job_id,),
             ).fetchall()
         job["script"] = dict(script)
+        job["production_config"] = json.loads(job.pop("production_config_json"))
         job["script"]["scenes"] = json.loads(job["script"].pop("scenes_json"))
         job["script"]["metadata"] = json.loads(job["script"].pop("metadata_json"))
+        job["script"]["production_config"] = json.loads(job["script"].pop("production_config_json"))
         job["script"]["integrity_verified"] = (
             canonical_script_hash(job["script"]["title"], job["script"]["description"], job["script"]["scenes"])
             == job["script"]["content_hash"]
@@ -411,6 +460,70 @@ class Database:
                 "external_video_imported",
                 "Externes Video wurde geprüft und ist zur Freigabe bereit.",
                 {"source": source, "script_hash": actual_hash, "output_sha256": output_sha256},
+            )
+            conn.commit()
+        return self.get_job(job_id)  # type: ignore[return-value]
+
+    def update_production_config(
+        self,
+        job_id: str,
+        expected: int,
+        production_config: dict[str, Any],
+    ) -> dict[str, Any]:
+        now = utcnow()
+        normalized = normalize_production_config(
+            production_config,
+            legacy_video_type=production_config.get("video_type", "stickman"),
+            legacy_script_provider=production_config.get("script_provider", "qwen"),
+        )
+        with self._write_lock, self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            job = conn.execute(
+                "SELECT script_version,status,production_config_json FROM jobs WHERE id=?",
+                (job_id,),
+            ).fetchone()
+            if not job:
+                raise KeyError(job_id)
+            if job["script_version"] != expected:
+                raise ValueError("version_conflict")
+            if job["status"] in {"render_queued", "rendering", "publish_queued", "publishing"}:
+                raise ValueError("job_busy")
+            if json.loads(job["production_config_json"]) == normalized:
+                raise ValueError("configuration_unchanged")
+            current = conn.execute(
+                "SELECT title,description,scenes_json,metadata_json FROM script_versions WHERE job_id=? AND version=?",
+                (job_id, expected),
+            ).fetchone()
+            if not current:
+                raise KeyError(job_id)
+            version = expected + 1
+            script = {
+                "title": current["title"],
+                "description": current["description"],
+                "scenes": json.loads(current["scenes_json"]),
+                "metadata": json.loads(current["metadata_json"]),
+            }
+            self._insert_script(conn, job_id, version, script, now, normalized)
+            conn.execute(
+                """UPDATE jobs SET updated_at=?, status='script_review', script_version=?,
+                video_type=?,production_config_json=?,approved_script_version=NULL,
+                approved_script_hash=NULL,render_version=NULL,render_script_hash=NULL,
+                approved_render_version=NULL,output_path=NULL,output_sha256=NULL,
+                approved_output_sha256=NULL,tts_mode=NULL,error=NULL,youtube_video_id=NULL,
+                publish_key=NULL WHERE id=?""",
+                (now, version, normalized["video_type"], json.dumps(normalized, ensure_ascii=False), job_id),
+            )
+            conn.execute(
+                """UPDATE publication_targets SET status='planned',approved_output_sha256=NULL,
+                idempotency_key=NULL,remote_id=NULL,remote_url=NULL,error=NULL,updated_at=? WHERE job_id=?""",
+                (now, job_id),
+            )
+            self._event(
+                conn,
+                job_id,
+                "production_config_updated",
+                f"Produktionskonfiguration als Version {version} gespeichert; frühere Freigaben sind ungültig.",
+                {"production_config": normalized},
             )
             conn.commit()
         return self.get_job(job_id)  # type: ignore[return-value]

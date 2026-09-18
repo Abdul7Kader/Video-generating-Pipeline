@@ -95,11 +95,12 @@ def _synthesize_gemini(text: str, output: Path, language: str) -> tuple[str, flo
     return f"gemini:{settings.gemini_tts_model}:{settings.gemini_tts_voice}", duration
 
 
-def synthesize(text: str, output: Path, language: str) -> tuple[str, float]:
-    if settings.tts_provider == "gemini":
+def synthesize(text: str, output: Path, language: str, *, provider: str | None = None) -> tuple[str, float]:
+    selected_provider = provider or settings.tts_provider
+    if selected_provider in {"gemini", "gemini_tts"}:
         return _synthesize_gemini(text, output, language)
-    if settings.tts_provider != "piper":
-        raise RuntimeError(f"Unbekannter TTS_PROVIDER: {settings.tts_provider}")
+    if selected_provider != "piper":
+        raise RuntimeError(f"Unbekannter Stimmenanbieter: {selected_provider}")
     model = ensure_voice()
     if not model:
         raise RuntimeError("Keine funktionsfähige Sprecherstimme verfügbar; stumme Ersatzvideos sind deaktiviert.")
@@ -120,16 +121,17 @@ def synthesize(text: str, output: Path, language: str) -> tuple[str, float]:
         raise RuntimeError(f"Spracherzeugung fehlgeschlagen: {exc}") from exc
 
 
-def _voice_fingerprint(scene: dict[str, Any], language: str) -> str:
-    provider = settings.tts_provider
+def _voice_fingerprint(scene: dict[str, Any], language: str, provider: str | None = None) -> str:
+    provider = provider or settings.tts_provider
+    normalized_provider = "gemini" if provider == "gemini_tts" else provider
     configuration = {
-        "provider": provider,
+        "provider": normalized_provider,
         "language": language,
         "narration": scene["narration"],
-        "piper_voice": settings.piper_voice if provider == "piper" else None,
-        "gemini_model": settings.gemini_tts_model if provider == "gemini" else None,
-        "gemini_voice": settings.gemini_tts_voice if provider == "gemini" else None,
-        "gemini_style": settings.gemini_tts_style if provider == "gemini" else None,
+        "piper_voice": settings.piper_voice if normalized_provider == "piper" else None,
+        "gemini_model": settings.gemini_tts_model if normalized_provider == "gemini" else None,
+        "gemini_voice": settings.gemini_tts_voice if normalized_provider == "gemini" else None,
+        "gemini_style": settings.gemini_tts_style if normalized_provider == "gemini" else None,
     }
     return object_sha256(configuration)
 
@@ -150,14 +152,20 @@ def _cached_voice(job_dir: Path, scene_id: str, fingerprint: str) -> tuple[Path,
     return None
 
 
-def prepare_scene_audio(job_dir: Path, scenes: list[dict[str, Any]], language: str) -> tuple[list[dict[str, Any]], str]:
+def prepare_scene_audio(
+    job_dir: Path,
+    scenes: list[dict[str, Any]],
+    language: str,
+    *,
+    provider: str | None = None,
+) -> tuple[list[dict[str, Any]], str]:
     audio_dir = job_dir / "audio"
     audio_dir.mkdir(parents=True, exist_ok=True)
     segments: list[dict[str, Any]] = []
     modes: set[str] = set()
     for scene in scenes:
         scene_id = str(scene["scene_id"])
-        fingerprint = _voice_fingerprint(scene, language)
+        fingerprint = _voice_fingerprint(scene, language, provider)
         destination = audio_dir / f"{scene_id}.wav"
         cached = _cached_voice(job_dir, scene_id, fingerprint)
         if cached:
@@ -168,7 +176,10 @@ def prepare_scene_audio(job_dir: Path, scenes: list[dict[str, Any]], language: s
             duration = float(previous["duration"])
             reused_from = str(source)
         else:
-            mode, duration = synthesize(str(scene["narration"]), destination, language)
+            if provider is None:
+                mode, duration = synthesize(str(scene["narration"]), destination, language)
+            else:
+                mode, duration = synthesize(str(scene["narration"]), destination, language, provider=provider)
             reused_from = None
         modes.add(mode)
         entry = {
@@ -254,8 +265,17 @@ def render_job(job: dict[str, Any]) -> tuple[str, str]:
     version = int(job["render_version"])
     job_dir = settings.jobs_dir / job["id"] / f"v{version}"
     job_dir.mkdir(parents=True, exist_ok=True)
+    production_config = job.get("production_config") or job["script"].get("production_config") or {}
+    editor = production_config.get("editor", "remotion")
+    if editor != "remotion":
+        raise RuntimeError(f"Der gewählte Schnittanbieter {editor} ist noch nicht integriert.")
     prepare_scene_assets(job_dir, job["script"]["scenes"], job["aspect_ratio"])
-    audio_segments, tts_mode = prepare_scene_audio(job_dir, job["script"]["scenes"], job["language"])
+    audio_segments, tts_mode = prepare_scene_audio(
+        job_dir,
+        job["script"]["scenes"],
+        job["language"],
+        provider=production_config.get("voice_provider"),
+    )
     scene_durations = [
         max(float(scene.get("duration_seconds") or 0.1), float(segment["duration"]) + 0.2)
         for scene, segment in zip(job["script"]["scenes"], audio_segments)

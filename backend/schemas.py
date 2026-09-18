@@ -11,6 +11,21 @@ PlatformId = Literal[
     "amazon_music_podcast", "soundcloud", "spotify_music", "apple_music",
 ]
 
+VideoType = Literal["stickman", "explainer", "social", "podcast", "generated"]
+ScriptProviderId = Literal["qwen", "gemini_cli", "antigravity"]
+MediaProviderId = Literal["procedural_stickman", "pexels_stock", "generated_media", "moneyprinter_media", "podcast_layout"]
+VoiceProviderId = Literal["piper", "gemini_tts", "moneyprinter_voice"]
+EditorId = Literal["remotion", "moneyprinter", "podcast_editor"]
+
+
+class ProductionConfig(BaseModel):
+    profile_id: str = Field(default="local_stickman", min_length=2, max_length=64, pattern=r"^[a-z0-9_]+$")
+    video_type: VideoType = "stickman"
+    script_provider: ScriptProviderId = "qwen"
+    media_provider: MediaProviderId = "procedural_stickman"
+    voice_provider: VoiceProviderId = "piper"
+    editor: EditorId = "remotion"
+
 
 class Scene(BaseModel):
     scene_id: str = Field(default="", max_length=64)
@@ -47,10 +62,11 @@ class JobCreate(BaseModel):
     language: Literal["de", "en"] = "de"
     duration_seconds: int = Field(default=60, ge=15, le=600)
     aspect_ratio: Literal["9:16", "16:9", "1:1"] = "9:16"
-    video_type: Literal["stickman", "explainer", "social", "podcast", "generated"] = "stickman"
+    video_type: VideoType = "stickman"
     target_platform: PlatformId = "download"
     target_platforms: list[PlatformId] = Field(default_factory=list, max_length=15)
     script_generator: Literal["qwen", "gemini_cli"] = "qwen"
+    production_config: ProductionConfig | None = None
     generation_id: str | None = Field(
         default=None,
         pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
@@ -66,7 +82,16 @@ class JobCreate(BaseModel):
         selected = self.target_platforms or [self.target_platform]
         self.target_platforms = list(dict.fromkeys(selected))
         self.target_platform = self.target_platforms[0]
+        if self.production_config is not None:
+            self.video_type = self.production_config.video_type
+            if self.production_config.script_provider in {"qwen", "gemini_cli"}:
+                self.script_generator = self.production_config.script_provider
         return self
+
+
+class ProductionConfigUpdate(BaseModel):
+    expected_version: int = Field(ge=1)
+    production_config: ProductionConfig
 
 
 class ScriptUpdate(BaseModel):

@@ -108,6 +108,16 @@ class QualityTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "nicht freigegeben"):
                 _synthesize_gemini("Test", Path(temp) / "voice.wav", "de")
 
+    def test_saved_voice_provider_overrides_the_global_default(self):
+        voice_settings = type("VoiceSettings", (), {"tts_provider": "piper"})()
+        with tempfile.TemporaryDirectory() as temp, \
+             patch("backend.rendering.settings", voice_settings), \
+             patch("backend.rendering._synthesize_gemini", return_value=("gemini:test", 1.0)) as cloud_voice:
+            result = synthesize("Test", Path(temp) / "voice.wav", "de", provider="gemini_tts")
+
+        self.assertEqual(result, ("gemini:test", 1.0))
+        cloud_voice.assert_called_once()
+
     def test_gemini_tts_writes_returned_pcm_as_wave(self):
         pcm = b"\x10\x00" * 2400
         response_data = json.dumps({"output_audio": {"data": base64.b64encode(pcm).decode()}}).encode()
