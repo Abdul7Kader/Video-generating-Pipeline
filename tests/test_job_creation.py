@@ -6,9 +6,12 @@ import uuid
 from pathlib import Path
 from unittest.mock import patch
 
+from fastapi import HTTPException
+
 from backend.db import Database
-from backend.main import create_job
+from backend.main import create_job, health
 from backend.plan import finalize_scene_plan
+from backend.planner import ScriptProviderUnavailable
 from backend.schemas import JobCreate
 
 
@@ -26,6 +29,15 @@ SCRIPT = finalize_scene_plan(
     30,
 )
 
+ANTIGRAVITY_CONFIG = {
+    "profile_id": "cloud_stickman",
+    "video_type": "stickman",
+    "script_provider": "antigravity",
+    "media_provider": "procedural_stickman",
+    "voice_provider": "piper",
+    "editor": "remotion",
+}
+
 
 class JobCreationTests(unittest.TestCase):
     def setUp(self):
@@ -35,6 +47,15 @@ class JobCreationTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+
+    def test_health_reports_ready_preferred_antigravity_provider(self):
+        status = {"ready": True, "provider": "antigravity", "model": "gemini-3.1-pro-high"}
+        with patch("backend.main.antigravity_status", return_value=status), \
+             patch("backend.main.script_provider_status") as local_status:
+            result = health()
+
+        self.assertEqual(result["script_generation"], status)
+        local_status.assert_not_called()
 
     def test_qwen_retry_with_same_generation_id_returns_existing_job(self):
         payload = JobCreate(
@@ -72,6 +93,46 @@ class JobCreationTests(unittest.TestCase):
             resumed = create_job(payload)
 
         self.assertEqual(resumed["id"], job_id)
+
+    def test_antigravity_retry_creates_one_job_and_persists_actual_provider(self):
+        payload = JobCreate(
+            topic="Antigravity sicher wiederholen",
+            duration_seconds=30,
+            generation_id="75da97ce-02a5-4eb5-b313-b92cfbb8cbd1",
+            production_config=ANTIGRAVITY_CONFIG,
+        )
+        script = {
+            **SCRIPT,
+            "metadata": {"provider": "antigravity", "model": "gemini-3.1-pro-high"},
+        }
+        with patch("backend.main.db", self.db), patch(
+            "backend.main.generate_script", return_value=script
+        ) as generate:
+            first = create_job(payload)
+            second = create_job(payload)
+
+        expected_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"video-pipeline:antigravity:{payload.generation_id}"))
+        self.assertEqual(first["id"], expected_id)
+        self.assertEqual(second["id"], expected_id)
+        self.assertEqual(generate.call_count, 1)
+        self.assertEqual(first["actual_script_provider"], "antigravity")
+
+    def test_antigravity_failure_leaves_no_partial_job(self):
+        payload = JobCreate(
+            topic="Fehler ohne Teilauftrag",
+            duration_seconds=30,
+            generation_id="fb0b08bf-2689-49cb-8748-57951d63e2dc",
+            production_config=ANTIGRAVITY_CONFIG,
+        )
+        with patch("backend.main.db", self.db), patch(
+            "backend.main.generate_script",
+            side_effect=ScriptProviderUnavailable("Antigravity ist nicht angemeldet."),
+        ):
+            with self.assertRaises(HTTPException) as raised:
+                create_job(payload)
+
+        self.assertEqual(raised.exception.status_code, 503)
+        self.assertEqual(self.db.list_jobs(), [])
 
 
 if __name__ == "__main__":

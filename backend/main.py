@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from .antigravity import antigravity_status
 from .assets import asset_provider_status, render_plan_readiness
 from .config import settings
 from .db import Database
@@ -116,10 +117,12 @@ async def security_headers(request: Request, call_next):
 
 @app.get("/api/health")
 def health():
+    preferred_cloud = antigravity_status()
     return {
         "status": "ok",
         "dependencies": dependency_status(),
-        "script_generation": script_provider_status(),
+        "script_generation": preferred_cloud if preferred_cloud.get("ready") else script_provider_status(),
+        "antigravity": preferred_cloud,
         "asset_generation": asset_provider_status(),
         "publication_platforms": platform_catalog(),
         "gemini_cli": {
@@ -151,6 +154,7 @@ def production_options():
             settings.gemini_cli_enabled
             and any(profile.get("status") == "available" for profile in profiles)
         ),
+        antigravity_ready=bool(antigravity_status().get("ready")),
         pexels_ready=bool(settings.pexels_api_key),
         piper_ready=bool(dependencies.get("piper_voice") or settings.piper_auto_download),
         gemini_tts_ready=bool(settings.allow_cloud_tts and settings.gemini_api_key),
@@ -188,8 +192,6 @@ def create_job(payload: JobCreate):
         values["production_config"] = production_config
         values["video_type"] = production_config["video_type"]
         script_provider = production_config["script_provider"]
-        if script_provider == "antigravity":
-            raise HTTPException(409, "Antigravity wird erst in Schritt 5 integriert und ist noch nicht auswählbar.")
         job_id = None
         if payload.generation_id:
             provider_key = "gemini-cli" if script_provider == "gemini_cli" else script_provider

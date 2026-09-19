@@ -1,12 +1,12 @@
 # Aktiver Implementierungsplan: Qualitätsorientierte Produktionsverfahren
 
-Stand: 2026-09-18
+Stand: 2026-09-19
 
 1. [x] Unterbrochenen Sperr- und Idempotenz-Fix abschließen und vollständig prüfen.
 2. [x] Antigravity-Automatisierung praktisch nachweisen und MoneyPrinterTurbo quellenbasiert bewerten.
 3. [x] Modulare Architekturentscheidung vom Nutzer freigeben lassen (Option A).
 4. [x] Provider-Verträge und Produktionsprofil-Dropdown implementieren; Skript, Medien, Stimme und Schnitt getrennt ausweisen. Die Konfiguration wird auf Auftrag und Skriptversion gespeichert; Änderungen erzeugen eine neue Version und entwerten vorhandene Freigaben. Nicht verfügbare Profile und Provider bleiben sichtbar, aber deaktiviert und begründet.
-5. [ ] Antigravity als bevorzugten schemavalidierten Cloud-Skriptpfad integrieren; Qwen nur als letzten Fallback erhalten.
+5. [x] Antigravity als bevorzugten schemavalidierten Cloud-Skriptpfad integrieren; Qwen nur als letzten, sichtbar dokumentierten Fallback erhalten. Tatsächlicher Anbieter und Modell werden am Auftrag und an jeder Skriptversion gespeichert und angezeigt; Fehler erzeugen keine Teil- oder Doppelaufträge.
 6. [ ] MoneyPrinterTurbo isoliert als optionalen Produktionsadapter pilotieren und mit dem vorhandenen Pfad anhand desselben Auftrags vergleichen.
 7. [ ] Gesamtablauf mit beiden Freigabegates prüfen, dokumentieren, committen und pushen.
 8. [ ] Quellenbasierte Recherche und unabhängige Faktenprüfung mit belegbarer Quellenprovenienz integrieren.
@@ -20,7 +20,9 @@ Stand: 2026-09-18
 
 Architekturentscheidung: Option A ist freigegeben. Die bestehende FastAPI-/SQLite-Anwendung bleibt Orchestrator sowie Freigabe- und Provenienzinstanz. Produktionsprofile kombinieren vier getrennte Provider-Slots. Antigravity soll nur headless, schemavalidiert, sandboxed und in einem leeren Arbeitsverzeichnis laufen. MoneyPrinterTurbo wird nicht übernommen, sondern hinter einem Adapter gegen den vorhandenen Produktionspfad getestet.
 
-Prüfung Schritt 4: 79/79 Python-Tests, Python-Compileall, `node --check web/app.js` und `git diff --check` bestanden. Ein isolierter Browser-Smoke-Test bestätigte die Profil- und Providerauswahl, deaktivierte Optionen mit Gründen, responsive Darstellung und eine fehlerfreie Browserkonsole. Fortsetzungspunkt ist Schritt 5; Beginn erst nach erneuter Nutzerfreigabe.
+Prüfung Schritt 4: 79/79 Python-Tests, Python-Compileall, `node --check web/app.js` und `git diff --check` bestanden. Ein isolierter Browser-Smoke-Test bestätigte die Profil- und Providerauswahl, deaktivierte Optionen mit Gründen, responsive Darstellung und eine fehlerfreie Browserkonsole.
+
+Prüfung Schritt 5: Offizielle Antigravity CLI `1.2.7`, Modell `gemini-3.1-pro-high`. Ein echter isolierter Browserablauf mit abgeschaltetem Qwen-Fallback erzeugte Version 1 über Antigravity und überarbeitete sie über Antigravity zu Version 2. Schema, unterschiedliche Inhaltshashes, Anbieter-/Modellprovenienz, Neustartpersistenz und fehlerfreie Browserkonsole wurden geprüft. 93/93 Python-Tests, Compileall, JavaScript-/TypeScript-Syntax, Diff-Prüfung und npm-Audit (0 bekannte Produktionsabhängigkeits-Schwachstellen) bestanden. Fortsetzungspunkt ist Schritt 6; Beginn erst nach erneuter Nutzerfreigabe.
 
 ---
 

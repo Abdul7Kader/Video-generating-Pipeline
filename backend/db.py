@@ -50,6 +50,9 @@ class Database:
                     aspect_ratio TEXT NOT NULL,
                     video_type TEXT NOT NULL,
                     production_config_json TEXT NOT NULL DEFAULT '{}',
+                    actual_script_provider TEXT,
+                    actual_script_model TEXT,
+                    script_fallback_json TEXT NOT NULL DEFAULT '{}',
                     target_platform TEXT NOT NULL,
                     status TEXT NOT NULL,
                     script_version INTEGER NOT NULL DEFAULT 1,
@@ -120,6 +123,12 @@ class Database:
                     conn.execute(f"ALTER TABLE jobs ADD COLUMN {name} TEXT")
             if "production_config_json" not in job_columns:
                 conn.execute("ALTER TABLE jobs ADD COLUMN production_config_json TEXT NOT NULL DEFAULT '{}'")
+            if "actual_script_provider" not in job_columns:
+                conn.execute("ALTER TABLE jobs ADD COLUMN actual_script_provider TEXT")
+            if "actual_script_model" not in job_columns:
+                conn.execute("ALTER TABLE jobs ADD COLUMN actual_script_model TEXT")
+            if "script_fallback_json" not in job_columns:
+                conn.execute("ALTER TABLE jobs ADD COLUMN script_fallback_json TEXT NOT NULL DEFAULT '{}'")
             legacy_jobs = conn.execute(
                 "SELECT id,video_type,production_config_json FROM jobs"
             ).fetchall()
@@ -136,6 +145,19 @@ class Database:
                     SELECT jobs.production_config_json FROM jobs WHERE jobs.id=script_versions.job_id
                 ) WHERE production_config_json IS NULL OR production_config_json='' OR production_config_json='{}'"""
             )
+            current_providers = conn.execute(
+                """SELECT jobs.id,script_versions.metadata_json
+                FROM jobs JOIN script_versions
+                ON script_versions.job_id=jobs.id AND script_versions.version=jobs.script_version
+                WHERE jobs.actual_script_provider IS NULL OR jobs.actual_script_provider=''"""
+            ).fetchall()
+            for row in current_providers:
+                provider, model, fallback = self._script_provenance(json.loads(row["metadata_json"] or "{}"))
+                conn.execute(
+                    """UPDATE jobs SET actual_script_provider=?,actual_script_model=?,script_fallback_json=?
+                    WHERE id=?""",
+                    (provider, model, json.dumps(fallback, ensure_ascii=False), row["id"]),
+                )
             unhashed = conn.execute(
                 "SELECT job_id,version,title,description,scenes_json FROM script_versions WHERE content_hash IS NULL OR content_hash=''"
             ).fetchall()
@@ -167,6 +189,7 @@ class Database:
             legacy_video_type=values["video_type"],
             legacy_script_provider=values.get("script_generator", "qwen"),
         )
+        provider, model, fallback = self._script_provenance(script.get("metadata") or {})
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             if conn.execute("SELECT 1 FROM jobs WHERE id=?", (job_id,)).fetchone():
@@ -175,11 +198,13 @@ class Database:
             conn.execute(
                 """INSERT INTO jobs
                 (id, created_at, updated_at, topic, language, duration_seconds, aspect_ratio,
-                 video_type, production_config_json, target_platform, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'script_review')""",
+                 video_type, production_config_json, actual_script_provider, actual_script_model,
+                 script_fallback_json, target_platform, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'script_review')""",
                 (job_id, now, now, values["topic"], values["language"], values["duration_seconds"],
                  values["aspect_ratio"], production_config["video_type"],
-                 json.dumps(production_config, ensure_ascii=False), values["target_platform"]),
+                 json.dumps(production_config, ensure_ascii=False), provider, model,
+                 json.dumps(fallback, ensure_ascii=False), values["target_platform"]),
             )
             self._insert_script(conn, job_id, 1, script, now, production_config)
             targets = values.get("target_platforms") or [values["target_platform"]]
@@ -194,6 +219,19 @@ class Database:
             self._event(conn, job_id, "job_created", "Skriptentwurf wurde erstellt.")
             conn.commit()
         return job_id
+
+    @staticmethod
+    def _script_provenance(metadata: dict[str, Any]) -> tuple[str, str | None, dict[str, Any]]:
+        provider = str(metadata.get("provider") or "manual_or_legacy")
+        model = metadata.get("model")
+        fallback: dict[str, Any] = {}
+        if metadata.get("fallback_from"):
+            fallback = {
+                "from": str(metadata["fallback_from"]),
+                "reason": str(metadata.get("fallback_reason") or "unavailable"),
+                "requested_provider": str(metadata.get("requested_provider") or metadata["fallback_from"]),
+            }
+        return provider, str(model) if model is not None else None, fallback
 
     def _insert_script(
         self,
@@ -247,6 +285,7 @@ class Database:
         jobs = [dict(row) for row in rows]
         for job in jobs:
             job["production_config"] = json.loads(job.pop("production_config_json"))
+            job["script_fallback"] = json.loads(job.pop("script_fallback_json") or "{}")
         return jobs
 
     def get_job(self, job_id: str) -> dict[str, Any] | None:
@@ -271,6 +310,7 @@ class Database:
             ).fetchall()
         job["script"] = dict(script)
         job["production_config"] = json.loads(job.pop("production_config_json"))
+        job["script_fallback"] = json.loads(job.pop("script_fallback_json") or "{}")
         job["script"]["scenes"] = json.loads(job["script"].pop("scenes_json"))
         job["script"]["metadata"] = json.loads(job["script"].pop("metadata_json"))
         job["script"]["production_config"] = json.loads(job["script"].pop("production_config_json"))
@@ -296,13 +336,15 @@ class Database:
                 raise ValueError("version_conflict")
             version = expected + 1
             self._insert_script(conn, job_id, version, script, now)
+            provider, model, fallback = self._script_provenance(script.get("metadata") or {})
             conn.execute(
                 """UPDATE jobs SET updated_at=?, status='script_review', script_version=?,
+                actual_script_provider=?,actual_script_model=?,script_fallback_json=?,
                 approved_script_version=NULL, approved_script_hash=NULL,
                 render_version=NULL, render_script_hash=NULL, approved_render_version=NULL,
                 output_path=NULL, output_sha256=NULL, approved_output_sha256=NULL,
                 error=NULL, youtube_video_id=NULL, publish_key=NULL WHERE id=?""",
-                (now, version, job_id),
+                (now, version, provider, model, json.dumps(fallback, ensure_ascii=False), job_id),
             )
             conn.execute(
                 """UPDATE publication_targets SET status='planned',approved_output_sha256=NULL,

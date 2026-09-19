@@ -12,6 +12,7 @@ import urllib.request
 from concurrent.futures import Future, TimeoutError as FutureTimeoutError
 from typing import Any
 
+from .antigravity import AntigravityError, antigravity_status, generate_structured
 from .config import settings
 from .plan import SOURCE_BY_VISUAL_TYPE, finalize_scene_plan
 from .schemas import JobCreate, ScriptDraft
@@ -186,7 +187,7 @@ def _system_prompt() -> str:
         "Every spoken sentence must advance the subject. Do not invent facts, quotations, statistics or sources. Put claims that require current "
         "verification into fact_check_notes, but never use a note as permission to keep an unsupported claim in narration. If the brief supplies no "
         "source, omit exact quantities, rankings and comparative performance claims from narration and visuals. You have no web access: never say "
-        "or imply that you researched, verified, browsed or sourced a claim. "
+        "or imply that you researched, verified, browsed or sourced a claim. Do not use tools, execute commands, read files or write files. "
         "Treat visual as an instruction for production, never as text that should be displayed. Only "
         "on_screen_text may be rendered as text. Use polished, grammatically correct language consistently in every audience-facing field. "
         "Never emit placeholders such as %s, TODO or template variables. Return JSON matching the supplied schema and nothing else."
@@ -475,22 +476,39 @@ def _selected_provider() -> tuple[str, str]:
         _ollama_url("")
         models = f"{settings.gemini_model} → {settings.ollama_model}" if settings.gemini_api_key else settings.ollama_model
         return provider, models
+    if provider == "antigravity" and settings.antigravity_enabled:
+        return provider, settings.antigravity_model
     if provider == "openai" and settings.openai_api_key:
         return provider, settings.openai_model
     if provider == "openrouter" and settings.openrouter_api_key and settings.openrouter_model:
         return provider, settings.openrouter_model
     if provider == "template" and settings.allow_template_script:
         return provider, "development-template"
-    if provider not in {"ollama", "gemini", "gemini_ollama", "openai", "openrouter", "template", "auto"}:
+    if provider not in {"ollama", "gemini", "gemini_ollama", "antigravity", "openai", "openrouter", "template", "auto"}:
         raise ScriptProviderUnavailable(f"Unbekannter SCRIPT_PROVIDER: {provider}")
     if provider == "template":
         raise ScriptProviderUnavailable("Der Vorlagenplaner ist deaktiviert. ALLOW_TEMPLATE_SCRIPT=1 ist nur für Entwicklungstests gedacht.")
     raise ScriptProviderUnavailable(f"{provider} ist gewählt, aber API-Schlüssel oder Modell fehlen.")
 
 
+def _provider_for_request(request: JobCreate) -> tuple[str, str]:
+    config = request.production_config
+    selected = config.get("script_provider") if isinstance(config, dict) else config.script_provider if config else None
+    if selected == "antigravity":
+        if not settings.antigravity_enabled:
+            raise ScriptProviderUnavailable(str(AntigravityError("disabled")))
+        return "antigravity", settings.antigravity_model
+    if selected == "qwen":
+        _ollama_url("")
+        return "ollama", settings.ollama_model
+    return _selected_provider()
+
+
 def script_provider_status() -> dict[str, Any]:
     try:
         provider, model = _selected_provider()
+        if provider == "antigravity":
+            return {**antigravity_status(), "requested": settings.script_provider}
         status = {"ready": provider != "template", "provider": provider, "model": model, "requested": settings.script_provider}
         if provider in {"ollama", "gemini_ollama"}:
             local_model = settings.ollama_model
@@ -525,7 +543,7 @@ def generate_script(
     previous: dict[str, Any] | None = None,
     instructions: str | None = None,
 ) -> dict[str, Any]:
-    provider, model = _selected_provider()
+    provider, model = _provider_for_request(request)
     requested_provider = provider
     actual_provider = provider
     actual_model = model
@@ -538,6 +556,20 @@ def generate_script(
         script, metrics = _generate_with_ollama(prompt, model)
     elif provider == "gemini":
         script, metrics = _generate_with_gemini(prompt, model)
+    elif provider == "antigravity":
+        try:
+            raw_script, metrics = generate_structured(f"{_system_prompt()}\n\n{prompt}", _response_schema())
+            try:
+                script = _extract_json(json.dumps(raw_script, ensure_ascii=False))
+            except ValueError as exc:
+                raise AntigravityError("invalid_response") from exc
+        except AntigravityError as exc:
+            if not settings.antigravity_fallback_to_qwen:
+                raise ScriptProviderUnavailable(str(exc)) from exc
+            actual_provider = "ollama"
+            actual_model = settings.ollama_model
+            fallback_metadata = {"fallback_from": "antigravity", "fallback_reason": exc.code}
+            script, metrics = _generate_with_ollama(prompt, actual_model)
     elif provider == "gemini_ollama":
         if not settings.gemini_api_key:
             actual_provider = "ollama"
@@ -593,7 +625,7 @@ def generate_script(
         "fact_check_notes": fact_check_notes,
         "revision": bool(previous),
         "generation_metrics": metrics,
-        **({"requested_provider": requested_provider} if requested_provider == "gemini_ollama" else {}),
+        **({"requested_provider": requested_provider} if requested_provider in {"gemini_ollama", "antigravity"} else {}),
         **fallback_metadata,
     }
     return finalize_scene_plan(script, request.duration_seconds, previous)

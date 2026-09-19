@@ -27,6 +27,15 @@ STOCK_CONFIG = {
     "editor": "remotion",
 }
 
+ANTIGRAVITY_CONFIG = {
+    "profile_id": "cloud_stickman",
+    "video_type": "stickman",
+    "script_provider": "antigravity",
+    "media_provider": "procedural_stickman",
+    "voice_provider": "piper",
+    "editor": "remotion",
+}
+
 SCRIPT = {
     "title": "Produktionsprofil testen",
     "description": "Ein gespeicherter Produktionsvertrag",
@@ -48,6 +57,7 @@ class ProductionCatalogTests(unittest.TestCase):
         catalog = build_production_catalog(
             qwen_ready=True,
             gemini_cli_ready=False,
+            antigravity_ready=True,
             pexels_ready=False,
             piper_ready=True,
             gemini_tts_ready=False,
@@ -66,7 +76,10 @@ class ProductionCatalogTests(unittest.TestCase):
         self.assertTrue(unavailable)
         self.assertTrue(all(item.get("reason") for item in unavailable))
         antigravity = next(item for item in catalog["providers"]["script"] if item["id"] == "antigravity")
-        self.assertIn("Schritt 5", antigravity["reason"])
+        self.assertTrue(antigravity["available"])
+        self.assertEqual(catalog["default_profile_id"], "cloud_stickman")
+        cloud = next(item for item in catalog["profiles"] if item["id"] == "cloud_stickman")
+        self.assertTrue(cloud["available"])
 
     def test_custom_selection_is_normalized_and_unimplemented_provider_is_rejected(self):
         custom = normalize_production_config(
@@ -76,12 +89,21 @@ class ProductionCatalogTests(unittest.TestCase):
         )
         self.assertEqual(custom["profile_id"], "custom")
 
-        with self.assertRaisesRegex(ValueError, "Antigravity"):
+        with self.assertRaisesRegex(ValueError, "MoneyPrinterTurbo"):
             normalize_production_config(
-                {**LOCAL_CONFIG, "script_provider": "antigravity"},
+                {**LOCAL_CONFIG, "media_provider": "moneyprinter_media"},
                 legacy_video_type="stickman",
                 legacy_script_provider="qwen",
             )
+
+        self.assertEqual(
+            normalize_production_config(
+                ANTIGRAVITY_CONFIG,
+                legacy_video_type="stickman",
+                legacy_script_provider="qwen",
+            ),
+            ANTIGRAVITY_CONFIG,
+        )
 
     def test_media_contract_rejects_scenes_from_a_different_provider(self):
         self.assertEqual(
@@ -163,6 +185,49 @@ class ProductionConfigurationPersistenceTests(unittest.TestCase):
         self.assertEqual(changed["production_config"], STOCK_CONFIG)
         self.assertEqual(changed["script"]["production_config"], STOCK_CONFIG)
 
+    def test_actual_provider_is_stored_on_job_and_each_script_version(self):
+        cloud_script = {
+            **SCRIPT,
+            "metadata": {"provider": "antigravity", "model": "gemini-3.1-pro-high"},
+        }
+        cloud_job_id = self.db.create_job(
+            {
+                "topic": "Cloud-Provenienz",
+                "language": "de",
+                "duration_seconds": 30,
+                "aspect_ratio": "16:9",
+                "video_type": "stickman",
+                "target_platform": "download",
+                "production_config": ANTIGRAVITY_CONFIG,
+            },
+            cloud_script,
+        )
+
+        created = self.db.get_job(cloud_job_id)
+        self.assertEqual(created["actual_script_provider"], "antigravity")
+        self.assertEqual(created["actual_script_model"], "gemini-3.1-pro-high")
+        revised = self.db.update_script(cloud_job_id, 1, {
+            **SCRIPT,
+            "title": "Cloud-Provenienz überarbeitet",
+            "metadata": {
+                "provider": "ollama",
+                "model": "qwen3.5:9b-q8_0",
+                "requested_provider": "antigravity",
+                "fallback_from": "antigravity",
+                "fallback_reason": "timeout",
+            },
+        })
+        self.assertEqual(revised["actual_script_provider"], "ollama")
+        self.assertEqual(revised["actual_script_model"], "qwen3.5:9b-q8_0")
+        self.assertEqual(revised["script_fallback"]["reason"], "timeout")
+        with self.db.connect() as conn:
+            versions = conn.execute(
+                "SELECT version,metadata_json FROM script_versions WHERE job_id=? ORDER BY version",
+                (cloud_job_id,),
+            ).fetchall()
+        self.assertEqual(json.loads(versions[0]["metadata_json"])["provider"], "antigravity")
+        self.assertEqual(json.loads(versions[1]["metadata_json"])["provider"], "ollama")
+
 
 class ProductionProfilesUiContractTests(unittest.TestCase):
     def test_simple_profiles_and_four_advanced_slots_are_present(self):
@@ -179,6 +244,7 @@ class ProductionProfilesUiContractTests(unittest.TestCase):
         self.assertIn("/production-config", script)
         self.assertIn("option.disabled", script)
         self.assertIn("Kein vollständiges Produktionsprofil verfügbar", script)
+        self.assertIn("fallback_from", script)
 
 
 if __name__ == "__main__":

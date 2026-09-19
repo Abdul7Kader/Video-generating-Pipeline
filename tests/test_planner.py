@@ -6,6 +6,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from backend.antigravity import AntigravityError
 from backend.planner import (
     ProviderHTTPError,
     ScriptProviderUnavailable,
@@ -42,6 +43,9 @@ def settings(**overrides):
         "gemini_model": "gemini-3.8-flash",
         "gemini_max_retries": 1,
         "gemini_retry_base_seconds": 0.0,
+        "antigravity_enabled": True,
+        "antigravity_model": "gemini-3.1-pro-high",
+        "antigravity_fallback_to_qwen": True,
         "openai_api_key": "",
         "openai_model": "gpt-5.6-terra",
         "openai_base_url": "https://api.openai.com/v1",
@@ -88,7 +92,62 @@ def ollama_response() -> dict:
     }
 
 
+def antigravity_request() -> JobCreate:
+    return REQUEST.model_copy(update={
+        "production_config": {
+            "profile_id": "cloud_stickman",
+            "video_type": "stickman",
+            "script_provider": "antigravity",
+            "media_provider": "procedural_stickman",
+            "voice_provider": "piper",
+            "editor": "remotion",
+        }
+    })
+
+
 class PlannerTests(unittest.TestCase):
+    def test_antigravity_creates_and_revises_schema_validated_scripts(self):
+        raw = json.loads(model_response()["output_text"])
+        configured = settings(script_provider="ollama")
+        with patch("backend.planner.settings", configured), \
+             patch("backend.planner.generate_structured", return_value=(raw, {"total_tokens": 123})) as generate, \
+             patch("backend.planner._post_ollama", side_effect=AssertionError("Qwen must stay idle")):
+            created = generate_script(antigravity_request())
+            revised = generate_script(
+                antigravity_request(),
+                previous=created,
+                instructions="Den Einstieg konkreter formulieren.",
+            )
+
+        self.assertEqual(generate.call_count, 2)
+        self.assertIn("Den Einstieg konkreter formulieren.", generate.call_args.args[0])
+        self.assertEqual(created["metadata"]["provider"], "antigravity")
+        self.assertEqual(created["metadata"]["model"], "gemini-3.1-pro-high")
+        self.assertEqual(created["metadata"]["requested_provider"], "antigravity")
+        self.assertFalse(created["metadata"]["revision"])
+        self.assertEqual(revised["metadata"]["provider"], "antigravity")
+        self.assertTrue(revised["metadata"]["revision"])
+        self.assertEqual(revised["metadata"]["generation_metrics"]["total_tokens"], 123)
+
+    def test_antigravity_timeout_falls_back_to_qwen_with_visible_provenance(self):
+        configured = settings(script_provider="ollama", antigravity_fallback_to_qwen=True)
+        with patch("backend.planner.settings", configured), \
+             patch("backend.planner.generate_structured", side_effect=AntigravityError("timeout")), \
+             patch("backend.planner._post_ollama", return_value=ollama_response()):
+            result = generate_script(antigravity_request())
+
+        self.assertEqual(result["metadata"]["provider"], "ollama")
+        self.assertEqual(result["metadata"]["requested_provider"], "antigravity")
+        self.assertEqual(result["metadata"]["fallback_from"], "antigravity")
+        self.assertEqual(result["metadata"]["fallback_reason"], "timeout")
+
+    def test_invalid_antigravity_schema_fails_without_creating_partial_output(self):
+        configured = settings(script_provider="ollama", antigravity_fallback_to_qwen=False)
+        with patch("backend.planner.settings", configured), \
+             patch("backend.planner.generate_structured", return_value=({"answer": "not a script"}, {})):
+            with self.assertRaisesRegex(ScriptProviderUnavailable, "schema-konforme"):
+                generate_script(antigravity_request())
+
     def test_editorial_guard_rejects_unfilled_placeholders(self):
         with self.assertRaisesRegex(ValueError, "Platzhalter"):
             _validate_editorial_output({

@@ -5,6 +5,19 @@ from typing import Any
 
 PROFILE_SPECS: tuple[dict[str, Any], ...] = (
     {
+        "id": "cloud_stickman",
+        "label": "Cloud-Qualität · Strichmännchen",
+        "description": "Antigravity für Skript und Szenenplan, programmatische Strichmännchen, Piper und Remotion.",
+        "config": {
+            "profile_id": "cloud_stickman",
+            "video_type": "stickman",
+            "script_provider": "antigravity",
+            "media_provider": "procedural_stickman",
+            "voice_provider": "piper",
+            "editor": "remotion",
+        },
+    },
+    {
         "id": "local_stickman",
         "label": "Lokal · Strichmännchen",
         "description": "Qwen, programmatische Strichmännchen, Piper und Remotion.",
@@ -106,7 +119,7 @@ PROVIDER_IDS = {
 }
 
 IMPLEMENTED_PROVIDER_IDS = {
-    "script": {"qwen", "gemini_cli"},
+    "script": {"qwen", "gemini_cli", "antigravity"},
     "media": {"procedural_stickman", "pexels_stock"},
     "voice": {"piper", "gemini_tts"},
     "editor": {"remotion"},
@@ -121,6 +134,7 @@ def build_production_catalog(
     *,
     qwen_ready: bool,
     gemini_cli_ready: bool,
+    antigravity_ready: bool,
     pexels_ready: bool,
     piper_ready: bool,
     gemini_tts_ready: bool,
@@ -130,7 +144,7 @@ def build_production_catalog(
         "script": [
             _provider("qwen", "Qwen 3.5 · lokal", qwen_ready, "Ollama oder das konfigurierte Qwen-Modell ist nicht erreichbar."),
             _provider("gemini_cli", "Gemini CLI", gemini_cli_ready, "Kein unterstütztes und verfügbares Gemini-CLI-Profil ist aktiviert."),
-            _provider("antigravity", "Antigravity", False, "Die sichere Integration folgt in Schritt 5."),
+            _provider("antigravity", "Antigravity", antigravity_ready, "Antigravity CLI ist deaktiviert oder nicht installiert."),
         ],
         "media": [
             _provider("procedural_stickman", "Programmatische Strichmännchen", True),
@@ -169,7 +183,9 @@ def build_production_catalog(
             "available": not reasons,
             "reason": " ".join(dict.fromkeys(reason for reason in reasons if reason)),
         })
-    return {"default_profile_id": "local_stickman", "profiles": profiles, "providers": providers}
+    preferred = next((profile for profile in profiles if profile["id"] == "cloud_stickman"), None)
+    default_profile_id = "cloud_stickman" if preferred and preferred["available"] else "local_stickman"
+    return {"default_profile_id": default_profile_id, "profiles": profiles, "providers": providers}
 
 
 def legacy_production_config(video_type: str, script_provider: str = "qwen") -> dict[str, str]:
@@ -230,7 +246,11 @@ def normalize_production_config(
         if identifier not in PROVIDER_IDS[slot]:
             raise ValueError(f"Unbekannter {slot}-Provider: {identifier}")
         if explicit and identifier not in IMPLEMENTED_PROVIDER_IDS[slot]:
-            labels = {"antigravity": "Antigravity", "moneyprinter": "MoneyPrinterTurbo"}
+            labels = {
+                "moneyprinter": "MoneyPrinterTurbo",
+                "moneyprinter_media": "MoneyPrinterTurbo",
+                "moneyprinter_voice": "MoneyPrinterTurbo",
+            }
             raise ValueError(f"{labels.get(identifier, identifier)} ist noch nicht integriert und kann nicht ausgewählt werden.")
     if candidate["video_type"] not in {"stickman", "explainer", "social", "podcast", "generated"}:
         raise ValueError("Unbekannte Videoart in der Produktionskonfiguration.")
