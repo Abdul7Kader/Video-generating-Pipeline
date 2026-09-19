@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import uuid
 from contextlib import asynccontextmanager
@@ -17,6 +18,7 @@ from .db import Database
 from .gemini_cli import GeminiCliPool, parse_profile_names
 from .gemini_workflow import GeminiScriptWorkflow
 from .imported_media import ImportedMediaError, inspect_imported_video, save_stream, write_provenance_manifest
+from .moneyprinter import moneyprinter_status
 from .plan import file_sha256, finalize_scene_plan, script_hash
 from .planner import ScriptProviderUnavailable, generate_script, script_provider_status, unload_script_model
 from .production import build_production_catalog, normalize_production_config, production_plan_readiness
@@ -46,6 +48,19 @@ def require_job(job_id: str):
     job = db.get_job(job_id)
     if not job:
         raise HTTPException(404, "Auftrag nicht gefunden")
+    output_path = job.get("output_path")
+    if output_path:
+        report_path = (settings.jobs_dir / str(output_path)).parent / "render-comparison.json"
+        try:
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            if (
+                isinstance(report, dict)
+                and report.get("script_hash") == job.get("render_script_hash")
+                and (report.get("candidate") or {}).get("sha256") == job.get("output_sha256")
+            ):
+                job["render_comparison"] = report
+        except (OSError, json.JSONDecodeError):
+            pass
     return job
 
 
@@ -162,6 +177,7 @@ def production_options():
             bool(dependencies.get(name))
             for name in ("ffmpeg", "ffprobe", "node", "renderer")
         ),
+        moneyprinter_ready=bool(dependencies.get("moneyprinter")),
     )
 
 
@@ -355,7 +371,13 @@ def update_production_config(job_id: str, payload: ProductionConfigUpdate):
 @app.post("/api/jobs/{job_id}/render")
 def queue_render(job_id: str, payload: VersionAction):
     job = require_job(job_id)
+    adapter_issues = []
+    if job["production_config"].get("editor") == "moneyprinter":
+        adapter_status = moneyprinter_status(settings)
+        if not adapter_status["ready"]:
+            adapter_issues.append(str(adapter_status["reason"]))
     readiness_issues = [
+        *adapter_issues,
         *production_plan_readiness(job["production_config"], job["script"]["scenes"]),
         *render_plan_readiness(job["script"]["scenes"]),
     ]
@@ -372,6 +394,25 @@ def queue_render(job_id: str, payload: VersionAction):
         if str(exc) in {"hash_conflict", "script_integrity_error"}:
             raise HTTPException(409, "Der freigegebene Szenenplan stimmt nicht mit der aktuellen Fassung überein.") from exc
         raise HTTPException(409, "Die aktuelle Skriptversion ist nicht freigegeben.") from exc
+
+
+@app.get("/api/jobs/{job_id}/comparison-video/baseline")
+def comparison_baseline_video(job_id: str):
+    job = require_job(job_id)
+    report = job.get("render_comparison") or {}
+    baseline = report.get("baseline") or {}
+    relative_path = baseline.get("relative_path")
+    if report.get("status") != "ready" or not isinstance(relative_path, str):
+        raise HTTPException(404, "Für diesen Auftrag liegt noch kein vergleichbarer Basis-Render vor.")
+    job_root = (settings.jobs_dir / job_id).resolve()
+    candidate = (job_root / relative_path).resolve()
+    try:
+        candidate.relative_to(job_root)
+    except ValueError as exc:
+        raise HTTPException(409, "Der gespeicherte Vergleichspfad ist ungültig.") from exc
+    if not candidate.is_file() or file_sha256(candidate) != baseline.get("sha256"):
+        raise HTTPException(409, "Das Vergleichsvideo fehlt oder wurde nachträglich verändert.")
+    return FileResponse(candidate, media_type="video/mp4", filename="comparison-baseline.mp4")
 
 
 @app.post("/api/jobs/{job_id}/import-video")

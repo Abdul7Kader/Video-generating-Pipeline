@@ -72,13 +72,13 @@ PROFILE_SPECS: tuple[dict[str, Any], ...] = (
     {
         "id": "moneyprinter_pilot",
         "label": "MoneyPrinterTurbo · Pilot",
-        "description": "Isolierter Vergleichsweg; wird erst in Schritt 6 angebunden.",
+        "description": "Kontrollierter Schnittvergleich mit demselben Antigravity-Skript, denselben Pexels-Medien und derselben Piper-Stimme.",
         "config": {
             "profile_id": "moneyprinter_pilot",
             "video_type": "social",
             "script_provider": "antigravity",
-            "media_provider": "moneyprinter_media",
-            "voice_provider": "moneyprinter_voice",
+            "media_provider": "pexels_stock",
+            "voice_provider": "piper",
             "editor": "moneyprinter",
         },
     },
@@ -122,7 +122,7 @@ IMPLEMENTED_PROVIDER_IDS = {
     "script": {"qwen", "gemini_cli", "antigravity"},
     "media": {"procedural_stickman", "pexels_stock"},
     "voice": {"piper", "gemini_tts"},
-    "editor": {"remotion"},
+    "editor": {"remotion", "moneyprinter"},
 }
 
 
@@ -139,6 +139,7 @@ def build_production_catalog(
     piper_ready: bool,
     gemini_tts_ready: bool,
     remotion_ready: bool,
+    moneyprinter_ready: bool,
 ) -> dict[str, Any]:
     providers = {
         "script": [
@@ -150,17 +151,17 @@ def build_production_catalog(
             _provider("procedural_stickman", "Programmatische Strichmännchen", True),
             _provider("pexels_stock", "Pexels Stockfoto/-video", pexels_ready, "PEXELS_API_KEY ist nicht konfiguriert."),
             _provider("generated_media", "Generierte Bilder und Videos", False, "Ein freigegebener Mediengenerator folgt in einer späteren Etappe."),
-            _provider("moneyprinter_media", "MoneyPrinterTurbo Medien", False, "Der isolierte Pilot folgt in Schritt 6."),
+            _provider("moneyprinter_media", "MoneyPrinterTurbo Medien", False, "Im kontrollierten Pilot bleibt die Medienbeschaffung bei Pexels."),
             _provider("podcast_layout", "Podcast-/Talking-Head-Layout", False, "Der spezialisierte Renderer folgt in einer späteren Etappe."),
         ],
         "voice": [
             _provider("piper", "Piper · lokal", piper_ready, "Piper-Stimme ist nicht installiert und automatischer Download ist deaktiviert."),
             _provider("gemini_tts", "Gemini TTS · API", gemini_tts_ready, "Cloud-TTS und ein separater API-Schlüssel sind nicht freigegeben."),
-            _provider("moneyprinter_voice", "MoneyPrinterTurbo Stimme", False, "Der isolierte Pilot folgt in Schritt 6."),
+            _provider("moneyprinter_voice", "MoneyPrinterTurbo Stimme", False, "Im kontrollierten Pilot bleibt die Stimme bei Piper."),
         ],
         "editor": [
             _provider("remotion", "Remotion + FFmpeg", remotion_ready, "Node, Remotion, FFmpeg oder FFprobe ist nicht vollständig verfügbar."),
-            _provider("moneyprinter", "MoneyPrinterTurbo Schnitt", False, "Der isolierte Pilot folgt in Schritt 6."),
+            _provider("moneyprinter", "MoneyPrinterTurbo Schnitt", moneyprinter_ready, "MoneyPrinterTurbo ist nicht aktiviert oder seine isolierte Python-Umgebung fehlt."),
             _provider("podcast_editor", "Podcast-Schnitt", False, "Der spezialisierte Renderer folgt in einer späteren Etappe."),
         ],
     }

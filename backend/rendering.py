@@ -13,6 +13,7 @@ from typing import Any
 from .assets import prepare_scene_assets
 from .captions import add_scene_captions, write_srt
 from .config import settings
+from .moneyprinter import moneyprinter_status, render_with_moneyprinter, write_render_comparison
 from .plan import file_sha256, object_sha256
 from .quality import find_ffmpeg, find_ffprobe, run_quality_gate
 
@@ -267,7 +268,7 @@ def render_job(job: dict[str, Any]) -> tuple[str, str]:
     job_dir.mkdir(parents=True, exist_ok=True)
     production_config = job.get("production_config") or job["script"].get("production_config") or {}
     editor = production_config.get("editor", "remotion")
-    if editor != "remotion":
+    if editor not in {"remotion", "moneyprinter"}:
         raise RuntimeError(f"Der gewählte Schnittanbieter {editor} ist noch nicht integriert.")
     prepare_scene_assets(job_dir, job["script"]["scenes"], job["aspect_ratio"])
     audio_segments, tts_mode = prepare_scene_audio(
@@ -306,13 +307,27 @@ def render_job(job: dict[str, Any]) -> tuple[str, str]:
     props_path.write_text(json.dumps(props, ensure_ascii=False, indent=2), encoding="utf-8")
     output_path = job_dir / "video.mp4"
     output_path.unlink(missing_ok=True)
-    _run([
-        "node", str(settings.renderer_dir / "render.mjs"),
-        str(props_path), str(output_path), str(settings.render_concurrency), str(audio_path),
-    ], timeout=3600)
+    if editor == "moneyprinter":
+        material_paths = [
+            Path(str(scene["asset_path"]))
+            for scene in job["script"]["scenes"]
+            if scene.get("asset_path")
+        ]
+        output_path = render_with_moneyprinter(
+            job,
+            job_dir,
+            audio_path,
+            material_paths,
+            settings,
+        )
+    else:
+        _run([
+            "node", str(settings.renderer_dir / "render.mjs"),
+            str(props_path), str(output_path), str(settings.render_concurrency), str(audio_path),
+        ], timeout=3600)
     if not output_path.exists() or output_path.stat().st_size < 10_000:
         raise RuntimeError("Renderer hat keine gültige Videodatei erzeugt")
-    run_quality_gate(
+    quality_report = run_quality_gate(
         output_path=output_path,
         audio_path=audio_path,
         subtitles_path=subtitles_path,
@@ -322,10 +337,25 @@ def render_job(job: dict[str, Any]) -> tuple[str, str]:
         expected_script_hash=str(job["render_script_hash"]),
         report_path=job_dir / "quality-report.json",
     )
+    if editor == "moneyprinter":
+        quality_report["warnings"] = [
+            "MoneyPrinterTurbo übernimmt die geprüfte SRT-Datei nicht über seine öffentliche CLI; der Pilot enthält keine eingebrannten Untertitel."
+        ]
+        (job_dir / "quality-report.json").write_text(
+            json.dumps(quality_report, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        write_render_comparison(
+            job_dir,
+            output_path,
+            str(editor),
+            str(job["render_script_hash"]),
+        )
     return str(output_path), tts_mode
 
 
 def dependency_status() -> dict[str, Any]:
+    moneyprinter = moneyprinter_status(settings)
     return {
         "ffmpeg": bool(find_ffmpeg()),
         "ffprobe": bool(find_ffprobe()),
@@ -334,4 +364,6 @@ def dependency_status() -> dict[str, Any]:
         "tts_provider": settings.tts_provider,
         "cloud_tts_allowed": settings.allow_cloud_tts,
         "renderer": (settings.renderer_dir / "render.mjs").exists(),
+        "moneyprinter": moneyprinter["ready"],
+        "moneyprinter_reason": moneyprinter["reason"],
     }

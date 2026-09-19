@@ -36,6 +36,15 @@ ANTIGRAVITY_CONFIG = {
     "editor": "remotion",
 }
 
+MONEYPRINTER_CONFIG = {
+    "profile_id": "moneyprinter_pilot",
+    "video_type": "social",
+    "script_provider": "antigravity",
+    "media_provider": "pexels_stock",
+    "voice_provider": "piper",
+    "editor": "moneyprinter",
+}
+
 SCRIPT = {
     "title": "Produktionsprofil testen",
     "description": "Ein gespeicherter Produktionsvertrag",
@@ -62,6 +71,7 @@ class ProductionCatalogTests(unittest.TestCase):
             piper_ready=True,
             gemini_tts_ready=False,
             remotion_ready=True,
+            moneyprinter_ready=True,
         )
 
         required = {"profile_id", "video_type", "script_provider", "media_provider", "voice_provider", "editor"}
@@ -80,6 +90,9 @@ class ProductionCatalogTests(unittest.TestCase):
         self.assertEqual(catalog["default_profile_id"], "cloud_stickman")
         cloud = next(item for item in catalog["profiles"] if item["id"] == "cloud_stickman")
         self.assertTrue(cloud["available"])
+        moneyprinter = next(item for item in catalog["profiles"] if item["id"] == "moneyprinter_pilot")
+        self.assertFalse(moneyprinter["available"])
+        self.assertIn("PEXELS_API_KEY", moneyprinter["reason"])
 
     def test_custom_selection_is_normalized_and_unimplemented_provider_is_rejected(self):
         custom = normalize_production_config(
@@ -88,6 +101,15 @@ class ProductionCatalogTests(unittest.TestCase):
             legacy_script_provider="qwen",
         )
         self.assertEqual(custom["profile_id"], "custom")
+
+        self.assertEqual(
+            normalize_production_config(
+                MONEYPRINTER_CONFIG,
+                legacy_video_type="social",
+                legacy_script_provider="antigravity",
+            ),
+            MONEYPRINTER_CONFIG,
+        )
 
         with self.assertRaisesRegex(ValueError, "MoneyPrinterTurbo"):
             normalize_production_config(
@@ -245,6 +267,8 @@ class ProductionProfilesUiContractTests(unittest.TestCase):
         self.assertIn("option.disabled", script)
         self.assertIn("Kein vollständiges Produktionsprofil verfügbar", script)
         self.assertIn("fallback_from", script)
+        self.assertIn("render-comparison", script)
+        self.assertIn("comparison-video/baseline", script)
 
 
 if __name__ == "__main__":

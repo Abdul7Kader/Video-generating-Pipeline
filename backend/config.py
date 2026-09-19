@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 _LOCAL_APP_DATA = Path(os.getenv("LOCALAPPDATA", "./data")).resolve()
+_DEFAULT_MONEYPRINTER_ROOT = (_LOCAL_APP_DATA / "VideoPipeline" / "MoneyPrinterTurbo").resolve()
 
 
 def _bool(name: str, default: bool = False) -> bool:
@@ -66,6 +67,13 @@ class Settings:
     piper_voice: str = os.getenv("PIPER_VOICE", "de_DE-thorsten-high")
     piper_auto_download: bool = _bool("PIPER_AUTO_DOWNLOAD", True)
     render_concurrency: int = max(1, min(3, int(os.getenv("RENDER_CONCURRENCY", "2"))))
+    moneyprinter_enabled: bool = _bool("MONEYPRINTER_ENABLED", False)
+    moneyprinter_root: Path = Path(os.getenv("MONEYPRINTER_ROOT", str(_DEFAULT_MONEYPRINTER_ROOT))).resolve()
+    moneyprinter_python: Path = Path(os.getenv(
+        "MONEYPRINTER_PYTHON",
+        str(_DEFAULT_MONEYPRINTER_ROOT / ".venv" / "Scripts" / "python.exe"),
+    )).resolve()
+    moneyprinter_timeout_seconds: int = max(60, min(7200, int(os.getenv("MONEYPRINTER_TIMEOUT_SECONDS", "1800"))))
     youtube_enabled: bool = _bool("YOUTUBE_ENABLED")
     youtube_client_secrets: Path = Path(os.getenv("YOUTUBE_CLIENT_SECRETS_FILE", "/data/secrets/youtube-client.json"))
     youtube_token: Path = Path(os.getenv("YOUTUBE_TOKEN_FILE", "/data/secrets/youtube-token.json"))

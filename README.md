@@ -124,6 +124,25 @@ PEXELS_API_KEY=...
 
 Jede Auswahl wird mit Suchbegriff, Pexels-Seite, Urheber, Lizenz-URL, lokaler Datei und SHA-256 im versionsgebundenen `asset-manifest.json` gespeichert. Fehlt der Schlüssel oder ein Asset, bricht der Renderauftrag ab; es erscheint kein Platzhalter als vermeintlich fertiges Video. Kostenpflichtige generative Medien bleiben zusätzlich durch `ALLOW_PAID_MEDIA=0` gesperrt.
 
+## Optionaler MoneyPrinterTurbo-Schnittpilot
+
+MoneyPrinterTurbo ersetzt weder Skripterstellung noch Freigaben, Provenienz oder Veröffentlichung. Der Pilot tauscht ausschließlich den Schnitt aus und erhält dasselbe freigegebene Antigravity-Skript, dieselben bereits geladenen Pexels-Medien und dieselbe normalisierte Piper-Stimme wie der Remotion-Pfad. Damit bleibt der Vergleich aussagekräftig.
+
+Das Fremdprojekt wird nicht in dieses Repository installiert. Es muss separat mit eigener Python-Umgebung vorhanden sein. Danach wird der standardmäßig abgeschaltete Adapter lokal konfiguriert:
+
+```dotenv
+MONEYPRINTER_ENABLED=1
+MONEYPRINTER_ROOT=C:\Tools\MoneyPrinterTurbo
+MONEYPRINTER_PYTHON=C:\Tools\MoneyPrinterTurbo\.venv\Scripts\python.exe
+MONEYPRINTER_TIMEOUT_SECONDS=1800
+```
+
+Die Pipeline nutzt ausschließlich die offizielle Batch-CLI, startet keine Weboberfläche und öffnet keinen Port. Der freigegebene Text liegt nicht in der Prozesszeile. Der Unterprozess erhält eine bereinigte Umgebung ohne API-Schlüssel, darf keine externe Veröffentlichung auslösen und seine Ausgabedatei wird nur aus dem eigenen `storage/tasks/<task-id>` akzeptiert. Rohdiagnosen werden nicht protokolliert. MoneyPrinterTurbo kann über seine öffentliche CLI unsere geprüfte SRT-Datei nicht übernehmen; im kontrollierten Pilot ist deshalb seine eigene Untertitelerzeugung deaktiviert. Diese sichtbare Qualitätsgrenze gehört in den Vergleich und ist kein stiller Ersatz.
+
+Diese Prozessgrenzen sind keine Betriebssystem-Sandbox: Separat installierter MoneyPrinterTurbo-Code läuft weiterhin mit den Rechten des angemeldeten Windows-Benutzers. Die Pipeline installiert oder startet das Fremdprojekt deshalb nicht selbst. Vor einem Echttest muss dessen Quellstand separat geprüft und die isolierte Laufzeit bewusst eingerichtet werden.
+
+Für den Vergleich wird ein Stock-Auftrag zuerst mit „Cloud-Qualität · Stockvideo“ gerendert. Danach wird bei unverändertem Inhalt das Profil „MoneyPrinterTurbo · Pilot“ gespeichert, erneut freigegeben und gerendert. Nur wenn beide Dateien denselben Skript-Hash besitzen, zeigt die Weboberfläche sie nebeneinander. Laufzeit, Dateigröße und Codecs sind technische Hilfen; die Sichtprüfung auf passende Bilder, Stimme, sichtbare Fehler und Nachbearbeitungsaufwand bleibt erforderlich.
+
 ## Sprecherstimme und Qualitätsprüfung
 
 Der lokale Standard bleibt Piper. Eine stumme Ersatzspur gilt nicht mehr als Erfolg: Fehlt die Stimme oder ist das Audio leer, bricht die Produktion ab. Optional kann die natürlichere, steuerbare Gemini-TTS-Stimme bewusst aktiviert werden:
