@@ -5,12 +5,16 @@ from __future__ import annotations
 import http.client
 import json
 import os
+import secrets
 import socket
 import sys
 import threading
 import time
 import webbrowser
 from pathlib import Path
+
+
+CONTROL_DIR = Path(__file__).resolve().parent / ".runtime"
 
 
 def _port() -> int:
@@ -55,6 +59,17 @@ def _open_when_ready(port: int, url: str) -> None:
         time.sleep(0.5)
 
 
+def _watch_for_stop(server, request_path: Path, token: str, *, interval: float = 0.25) -> None:
+    while not server.should_exit:
+        try:
+            if request_path.read_text(encoding="utf-8") == token:
+                server.should_exit = True
+                return
+        except FileNotFoundError:
+            pass
+        time.sleep(interval)
+
+
 def main() -> int:
     try:
         import uvicorn
@@ -81,9 +96,20 @@ def main() -> int:
         return 1
 
     print(f"Starte die Pipeline lokal unter {url}")
-    print("Zum Beenden dieses Fenster schließen oder Strg+C drücken.")
+    print("Zum Beenden Strg+C drücken oder stop.cmd / stop.sh im Projektordner ausführen.")
     threading.Thread(target=_open_when_ready, args=(port, url), daemon=True).start()
-    uvicorn.run("backend.main:app", host="127.0.0.1", port=port)
+    CONTROL_DIR.mkdir(parents=True, exist_ok=True)
+    token = secrets.token_hex(16)
+    state_path = CONTROL_DIR / f"pipeline-{port}-{os.getpid()}.json"
+    request_path = CONTROL_DIR / f"stop-{token}.request"
+    state_path.write_text(json.dumps({"pid": os.getpid(), "port": port, "token": token}), encoding="utf-8")
+    try:
+        server = uvicorn.Server(uvicorn.Config("backend.main:app", host="127.0.0.1", port=port))
+        threading.Thread(target=_watch_for_stop, args=(server, request_path, token), daemon=True).start()
+        server.run()
+    finally:
+        state_path.unlink(missing_ok=True)
+        request_path.unlink(missing_ok=True)
     return 0
 
 

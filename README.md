@@ -4,12 +4,15 @@ Eine lokale, erweiterbare Videoproduktion für den vorhandenen Ubuntu-Rechner. D
 
 ## Start
 
-Direkt im Projektordner liegen zwei Starter:
+Direkt im Projektordner liegen Starter und Stopper:
 
 - **Windows:** `Start-Pipeline.cmd` doppelklicken. Das sichtbare Konsolenfenster zeigt den Server; mit `Strg+C` wird er beendet. Die vorhandene `.runtime/windows-python`-Umgebung wird bevorzugt, andernfalls eine bereits eingerichtete System-Python-Umgebung. Es wird nichts automatisch installiert.
 - **Linux:** im Terminal `./Start-Pipeline.sh` ausführen. Der Starter bevorzugt eine vorhandene lokale Python-/Node-Laufzeit und verwendet sonst Docker Compose, falls Docker läuft. Beim ersten Docker-Start werden die im Compose-Projekt festgelegten Images und das Qwen-Modell geladen.
+- **Stoppen:** Unter Windows `stop.cmd` ausführen, unter Linux `./stop.sh`. Beide stoppen nur die durch diese Projekt-Starter verwalteten lokalen Server. Unter Linux stoppt `stop.sh` zusätzlich den Compose-Webdienst dieses Projekts, falls er läuft; Ollama und Datenvolumes bleiben erhalten. Ein manuell mit `uvicorn` gestarteter Server wird nicht beendet – dort `Strg+C` verwenden.
 
 Beide Starter binden die Weboberfläche ausschließlich an `127.0.0.1`. Im lokalen Python-Betrieb wird sie nach dem Gesundheitscheck im Browser geöffnet; ohne grafischen Browser steht die Adresse im Terminal. Eine bereits laufende Pipeline wird erkannt und nicht doppelt gestartet. Lokale Einstellungen können in einer nicht versionierten `.env` stehen. Für den Qwen-Fallback muss Ollama separat laufen; Antigravity benötigt keinen gestarteten Ollama-Dienst.
+
+`start_pipeline.py` ist der gemeinsame lokale Starter hinter den Windows- und Linux-Dateien: Er lädt `.env`, prüft Port und Gesundheitsstatus, startet FastAPI/Uvicorn und öffnet die Oberfläche. Die `.cmd`-/`.sh`-Dateien wählen dafür nur die passende Laufzeit oder unter Linux alternativ Compose. Der Starter schreibt eine kleine, nicht versionierte Prozesskennung nach `.runtime`; `stop_pipeline.py` fordert damit ohne Port-Freigabe ein sauberes Herunterfahren an. Optional stoppt `stop_pipeline.py --port 8080` nur eine bestimmte lokale Instanz.
 
 Der bisherige Docker-Befehl bleibt ebenfalls möglich:
 
