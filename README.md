@@ -4,6 +4,15 @@ Eine lokale, erweiterbare Videoproduktion für den vorhandenen Ubuntu-Rechner. D
 
 ## Start
 
+Direkt im Projektordner liegen zwei Starter:
+
+- **Windows:** `Start-Pipeline.cmd` doppelklicken. Das sichtbare Konsolenfenster zeigt den Server; mit `Strg+C` wird er beendet. Die vorhandene `.runtime/windows-python`-Umgebung wird bevorzugt, andernfalls eine bereits eingerichtete System-Python-Umgebung. Es wird nichts automatisch installiert.
+- **Linux:** im Terminal `./Start-Pipeline.sh` ausführen. Der Starter bevorzugt eine vorhandene lokale Python-/Node-Laufzeit und verwendet sonst Docker Compose, falls Docker läuft. Beim ersten Docker-Start werden die im Compose-Projekt festgelegten Images und das Qwen-Modell geladen.
+
+Beide Starter binden die Weboberfläche ausschließlich an `127.0.0.1`. Im lokalen Python-Betrieb wird sie nach dem Gesundheitscheck im Browser geöffnet; ohne grafischen Browser steht die Adresse im Terminal. Eine bereits laufende Pipeline wird erkannt und nicht doppelt gestartet. Lokale Einstellungen können in einer nicht versionierten `.env` stehen. Für den Qwen-Fallback muss Ollama separat laufen; Antigravity benötigt keinen gestarteten Ollama-Dienst.
+
+Der bisherige Docker-Befehl bleibt ebenfalls möglich:
+
 ```bash
 cp .env.example .env
 docker compose up --build -d
