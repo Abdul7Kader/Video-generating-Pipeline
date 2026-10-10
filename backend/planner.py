@@ -16,6 +16,7 @@ from .antigravity import AntigravityError, antigravity_status, generate_structur
 from .config import settings
 from .plan import SOURCE_BY_VISUAL_TYPE, finalize_scene_plan
 from .schemas import JobCreate, ScriptDraft
+from .stickman import drawing_response_schema
 
 
 class ScriptProviderUnavailable(RuntimeError):
@@ -48,8 +49,24 @@ ACCENTS = ["#ff6b4a", "#38bdf8", "#a78bfa", "#34d399", "#fbbf24", "#fb7185"]
 
 STYLE_DIRECTIONS = {
     "stickman": (
-        "Use intentional stick-figure animation with visual metaphors, props and diagrams. "
-        "Set visual_type to stickman; asset_prompt describes the actual pose, props and background."
+        "Draw an original ink cartoon story on a white background: thin black irregular outlines, "
+        "round white heads, expressive faces, sparse flat color, simple contextual scenery. "
+        "Use visual storytelling, interactions and concrete props instead of a repeated presenter. "
+        "Alternate wide, medium, closeup and split shots. Use cuts by default, short narrative beats. "
+        "Every scene needs visual_type=stickman and an executable stickman drawing plan with "
+        "setting, framing, camera_move, characters and props. Coordinates x/y are percentages; "
+        "y anchors feet or prop bases; keep the lower caption area clear. Feet normally rest at y=80..84. "
+        "Props extend upward from their base. For a seated office figure use x=42,y=84,scale=1.2,pose=work; "
+        "chair x=42,y=84,scale=2; desk x=55,y=84,scale=1.35; laptop x=52,y=67,scale=0.85. "
+        "Use this geometry as an interaction example, not as a repeated shot template. "
+        "Use only the schema's poses, expressions, outfits, settings and prop kinds. "
+        "Choose fitting props from that vocabulary; never promise an object the renderer cannot draw. "
+        "Keep recurring character ids and outfits consistent. Use enter (0..0.9 of scene duration) "
+        "to time reveals, prop exit (fraction after enter, null to remain) to remove objects, "
+        "and end_x for walking/running to another position. Narration must match what the drawing actually shows. Closeups may show "
+        "only a prop with characters=[]. Split shots place opposing subjects on each side of x=50. "
+        "Use restrained on_screen_text or prop labels only when meaningful. "
+        "No scene counters, progress bars, presentation cards, gradients or decorative circles."
     ),
     "explainer": (
         "Design a polished explainer using a varied mix of generated imagery and motion graphics. "
@@ -80,6 +97,7 @@ MEDIA_PROVIDER_DIRECTIONS = {
 
 def _response_schema() -> dict[str, Any]:
     scene_properties: dict[str, Any] = {
+        "stickman": {"anyOf": [drawing_response_schema(), {"type": "null"}], "description": "Required executable drawing plan for stickman scenes; null for other media."},
         "scene_id": {"type": "string", "description": "Stable id such as scene-a1b2c3; preserve it when revising the same scene."},
         "narration": {"type": "string", "minLength": 2, "maxLength": 400, "description": "Only the naturally spoken voice-over for this scene."},
         "visual": {"type": "string", "minLength": 10, "maxLength": 280, "description": "A natural-language description of what is visibly on screen, never a media-type enum."},
@@ -154,6 +172,11 @@ def _template(request: JobCreate) -> dict[str, Any]:
     visual_type = "stickman" if request.video_type == "stickman" else "motion_graphics"
     scenes = [
         {
+            "stickman": {
+                "setting": "white", "framing": "medium", "camera_move": "static",
+                "characters": [{"id": "lead", "x": 40, "y": 78, "pose": "think"}],
+                "props": [{"kind": "lightbulb", "x": 65, "y": 55}],
+            } if visual_type == "stickman" else None,
             "narration": narration,
             "visual": visual,
             "visual_type": visual_type,
@@ -197,8 +220,9 @@ def _system_prompt() -> str:
 def _prompt(request: JobCreate, previous: dict[str, Any] | None = None, instructions: str | None = None) -> str:
     words_per_minute = 130 if request.language == "de" else 145
     target_words = round(request.duration_seconds * words_per_minute / 60)
-    scene_count_min = max(3, min(12, round(request.duration_seconds / 12)))
-    scene_count_max = max(scene_count_min, min(20, round(request.duration_seconds / 6)))
+    beat_seconds = 6 if request.video_type == "stickman" else 12
+    scene_count_min = max(3, min(30, round(request.duration_seconds / beat_seconds)))
+    scene_count_max = max(scene_count_min, min(30, round(request.duration_seconds / (4 if request.video_type == "stickman" else 6))))
     mode = (
         "Revise the existing draft below. Follow the requested changes precisely and preserve strong material that was not targeted."
         if previous
@@ -420,6 +444,8 @@ def _generate_with_ollama(prompt: str, model: str) -> tuple[dict[str, Any], dict
             data = _post_ollama(payload)
         finally:
             _OLLAMA_CALL_LOCK.release()
+        if data.get("done_reason") == "length":
+            raise ValueError("Das lokale Modell erreichte sein Ausgabelimit. Für vollständige Zeichenregie OLLAMA_NUM_PREDICT erhöhen oder ein kürzeres Video planen.")
         try:
             script = _extract_json(data["message"]["content"])
         except (KeyError, TypeError) as exc:
@@ -614,6 +640,14 @@ def generate_script(
         script = _extract_json(data["choices"][0]["message"]["content"])
         metrics = {}
     _validate_editorial_output(script)
+    if request.video_type == "stickman":
+        from .assets import render_plan_readiness
+
+        if any(scene.get("visual_type") != "stickman" for scene in script["scenes"]):
+            raise ValueError("Strichmenschen-Skript enthält einen anderen Medientyp.")
+        drawing_issues = render_plan_readiness(script["scenes"])
+        if drawing_issues:
+            raise ValueError("Die KI lieferte keine ausführbare Zeichenregie. " + " ".join(drawing_issues))
     fact_check_notes = script.pop("fact_check_notes", [])
     audience = script.pop("audience", "")
     tone = script.pop("tone", "")

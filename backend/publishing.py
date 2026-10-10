@@ -27,6 +27,25 @@ _PROFILES: tuple[dict[str, Any], ...] = (
 
 PLATFORM_IDS = tuple(profile["id"] for profile in _PROFILES)
 
+VIDEO_FORMATS: dict[str, tuple[str, ...]] = {
+    "download": ("9:16", "16:9", "1:1"),
+    "youtube": ("16:9", "9:16"),
+    "mastodon": ("16:9", "1:1"),
+    "tiktok": ("9:16",),
+    "instagram_reels": ("9:16",),
+    "facebook_reels": ("9:16",),
+    "linkedin": ("16:9", "1:1"),
+    "x": ("16:9", "1:1"),
+    "bluesky": ("16:9", "1:1"),
+}
+
+
+def choose_video_format(platform: str, available: list[str]) -> str | None:
+    for aspect_ratio in VIDEO_FORMATS.get(platform, ()):
+        if aspect_ratio in available:
+            return aspect_ratio
+    return None
+
 
 def profile_for(platform: str) -> dict[str, Any]:
     profile = next((item for item in _PROFILES if item["id"] == platform), None)
@@ -74,6 +93,7 @@ def platform_catalog(config: Any = settings) -> list[dict[str, Any]]:
     result = []
     for profile in _PROFILES:
         item = dict(profile)
+        item["supported_aspect_ratios"] = list(VIDEO_FORMATS.get(profile["id"], ()))
         item["configured"] = profile["id"] == "download" or profile["id"] in enabled
         if profile["delivery_mode"] == "rss":
             item["setup_hint"] = "Öffentliches Podcast-Hosting mit RSS-Feed erforderlich"

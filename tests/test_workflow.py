@@ -2,8 +2,16 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+import asyncio
+import json
+import sqlite3
+from contextlib import closing
+from dataclasses import replace
 from pathlib import Path
+from unittest.mock import patch
 
+from backend import main as main_module
+from backend.config import settings as default_settings
 from backend.db import Database
 
 
@@ -172,6 +180,135 @@ class WorkflowTests(unittest.TestCase):
         target = self.db.get_job(job_id)["publication_targets"][0]
         self.assertEqual(target["status"], "unknown")
         self.assertIsNone(self.db.claim_publication())
+
+    def test_formats_are_stored_without_early_publication_targets(self):
+        values = {**VALUES, "aspect_ratios": ["16:9", "9:16"], "target_platforms": []}
+        job_id = self.db.create_job(values, SCRIPT)
+        job = self.db.get_job(job_id)
+        self.assertEqual(job["aspect_ratios"], ["16:9", "9:16"])
+        self.assertEqual(job["target_platforms"], [])
+        self.db.initialize()
+        self.assertEqual(self.db.get_job(job_id)["target_platforms"], [])
+
+    def test_legacy_database_backfills_output_format_and_target_once(self):
+        old_path = Path(self.temp.name) / "legacy.sqlite3"
+        with closing(sqlite3.connect(old_path)) as conn:
+            conn.execute(
+                """CREATE TABLE jobs (
+                id TEXT PRIMARY KEY, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                topic TEXT NOT NULL, language TEXT NOT NULL, duration_seconds INTEGER NOT NULL,
+                aspect_ratio TEXT NOT NULL, video_type TEXT NOT NULL,
+                production_config_json TEXT NOT NULL, target_platform TEXT NOT NULL,
+                status TEXT NOT NULL, script_version INTEGER NOT NULL,
+                actual_script_provider TEXT, script_fallback_json TEXT NOT NULL,
+                output_path TEXT, output_sha256 TEXT)"""
+            )
+            conn.execute(
+                """INSERT INTO jobs VALUES
+                ('legacy','2026-01-01','2026-01-01','Alt','de',30,'16:9','stickman','{}',
+                'youtube','video_review',1,NULL,'{}','legacy/v1/video.mp4',?)""",
+                ("a" * 64,),
+            )
+            conn.commit()
+        # The oldest local databases predate stored output digests.
+        with closing(sqlite3.connect(old_path)) as conn:
+            conn.execute("ALTER TABLE jobs DROP COLUMN output_sha256")
+            conn.commit()
+        legacy = Database(old_path)
+        legacy.initialize()
+        legacy.initialize()
+        with legacy.connect() as conn:
+            row = conn.execute("SELECT aspect_ratios_json,output_variants_json FROM jobs WHERE id='legacy'").fetchone()
+            targets = conn.execute("SELECT platform FROM publication_targets WHERE job_id='legacy'").fetchall()
+        self.assertEqual(json.loads(row["aspect_ratios_json"]), ["16:9"])
+        self.assertIsNone(json.loads(row["output_variants_json"])["16:9"]["sha256"])
+        self.assertEqual([item["platform"] for item in targets], ["youtube"])
+
+    def test_late_platform_selection_uses_matching_rendered_format(self):
+        values = {**VALUES, "aspect_ratio": "16:9", "aspect_ratios": ["16:9", "9:16"], "target_platforms": []}
+        job_id = self.db.create_job(values, SCRIPT)
+        digest = self.db.get_job(job_id)["script"]["content_hash"]
+        self.db.approve_script(job_id, 1, digest)
+        self.db.queue_render(job_id, 1, digest)
+        self.db.claim_render()
+        outputs = {
+            "16:9": {"path": f"{job_id}/v1/video.mp4", "sha256": "1" * 64},
+            "9:16": {"path": f"{job_id}/v1/formats/9x16/video.mp4", "sha256": "2" * 64},
+        }
+        self.db.finish_render_variants(job_id, 1, outputs, "piper")
+        job = self.db.get_job(job_id)
+        self.assertEqual(job["render_outputs"], outputs)
+        approved = self.db.approve_video(job_id, 1, "1" * 64, {"tiktok"}, ["linkedin", "tiktok"])
+        targets = {item["platform"]: item for item in approved["publication_targets"]}
+        self.assertEqual(targets["linkedin"]["aspect_ratio"], "16:9")
+        self.assertEqual(targets["tiktok"]["aspect_ratio"], "9:16")
+        self.assertEqual(targets["tiktok"]["approved_output_sha256"], "2" * 64)
+        self.assertEqual(approved["target_platforms"], ["linkedin", "tiktok"])
+        claimed = self.db.claim_publication()
+        self.assertEqual(claimed["publication_output"], outputs["9:16"])
+
+    def test_render_worker_creates_each_selected_format(self):
+        values = {**VALUES, "aspect_ratios": ["9:16", "16:9"], "target_platforms": []}
+        job_id = self.db.create_job(values, SCRIPT)
+        digest = self.db.get_job(job_id)["script"]["content_hash"]
+        self.db.approve_script(job_id, 1, digest)
+        self.db.queue_render(job_id, 1, digest)
+        isolated = replace(default_settings, data_dir=Path(self.temp.name))
+        rendered = []
+
+        def fake_render(job, *, job_dir_override=None):
+            rendered.append(job["aspect_ratio"])
+            folder = job_dir_override or isolated.jobs_dir / job["id"] / "v1"
+            folder.mkdir(parents=True, exist_ok=True)
+            output = folder / "video.mp4"
+            output.write_bytes(("video:" + job["aspect_ratio"]).encode())
+            return str(output), "piper"
+
+        async def run():
+            stop = asyncio.Event()
+            original = self.db.finish_render_variants
+
+            def finish(*args):
+                original(*args)
+                stop.set()
+
+            with patch.object(main_module, "settings", isolated), patch.object(main_module, "db", self.db), \
+                 patch.object(main_module, "render_job", side_effect=fake_render), \
+                 patch.object(main_module, "unload_script_model"), \
+                 patch.object(self.db, "finish_render_variants", side_effect=finish):
+                await asyncio.wait_for(main_module.render_worker(stop), timeout=5)
+
+        asyncio.run(run())
+        self.assertEqual(rendered, ["9:16", "16:9"])
+        result = self.db.get_job(job_id)
+        self.assertEqual(result["status"], "video_review")
+        self.assertEqual(set(result["render_outputs"]), {"9:16", "16:9"})
+
+    def test_late_platform_selection_rejects_missing_format(self):
+        values = {**VALUES, "target_platforms": []}
+        job_id = self.db.create_job(values, SCRIPT)
+        digest = self.db.get_job(job_id)["script"]["content_hash"]
+        self.db.approve_script(job_id, 1, digest)
+        self.db.queue_render(job_id, 1, digest)
+        self.db.claim_render()
+        self.db.finish_render(job_id, 1, f"{job_id}/v1/video.mp4", "3" * 64, "piper")
+        with self.assertRaisesRegex(ValueError, "format_unavailable"):
+            self.db.approve_video(job_id, 1, "3" * 64, set(), ["linkedin"])
+        self.assertEqual(self.db.get_job(job_id)["target_platforms"], [])
+
+    def test_late_target_selection_cannot_change_after_approval(self):
+        values = {**VALUES, "target_platforms": []}
+        job_id = self.db.create_job(values, SCRIPT)
+        digest = self.db.get_job(job_id)["script"]["content_hash"]
+        self.db.approve_script(job_id, 1, digest)
+        self.db.queue_render(job_id, 1, digest)
+        self.db.claim_render()
+        self.db.finish_render(job_id, 1, f"{job_id}/v1/video.mp4", "4" * 64, "piper")
+        first = self.db.approve_video(job_id, 1, "4" * 64, set(), ["download"])
+        again = self.db.approve_video(job_id, 1, "4" * 64, set(), ["download"])
+        self.assertEqual(first["target_platforms"], again["target_platforms"])
+        with self.assertRaisesRegex(ValueError, "publication_already_approved"):
+            self.db.approve_video(job_id, 1, "4" * 64, set(), ["tiktok"])
 
 
 if __name__ == "__main__":

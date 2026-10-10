@@ -2,17 +2,18 @@ import React from 'react';
 import {
   AbsoluteFill,
   Audio,
-  Easing,
   Img,
   interpolate,
   Sequence,
   Video as RemotionVideo,
-  spring,
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
+import {Board, DrawingStage} from './ink';
 
 type Scene = {
+  stickman?: Board | null;
+  transition?: string;
   scene_id?: string;
   narration: string;
   visual: string;
@@ -35,30 +36,6 @@ export type VideoProps = {
   language: string;
   audioSrc?: string;
   scriptHash?: string;
-};
-
-const StickFigure: React.FC<{action: string; accent: string}> = ({action, accent}) => {
-  const frame = useCurrentFrame();
-  const {fps} = useVideoConfig();
-  const enter = spring({frame, fps, config: {damping: 16, stiffness: 120}});
-  const walk = action === 'walk' ? Math.sin(frame / 4) * 18 : 0;
-  const point = action === 'point' ? interpolate(frame % 45, [0, 18, 45], [25, -30, 25], {easing: Easing.inOut(Easing.quad)}) : 16;
-  const bounce = action === 'celebrate' ? Math.abs(Math.sin(frame / 5)) * -34 : 0;
-  const think = action === 'think' ? Math.sin(frame / 14) * 7 : 0;
-  return <svg width="100%" height="100%" viewBox="0 0 520 650" style={{transform: `translateY(${(1-enter)*180 + bounce}px) scale(${0.75 + enter*0.25})`}}>
-    <defs><filter id="shadow"><feDropShadow dx="0" dy="12" stdDeviation="10" floodOpacity=".18"/></filter></defs>
-    <g filter="url(#shadow)" transform={`translate(${walk + think} 0)`} stroke="#152238" strokeWidth="22" strokeLinecap="round" fill="none">
-      <circle cx="260" cy="150" r="78" fill="#fffaf2"/>
-      <path d="M260 230 L260 420"/>
-      <path d="M260 285 L150 360" transform={`rotate(${action === 'celebrate' ? -45 : 0} 260 285)`}/>
-      <path d="M260 285 L370 360" transform={`rotate(${point} 260 285)`}/>
-      <path d="M260 420 L170 570" transform={`rotate(${action === 'walk' ? walk/2 : 0} 260 420)`}/>
-      <path d="M260 420 L350 570" transform={`rotate(${action === 'walk' ? -walk/2 : 0} 260 420)`}/>
-      <circle cx="230" cy="135" r="7" fill="#152238" stroke="none"/><circle cx="290" cy="135" r="7" fill="#152238" stroke="none"/>
-      <path d={action === 'think' ? 'M225 180 Q260 162 295 180' : 'M225 172 Q260 205 295 172'} strokeWidth="10"/>
-    </g>
-    <circle cx="412" cy="345" r="34" fill={accent} opacity={.95}/>
-  </svg>;
 };
 
 const Progress: React.FC<{accent: string; index: number; total: number; progress: number}> = ({accent, index, total, progress}) => (
@@ -102,20 +79,15 @@ const AssetScene: React.FC<{scene: Scene; index: number; total: number}> = ({sce
 const StickmanScene: React.FC<{scene: Scene; index: number; total: number}> = ({scene, index, total}) => {
   const frame = useCurrentFrame();
   const {fps, width, height} = useVideoConfig();
-  const frames = Math.max(1, scene.duration * fps);
-  const fade = interpolate(frame, [0, 10, Math.max(11, frames-12), frames], [0, 1, 1, 0], {extrapolateLeft:'clamp', extrapolateRight:'clamp'});
-  const progress = Math.min(1, frame / frames);
-  const compact = width > height;
-  return <AbsoluteFill style={{opacity:fade, color:'#152238', fontFamily:'"Noto Sans", Arial, sans-serif', padding:compact?74:78}}>
-    <div style={{position:'absolute', inset:0, background:`radial-gradient(circle at ${25+index*9}% 18%, ${scene.accent}33, transparent 35%), linear-gradient(145deg,#fffaf2 0%,#f2f7ff 100%)`}}/>
-    <Progress accent={scene.accent} index={index} total={total} progress={progress}/>
-    <div style={{zIndex:1, height:'100%', display:'flex', flexDirection:compact?'row':'column', alignItems:'center', justifyContent:'center', gap:compact?60:35}}>
-      <div style={{width:compact?'42%':'88%', height:compact?'78%':'49%', maxHeight:720}}><StickFigure action={scene.action} accent={scene.accent}/></div>
-      <div style={{width:compact?'50%':'100%', display:'flex', flexDirection:'column', gap:26}}>
-        <div style={{fontSize:compact?24:28, fontWeight:800, letterSpacing:4, textTransform:'uppercase', color:scene.accent}}>Szene {index+1} / {total}</div>
-        {scene.on_screen_text ? <div style={{fontSize:compact?55:64, lineHeight:1.12, fontWeight:900, letterSpacing:-2}}>{scene.on_screen_text}</div> : null}
-      </div>
-    </div>
+  if (!scene.stickman) throw new Error('Ausführbarer Zeichenplan fehlt. Bitte Zeichenregie ergänzen.');
+  const reveal = Math.min(1, frame / Math.max(1, fps * .3));
+  const opacity = scene.transition === 'dissolve' ? reveal : 1;
+  const zoom = scene.transition === 'zoom' ? 1.08 - reveal * .08 : 1;
+  return <AbsoluteFill style={{background:'#fffefa', opacity, color:'#22211f', fontFamily:'"Noto Sans", Arial, sans-serif', clipPath:scene.transition === 'wipe' ? `inset(0 ${(1-reveal)*100}% 0 0)` : undefined}}>
+    <AbsoluteFill style={{transform:`scale(${zoom})`}}>
+      <DrawingStage board={scene.stickman} frame={frame} fps={fps} duration={scene.duration} portrait={height > width}/>
+    </AbsoluteFill>
+    {scene.on_screen_text ? <div style={{position:'absolute', top:'7%', left:'8%', right:'8%', textAlign:'center', fontSize:width>height?48:42, lineHeight:1.15, fontWeight:700}}>{scene.on_screen_text}</div> : null}
     <Captions scene={scene}/>
   </AbsoluteFill>;
 };
@@ -125,7 +97,7 @@ const SceneView: React.FC<{scene: Scene; index: number; total: number}> = (props
 );
 
 export const Video: React.FC<VideoProps> = ({scenes, audioSrc}) => (
-  <AbsoluteFill style={{background:'#080b12'}}>
+  <AbsoluteFill style={{background:'#fffefa'}}>
     {audioSrc ? <Audio src={audioSrc}/> : null}
     {scenes.map((scene, index) => (
       <Sequence key={scene.scene_id ?? `${index}-${scene.start}`} from={Math.round(scene.start*30)} durationInFrames={Math.max(1,Math.round(scene.duration*30))}>

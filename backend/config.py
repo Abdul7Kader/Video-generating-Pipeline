@@ -25,7 +25,7 @@ class Settings:
     ollama_base_url: str = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
     ollama_model: str = os.getenv("OLLAMA_MODEL", "qwen3.5:9b-q8_0")
     ollama_num_ctx: int = max(4096, min(16384, int(os.getenv("OLLAMA_NUM_CTX", "8192"))))
-    ollama_num_predict: int = max(1024, min(4096, int(os.getenv("OLLAMA_NUM_PREDICT", "2048"))))
+    ollama_num_predict: int = max(1024, min(8192, int(os.getenv("OLLAMA_NUM_PREDICT", "4096"))))
     ollama_timeout_seconds: int = max(60, min(1200, int(os.getenv("OLLAMA_TIMEOUT_SECONDS", "720"))))
     ollama_keep_alive: str = os.getenv("OLLAMA_KEEP_ALIVE", "5m")
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")

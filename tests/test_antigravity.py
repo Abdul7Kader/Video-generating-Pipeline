@@ -9,7 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from backend.antigravity import AntigravityError, _invoke_cli, generate_structured
+from backend.antigravity import AntigravityError, _invoke_cli, antigravity_status, generate_structured
 
 
 SCHEMA = {
@@ -76,6 +76,46 @@ def success_stream(output: dict) -> str:
 
 
 class AntigravityAdapterTests(unittest.TestCase):
+    def test_status_requires_signed_in_account_and_selected_model(self):
+        models = "gemini-3.8-flash-high\tGemini 3.8 Flash (High)\ngemini-3.1-pro-high\tGemini 3.1 Pro (High)\n"
+        with patch("backend.antigravity.settings", adapter_settings()), \
+             patch("backend.antigravity._STATUS_CACHE", None), \
+             patch("backend.antigravity.shutil.which", return_value="agy"), \
+             patch("backend.antigravity.subprocess.run", return_value=SimpleNamespace(returncode=0, stdout=models)) as run:
+            status = antigravity_status()
+        self.assertTrue(status["ready"])
+        self.assertEqual(status["model"], "gemini-3.1-pro-high")
+        self.assertIn("models", run.call_args.args[0])
+        self.assertIn("--log-file", run.call_args.args[0])
+        self.assertNotEqual(Path(run.call_args.kwargs["cwd"]), Path.cwd())
+
+    def test_status_rejects_missing_login_or_unavailable_model_without_cli_output(self):
+        secret = "private-session-token"
+        for response in (
+            SimpleNamespace(returncode=1, stdout=secret),
+            SimpleNamespace(returncode=0, stdout="gemini-3.8-flash-high\tGemini 3.8 Flash (High)\n"),
+        ):
+            with self.subTest(returncode=response.returncode), \
+                 patch("backend.antigravity.settings", adapter_settings()), \
+                 patch("backend.antigravity._STATUS_CACHE", None), \
+                 patch("backend.antigravity.shutil.which", return_value="agy"), \
+                 patch("backend.antigravity.subprocess.run", return_value=response):
+                status = antigravity_status()
+            self.assertFalse(status["ready"])
+            self.assertNotIn(secret, status["message"])
+
+    def test_status_keeps_valid_model_result_when_windows_delays_temp_cleanup(self):
+        response = SimpleNamespace(returncode=0, stdout="gemini-3.1-pro-high\tGemini 3.1 Pro (High)\n")
+        with patch("backend.antigravity.settings", adapter_settings()), \
+             patch("backend.antigravity._STATUS_CACHE", None), \
+             patch("backend.antigravity.shutil.which", return_value="agy"), \
+             patch("backend.antigravity.subprocess.run", return_value=response), \
+             patch("backend.antigravity.tempfile.TemporaryDirectory") as temporary:
+            temporary.return_value.__enter__.return_value = "C:/temp/isolated-status"
+            temporary.return_value.__exit__.side_effect = PermissionError("temporary directory still in use")
+            status = antigravity_status()
+        self.assertTrue(status["ready"])
+
     def test_cli_receives_prompt_only_over_stdin_in_an_isolated_tool_restricted_run(self):
         process = FakeProcess(success_stream({"answer": "ok"}))
         with patch("backend.antigravity.settings", adapter_settings()), \
@@ -116,6 +156,32 @@ class AntigravityAdapterTests(unittest.TestCase):
                 _invoke_cli("do not use tools", SCHEMA)
         self.assertEqual(raised.exception.code, "policy_violation")
         self.assertNotIn("run_command", str(raised.exception))
+
+    def test_finish_returns_structured_output_without_being_a_system_tool(self):
+        stream = json.dumps({"event": "step_update", "step_update": {
+            "step_type": "tool", "tool_name": "finish", "tool_info": {"name": "finish"},
+        }}) + "\n" + success_stream({"answer": "ok"})
+        with patch("backend.antigravity.settings", adapter_settings()), \
+             patch("backend.antigravity.shutil.which", return_value="agy"), \
+             patch("backend.antigravity.subprocess.Popen", return_value=FakeProcess(stream)):
+            result, _ = _invoke_cli("return JSON", SCHEMA)
+        self.assertEqual(result, {"answer": "ok"})
+
+    def test_finish_cannot_hide_other_tools_or_subagents(self):
+        for step in (
+            {"step_type": "tool", "tool_name": "finish", "tool_info": {"name": "run_command"}},
+            {"step_type": "tool", "tool_info": {"name": "finish"}},
+            {"step_type": "tool", "tool_name": "search_web"},
+            {"step_type": "subagent"},
+        ):
+            with self.subTest(step=step):
+                stream = json.dumps({"event": "step_update", "step_update": step}) + "\n" + success_stream({"answer": "ok"})
+                with patch("backend.antigravity.settings", adapter_settings()), \
+                     patch("backend.antigravity.shutil.which", return_value="agy"), \
+                     patch("backend.antigravity.subprocess.Popen", return_value=FakeProcess(stream)):
+                    with self.assertRaises(AntigravityError) as raised:
+                        _invoke_cli("return JSON", SCHEMA)
+                self.assertEqual(raised.exception.code, "policy_violation")
 
     def test_timeout_kills_process_and_returns_a_sanitized_error(self):
         process = TimeoutProcess("")

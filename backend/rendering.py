@@ -262,9 +262,9 @@ def normalize_narration_audio(audio_path: Path) -> float:
         normalized.unlink(missing_ok=True)
 
 
-def render_job(job: dict[str, Any]) -> tuple[str, str]:
+def render_job(job: dict[str, Any], *, job_dir_override: Path | None = None) -> tuple[str, str]:
     version = int(job["render_version"])
-    job_dir = settings.jobs_dir / job["id"] / f"v{version}"
+    job_dir = job_dir_override or settings.jobs_dir / job["id"] / f"v{version}"
     job_dir.mkdir(parents=True, exist_ok=True)
     production_config = job.get("production_config") or job["script"].get("production_config") or {}
     editor = production_config.get("editor", "remotion")

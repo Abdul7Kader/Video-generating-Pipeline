@@ -1,6 +1,22 @@
 # Lokale Video Pipeline
 
-Eine lokale, erweiterbare Videoproduktion für den vorhandenen Ubuntu-Rechner. Die erste Produktionsart erzeugt CPU-taugliche Strichmännchen-/Erklärvideos mit Remotion, SVG, Piper und FFmpeg. FastAPI und SQLite speichern Auftrag, Versionen, Fehler und beide verbindlichen Freigaben.
+Eine lokale Videoproduktion für Windows und Linux. Aktueller Schwerpunkt sind gezeichnete Strichmenschen-Geschichten mit Remotion, SVG, Piper und FFmpeg. FastAPI und SQLite speichern Auftrag, Versionen, Fehler und beide verbindlichen Freigaben.
+
+## Strichmenschen-Geschichten
+
+Seit 2026-10-10 ist ausschließlich die Strichmenschenproduktion aktiv. Stockmedien, MoneyPrinterTurbo, Podcast und andere Videoarten sind eingefroren; ihre vorhandenen Daten und Adapter bleiben erhalten. Die nachfolgenden Beschreibungen dieser Wege dokumentieren den bisherigen Stand.
+
+Die Bildsprache orientiert sich an [Ink Explainer](https://www.youtube.com/watch?v=49_Ph2q6uIM): heller Zeichenhintergrund, schwarze Konturen, wenige flache Farben, Mimik, Kleidung, Requisiten und wechselnde Schauplätze. Standardformat ist 16:9. Ein ausführbarer `stickman`-Zeichenplan steuert bis zu vier Figuren und acht Requisiten pro Szene, Posen, Gefühle, Positionen, Laufwege, zeitliche Auftritte, Ausschnitt und Kamerabewegung. Die KI darf nur den validierten Zeichenbaukasten verwenden; sie erzeugt keine beliebigen Illustrationen aus Freitext.
+
+Im Szeneneditor unter „Zeichenregie“ lässt sich jede Einstellung bearbeiten. Speichern erzeugt eine neue Planversion und macht alte Freigaben ungültig. Alte Entwürfe ohne Zeichenplan müssen ergänzt oder mit der KI überarbeitet werden, bevor sie gerendert werden können.
+
+Die eigene Stilprobe liegt in `examples/stickman-demo.json`. Mit eingerichtetem Piper, Remotion und FFmpeg lässt sie sich ohne KI-Anfrage oder Veröffentlichung erzeugen:
+
+```bash
+python scripts/render_stickman_demo.py
+```
+
+Die MP4, Untertitel sowie Stimmen-, Asset- und Qualitätsnachweise liegen anschließend in `data/style-preview`. Der Film ist eine Stilprobe, kein recherchierter Geschichtsbeitrag. Anforderungen und Sicherheitsgrenzen stehen in `SPEC-stickman-storytelling.md`.
 
 ## Start
 
@@ -38,11 +54,13 @@ Auf diesem Rechner liegt zusätzlich eine verifizierte projektlokale Testlaufzei
 
 ## Bedienung
 
-1. Thema, Sprache, Länge, Format, Videoart und Ziel angeben.
-2. Skript und Szenenplan bearbeiten und **Skript freigeben**.
+1. Unter **Neues Video** Thema, Sprache, Länge, ein oder mehrere Videoformate und ein Produktionsprofil wählen. Es entsteht zunächst nur ein Skriptentwurf.
+2. Skript und Szenenplan prüfen, bei Bedarf bearbeiten und **Skript freigeben**.
 3. **Video erzeugen**. Der Rechner bearbeitet bewusst nur einen Renderauftrag gleichzeitig.
-4. Video ansehen und herunterladen.
-5. Erst **Veröffentlichung freigeben** speichert die zweite, versionsgebundene Freigabe.
+4. Jedes fertige Format ansehen und bei Bedarf herunterladen. Erst jetzt Veröffentlichungsziele auswählen.
+5. **Für gewählte Ziele freigeben** ist die zweite, versionsgebundene Freigabe. Nur eingerichtete Ziele werden automatisch beliefert.
+
+Das **i** im Seitenkopf öffnet die Bedienhilfe. Felder und Aktionen erklären sich zusätzlich beim Darüberfahren mit der Maus oder beim Fokussieren mit der Tab-Taste.
 
 Änderungen am Skript erzeugen eine neue Version und löschen automatisch alte Skript-, Render- und Veröffentlichungsfreigaben. Wiederholte Renderaufrufe derselben Version werden nicht doppelt gestartet. Die Weboberfläche ist zunächst an `127.0.0.1` gebunden.
 
@@ -66,7 +84,7 @@ SCRIPT_PROVIDER=ollama
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=qwen3.5:9b-q8_0
 OLLAMA_NUM_CTX=8192
-OLLAMA_NUM_PREDICT=2048
+OLLAMA_NUM_PREDICT=4096
 OLLAMA_TIMEOUT_SECONDS=720
 ```
 
@@ -124,7 +142,7 @@ Der KI-Entwurf enthält neben dem Sprechertext einen konkreten Produktionsplan p
 
 Eine einzelne Szene kann separat gespeichert werden. Auch das erzeugt eine neue, hashgebundene Planversion. Beim nächsten Render werden unveränderte Stockmedien und Voiceover-Segmente nach Prüfung ihres SHA-256 wiederverwendet; nur betroffene Szenen werden neu beschafft beziehungsweise gesprochen. Der finale Film wird immer neu zusammengesetzt und als eigene Renderrevision geprüft.
 
-Nicht verfügbare visuelle Typen werden bewusst gesperrt. Sie werden nicht mehr irreführend durch denselben Strichmännchenfilm ersetzt. Aktuell freigeschaltet sind der bestehende Strichmännchenpfad sowie echte Stockfotos/-videos bei konfiguriertem Pexels-Zugang.
+Aktuell ist ausschließlich der Strichmenschenpfad freigeschaltet. Andere visuelle Typen und Produktionsprofile sind auch bei vollständiger Anbieterkonfiguration serverseitig eingefroren.
 
 ## Reale Stockmedien
 
@@ -168,6 +186,8 @@ GEMINI_API_KEY=...
 Gemini TTS besitzt derzeit ein Free Tier, aber übermittelte Inhalte dürfen dort zur Produktverbesserung verwendet werden; bei einem abrechenbaren Projekt können nach dem Freikontingent Kosten entstehen. Deshalb erfolgt kein automatischer Wechsel in diesen Modus.
 
 Jeder Render erzeugt außerdem `voice-manifest.json`, `subtitles.srt` und `quality-report.json`. Erst wenn Sprecher-Audio nicht stumm ist, alle Sprachsegmente und visuellen Assets ihren Manifest-Hash erfüllen, Untertitel vorhanden sind und `ffprobe` Video-, Audio- und Laufzeitprüfung besteht, wechselt der Auftrag zu „Video prüfen“.
+
+Unter Windows verwendet Remotion einen bereits installierten Chrome- oder Edge-Browser. Es lädt keinen Browser während des Renderns nach. Wird keiner gefunden, kann `REMOTION_BROWSER_EXECUTABLE` auf die lokale `chrome.exe` oder `msedge.exe` gesetzt werden. Fertige Auftragsvideos liegen bei lokalem Betrieb unter `data/jobs/<auftrags-id>/v<version>/video.mp4`; zusätzliche Formate liegen im Unterordner `formats/<seitenverhältnis>/`. Mit `DATA_DIR` lässt sich das Datenverzeichnis ändern.
 
 ## YouTube
 

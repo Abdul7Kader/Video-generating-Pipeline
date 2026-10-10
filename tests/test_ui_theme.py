@@ -12,7 +12,7 @@ class ThemeUiContractTests(unittest.TestCase):
         html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
         self.assertIn('id="theme-toggle"', html)
         self.assertIn('aria-pressed="false"', html)
-        self.assertLess(html.index('src="/theme.js"'), html.index('href="/styles.css"'))
+        self.assertLess(html.index('src="/theme.js"'), html.index('href="/styles.css'))
 
     def test_theme_logic_restores_choice_and_respects_system_preference(self):
         script = (ROOT / "web" / "theme.js").read_text(encoding="utf-8")

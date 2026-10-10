@@ -11,6 +11,7 @@ from typing import Any
 
 from .config import settings
 from .plan import file_sha256, object_sha256
+from .stickman import RENDERER_VERSION, StickmanBoard
 
 
 PEXELS_LICENSE_URL = "https://www.pexels.com/license/"
@@ -49,6 +50,10 @@ def render_plan_readiness(scenes: list[dict[str, Any]]) -> list[str]:
         scene_id = scene.get("scene_id") or "unbekannte Szene"
         visual_type = scene.get("visual_type", "stickman")
         if visual_type == "stickman":
+            try:
+                StickmanBoard.model_validate(scene.get("stickman"))
+            except ValueError:
+                issues.append(f"{scene_id}: Ausführbarer Zeichenplan fehlt oder ist ungültig. Bitte Zeichenregie ergänzen oder Skript neu erzeugen.")
             continue
         if visual_type in {"stock_image", "stock_video"}:
             if not settings.pexels_api_key:
@@ -192,8 +197,10 @@ def prepare_scene_assets(job_dir: Path, scenes: list[dict[str, Any]], aspect_rat
             "aspect_ratio": aspect_ratio,
         })
         if visual_type == "stickman":
+            fingerprint = object_sha256({"drawing": scene["stickman"], "renderer": RENDERER_VERSION, "aspect_ratio": aspect_ratio})
             manifest["assets"].append({
                 "scene_id": scene.get("scene_id"), "status": "procedural", "visual_type": visual_type, "fingerprint": fingerprint,
+                "renderer": RENDERER_VERSION,
             })
             continue
         query = str(scene.get("asset_query") or "").strip()

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -21,10 +22,10 @@ from .imported_media import ImportedMediaError, inspect_imported_video, save_str
 from .moneyprinter import moneyprinter_status
 from .plan import file_sha256, finalize_scene_plan, script_hash
 from .planner import ScriptProviderUnavailable, generate_script, script_provider_status, unload_script_model
-from .production import build_production_catalog, normalize_production_config, production_plan_readiness
+from .production import build_production_catalog, normalize_production_config, production_plan_readiness, require_active_production
 from .publishing import configured_automatic_platforms, platform_catalog, publish_to_target
 from .rendering import dependency_status, render_job
-from .schemas import JobCreate, ProductionConfigUpdate, Scene, SceneUpdate, ScriptRevision, ScriptUpdate, VersionAction
+from .schemas import JobCreate, ProductionConfigUpdate, Scene, SceneUpdate, ScriptRevision, ScriptUpdate, VersionAction, VideoApproval
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("video-pipeline")
@@ -70,10 +71,21 @@ async def render_worker(stop: asyncio.Event) -> None:
         if job:
             try:
                 await asyncio.to_thread(unload_script_model)
-                output, tts_mode = await asyncio.to_thread(render_job, job)
-                relative = str(Path(output).relative_to(settings.jobs_dir))
-                output_hash = await asyncio.to_thread(file_sha256, Path(output))
-                db.finish_render(job["id"], int(job["render_version"]), relative, output_hash, tts_mode)
+                outputs = {}
+                tts_mode = ""
+                for ratio in job["aspect_ratios"]:
+                    variant_dir = None
+                    if ratio != job["aspect_ratio"]:
+                        variant_dir = settings.jobs_dir / job["id"] / f"v{job['render_version']}" / "formats" / ratio.replace(":", "x")
+                    variant_job = {**job, "aspect_ratio": ratio, "script": copy.deepcopy(job["script"])}
+                    output, tts_mode = await asyncio.to_thread(
+                        render_job, variant_job, job_dir_override=variant_dir
+                    )
+                    outputs[ratio] = {
+                        "path": str(Path(output).relative_to(settings.jobs_dir)),
+                        "sha256": await asyncio.to_thread(file_sha256, Path(output)),
+                    }
+                db.finish_render_variants(job["id"], int(job["render_version"]), outputs, tts_mode)
             except Exception as exc:
                 logger.exception("Render failed for %s", job["id"])
                 db.fail_render(job["id"], str(exc))
@@ -82,8 +94,11 @@ async def render_worker(stop: asyncio.Event) -> None:
         if publish_job:
             platform = publish_job["publication_target"]["platform"]
             try:
-                output = (settings.jobs_dir / publish_job["output_path"]).resolve()
-                if file_sha256(output) != publish_job["approved_output_sha256"]:
+                selected_output = publish_job.get("publication_output") or {
+                    "path": publish_job["output_path"], "sha256": publish_job["output_sha256"]
+                }
+                output = (settings.jobs_dir / selected_output["path"]).resolve()
+                if settings.jobs_dir not in output.parents or file_sha256(output) != publish_job["publication_target"]["approved_output_sha256"]:
                     raise RuntimeError("Die freigegebene Videodatei wurde nach der Freigabe verändert; Upload gestoppt.")
                 remote_id, remote_url = await asyncio.to_thread(publish_to_target, publish_job, output, platform)
                 db.finish_publication(publish_job["id"], platform, remote_id, remote_url)
@@ -159,6 +174,7 @@ def production_options():
     dependencies = dependency_status()
     script_status = script_provider_status()
     profiles = gemini_cli_pool.statuses()
+    cloud_status = antigravity_status()
     qwen_ready = bool(
         (script_status.get("provider") == "ollama" and script_status.get("ready"))
         or script_status.get("fallback_ready")
@@ -169,7 +185,7 @@ def production_options():
             settings.gemini_cli_enabled
             and any(profile.get("status") == "available" for profile in profiles)
         ),
-        antigravity_ready=bool(antigravity_status().get("ready")),
+        antigravity_ready=bool(cloud_status.get("ready")),
         pexels_ready=bool(settings.pexels_api_key),
         piper_ready=bool(dependencies.get("piper_voice") or settings.piper_auto_download),
         gemini_tts_ready=bool(settings.allow_cloud_tts and settings.gemini_api_key),
@@ -178,6 +194,7 @@ def production_options():
             for name in ("ffmpeg", "ffprobe", "node", "renderer")
         ),
         moneyprinter_ready=bool(dependencies.get("moneyprinter")),
+        antigravity_reason=str(cloud_status.get("message", "Antigravity ist nicht verfügbar.")),
     )
 
 
@@ -206,6 +223,7 @@ def create_job(payload: JobCreate):
             legacy_script_provider=payload.script_generator,
         )
         values["production_config"] = production_config
+        require_active_production(production_config)
         values["video_type"] = production_config["video_type"]
         script_provider = production_config["script_provider"]
         job_id = None
@@ -351,6 +369,7 @@ def approve_script(job_id: str, payload: VersionAction):
 @app.put("/api/jobs/{job_id}/production-config")
 def update_production_config(job_id: str, payload: ProductionConfigUpdate):
     try:
+        require_active_production(payload.production_config.model_dump())
         return db.update_production_config(
             job_id,
             payload.expected_version,
@@ -371,6 +390,10 @@ def update_production_config(job_id: str, payload: ProductionConfigUpdate):
 @app.post("/api/jobs/{job_id}/render")
 def queue_render(job_id: str, payload: VersionAction):
     job = require_job(job_id)
+    try:
+        require_active_production(job["production_config"])
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
     adapter_issues = []
     if job["production_config"].get("editor") == "moneyprinter":
         adapter_status = moneyprinter_status(settings)
@@ -480,6 +503,8 @@ async def import_external_video(
     except KeyError as exc:
         raise HTTPException(404, "Auftrag nicht gefunden") from exc
     except ValueError as exc:
+        if str(exc) == "import_requires_single_format":
+            raise HTTPException(409, "Der Videoimport unterstützt nur Aufträge mit genau einem Format.") from exc
         if str(exc) in {"hash_conflict", "script_integrity_error", "script_not_approved", "job_busy"}:
             raise HTTPException(409, "Der Auftrag hat sich während des Imports verändert. Bitte neu laden.") from exc
         raise
@@ -491,7 +516,7 @@ async def import_external_video(
 
 
 @app.post("/api/jobs/{job_id}/approve-video")
-def approve_video(job_id: str, payload: VersionAction):
+def approve_video(job_id: str, payload: VideoApproval):
     job = require_job(job_id)
     if not job["output_path"]:
         raise HTTPException(409, "Video noch nicht erzeugt.")
@@ -500,30 +525,44 @@ def approve_video(job_id: str, payload: VersionAction):
         raise HTTPException(409, "Die zu prüfende Videodatei fehlt.")
     if file_sha256(candidate) != payload.expected_hash:
         raise HTTPException(409, "Die Videodatei hat sich seit dem Laden verändert. Bitte neu laden und erneut prüfen.")
+    for ratio, item in job["render_outputs"].items():
+        variant = (settings.jobs_dir / item["path"]).resolve()
+        if settings.jobs_dir not in variant.parents or not variant.is_file() or file_sha256(variant) != item["sha256"]:
+            raise HTTPException(409, f"Das gerenderte Format {ratio} fehlt oder wurde verändert. Bitte erneut erzeugen.")
     try:
         return db.approve_video(
             job_id,
             payload.expected_version,
             payload.expected_hash,
             configured_automatic_platforms(),
+            payload.target_platforms,
         )
     except KeyError:
         raise HTTPException(404, "Auftrag nicht gefunden")
     except ValueError as exc:
+        if str(exc) == "format_unavailable":
+            raise HTTPException(409, "Für mindestens eine gewählte Plattform fehlt ein passendes Videoformat.") from exc
+        if str(exc) == "media_unavailable":
+            raise HTTPException(409, "Für Audio- oder Musikplattformen fehlt noch ein geeignetes Ausgabeformat.") from exc
+        if str(exc) == "publication_already_approved":
+            raise HTTPException(409, "Diese Videoversion ist bereits freigegeben. Für andere Ziele ist eine neue Videoversion nötig.") from exc
         raise HTTPException(409, "Nur die unveränderte aktuell gerenderte Videoversion kann freigegeben werden.") from exc
 
 
 @app.get("/api/jobs/{job_id}/video")
-def get_video(job_id: str):
+def get_video(job_id: str, aspect_ratio: str | None = Query(default=None)):
     job = require_job(job_id)
-    if not job["output_path"]:
+    ratio = aspect_ratio or job["aspect_ratio"]
+    variant = job["render_outputs"].get(ratio)
+    if not variant:
         raise HTTPException(404, "Video noch nicht vorhanden")
-    candidate = (settings.jobs_dir / job["output_path"]).resolve()
+    candidate = (settings.jobs_dir / variant["path"]).resolve()
     if settings.jobs_dir not in candidate.parents or not candidate.exists():
         raise HTTPException(404, "Videodatei fehlt")
-    if not job["output_sha256"] or file_sha256(candidate) != job["output_sha256"]:
+    if not variant["sha256"] or file_sha256(candidate) != variant["sha256"]:
         raise HTTPException(409, "Die Videodatei stimmt nicht mehr mit der erzeugten Version überein.")
-    return FileResponse(candidate, media_type="video/mp4", filename=f"{job['script']['title']}.mp4")
+    safe_title = "".join(char if char.isalnum() or char in "-_ " else "_" for char in job["script"]["title"])
+    return FileResponse(candidate, media_type="video/mp4", filename=f"{safe_title}-{ratio.replace(':', 'x')}.mp4")
 
 
 web_dir = Path(__file__).resolve().parent.parent / "web"

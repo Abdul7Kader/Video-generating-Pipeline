@@ -281,6 +281,13 @@ class PlannerTests(unittest.TestCase):
             with self.assertRaisesRegex(ScriptProviderUnavailable, "muss lokal"):
                 generate_script(REQUEST)
 
+    def test_truncated_drawing_output_reports_the_output_limit(self):
+        response = {"done_reason": "length", "message": {"content": '{"scenes":['}}
+        with patch("backend.planner.settings", settings(script_provider="ollama")), \
+             patch("backend.planner._post_ollama", return_value=response):
+            with self.assertRaisesRegex(ValueError, "Ausgabelimit.*OLLAMA_NUM_PREDICT"):
+                generate_script(REQUEST)
+
     def test_identical_concurrent_ollama_calls_share_the_running_result(self):
         configured = settings(script_provider="ollama")
         entered = threading.Event()

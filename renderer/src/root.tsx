@@ -5,10 +5,11 @@ import {Video, VideoProps} from './video';
 const defaults: VideoProps = {
   title: 'Video Pipeline',
   durationSeconds: 60,
-  aspectRatio: '9:16',
+  aspectRatio: '16:9',
   language: 'de',
   audioSrc: '',
-  scenes: [{narration: 'Ein neues Video beginnt.', visual: 'Eine Figur erscheint.', action: 'intro', accent: '#ff6b4a', start: 0, duration: 60}],
+  scenes: [{narration: 'Ein neues Video beginnt.', visual: 'Eine Figur denkt über eine Idee nach.', action: 'intro', accent: '#ff6b4a', start: 0, duration: 60,
+    stickman: {setting:'white',framing:'medium',characters:[{id:'lead',x:40,y:78,pose:'think'}],props:[{kind:'lightbulb',x:60,y:47}]}}],
 };
 
 const calculateMetadata: CalculateMetadataFunction<VideoProps> = ({props}) => {

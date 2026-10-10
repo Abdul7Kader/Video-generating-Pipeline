@@ -11,7 +11,7 @@ from typing import Any, Iterator
 
 from .plan import canonical_script_hash
 from .production import legacy_production_config, normalize_production_config
-from .publishing import profile_for
+from .publishing import choose_video_format, profile_for
 
 
 def utcnow() -> str:
@@ -48,6 +48,7 @@ class Database:
                     language TEXT NOT NULL,
                     duration_seconds INTEGER NOT NULL,
                     aspect_ratio TEXT NOT NULL,
+                    aspect_ratios_json TEXT NOT NULL DEFAULT '[]',
                     video_type TEXT NOT NULL,
                     production_config_json TEXT NOT NULL DEFAULT '{}',
                     actual_script_provider TEXT,
@@ -63,6 +64,7 @@ class Database:
                     approved_render_version INTEGER,
                     output_path TEXT,
                     output_sha256 TEXT,
+                    output_variants_json TEXT NOT NULL DEFAULT '{}',
                     approved_output_sha256 TEXT,
                     tts_mode TEXT,
                     error TEXT,
@@ -96,6 +98,7 @@ class Database:
                     platform TEXT NOT NULL,
                     position INTEGER NOT NULL DEFAULT 0,
                     delivery_mode TEXT NOT NULL,
+                    aspect_ratio TEXT,
                     status TEXT NOT NULL DEFAULT 'planned',
                     approved_output_sha256 TEXT,
                     idempotency_key TEXT UNIQUE,
@@ -118,9 +121,24 @@ class Database:
             if "production_config_json" not in script_columns:
                 conn.execute("ALTER TABLE script_versions ADD COLUMN production_config_json TEXT NOT NULL DEFAULT '{}'")
             job_columns = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+            legacy_target_migration = "aspect_ratios_json" not in job_columns
+            if legacy_target_migration:
+                conn.execute("ALTER TABLE jobs ADD COLUMN aspect_ratios_json TEXT NOT NULL DEFAULT '[]'")
+            if "output_variants_json" not in job_columns:
+                conn.execute("ALTER TABLE jobs ADD COLUMN output_variants_json TEXT NOT NULL DEFAULT '{}'")
+            conn.execute("UPDATE jobs SET aspect_ratios_json=json_array(aspect_ratio) WHERE aspect_ratios_json='[]'")
+            target_columns = {row["name"] for row in conn.execute("PRAGMA table_info(publication_targets)").fetchall()}
+            if "aspect_ratio" not in target_columns:
+                conn.execute("ALTER TABLE publication_targets ADD COLUMN aspect_ratio TEXT")
             for name in ("approved_script_hash", "render_script_hash", "output_sha256", "approved_output_sha256"):
                 if name not in job_columns:
                     conn.execute(f"ALTER TABLE jobs ADD COLUMN {name} TEXT")
+            old_outputs = conn.execute(
+                "SELECT id,aspect_ratio,output_path,output_sha256 FROM jobs WHERE output_path IS NOT NULL AND output_variants_json='{}'"
+            ).fetchall()
+            for output in old_outputs:
+                variants = {output["aspect_ratio"]: {"path": output["output_path"], "sha256": output["output_sha256"]}}
+                conn.execute("UPDATE jobs SET output_variants_json=? WHERE id=?", (json.dumps(variants), output["id"]))
             if "production_config_json" not in job_columns:
                 conn.execute("ALTER TABLE jobs ADD COLUMN production_config_json TEXT NOT NULL DEFAULT '{}'")
             if "actual_script_provider" not in job_columns:
@@ -167,7 +185,7 @@ class Database:
                     "UPDATE script_versions SET content_hash=? WHERE job_id=? AND version=?",
                     (digest, row["job_id"], row["version"]),
                 )
-            legacy_targets = conn.execute("SELECT id,target_platform,created_at,updated_at FROM jobs").fetchall()
+            legacy_targets = conn.execute("SELECT id,target_platform,created_at,updated_at FROM jobs").fetchall() if legacy_target_migration else []
             for row in legacy_targets:
                 try:
                     mode = profile_for(row["target_platform"])["delivery_mode"]
@@ -197,17 +215,17 @@ class Database:
                 return job_id
             conn.execute(
                 """INSERT INTO jobs
-                (id, created_at, updated_at, topic, language, duration_seconds, aspect_ratio,
+                (id, created_at, updated_at, topic, language, duration_seconds, aspect_ratio, aspect_ratios_json,
                  video_type, production_config_json, actual_script_provider, actual_script_model,
                  script_fallback_json, target_platform, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'script_review')""",
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'script_review')""",
                 (job_id, now, now, values["topic"], values["language"], values["duration_seconds"],
-                 values["aspect_ratio"], production_config["video_type"],
+                 values["aspect_ratio"], json.dumps(values.get("aspect_ratios") or [values["aspect_ratio"]]), production_config["video_type"],
                  json.dumps(production_config, ensure_ascii=False), provider, model,
                  json.dumps(fallback, ensure_ascii=False), values["target_platform"]),
             )
             self._insert_script(conn, job_id, 1, script, now, production_config)
-            targets = values.get("target_platforms") or [values["target_platform"]]
+            targets = values["target_platforms"] if "target_platforms" in values else [values["target_platform"]]
             for position, platform in enumerate(dict.fromkeys(targets)):
                 mode = profile_for(platform)["delivery_mode"]
                 conn.execute(
@@ -286,6 +304,8 @@ class Database:
         for job in jobs:
             job["production_config"] = json.loads(job.pop("production_config_json"))
             job["script_fallback"] = json.loads(job.pop("script_fallback_json") or "{}")
+            job["aspect_ratios"] = json.loads(job.pop("aspect_ratios_json"))
+            job["render_outputs"] = json.loads(job.pop("output_variants_json"))
         return jobs
 
     def get_job(self, job_id: str) -> dict[str, Any] | None:
@@ -303,7 +323,7 @@ class Database:
                 (job_id,),
             ).fetchall()
             publication_targets = conn.execute(
-                """SELECT platform,position,delivery_mode,status,approved_output_sha256,
+                """SELECT platform,position,delivery_mode,aspect_ratio,status,approved_output_sha256,
                 remote_id,remote_url,error,updated_at FROM publication_targets
                 WHERE job_id=? ORDER BY position,platform""",
                 (job_id,),
@@ -311,6 +331,8 @@ class Database:
         job["script"] = dict(script)
         job["production_config"] = json.loads(job.pop("production_config_json"))
         job["script_fallback"] = json.loads(job.pop("script_fallback_json") or "{}")
+        job["aspect_ratios"] = json.loads(job.pop("aspect_ratios_json"))
+        job["render_outputs"] = json.loads(job.pop("output_variants_json"))
         job["script"]["scenes"] = json.loads(job["script"].pop("scenes_json"))
         job["script"]["metadata"] = json.loads(job["script"].pop("metadata_json"))
         job["script"]["production_config"] = json.loads(job["script"].pop("production_config_json"))
@@ -342,7 +364,7 @@ class Database:
                 actual_script_provider=?,actual_script_model=?,script_fallback_json=?,
                 approved_script_version=NULL, approved_script_hash=NULL,
                 render_version=NULL, render_script_hash=NULL, approved_render_version=NULL,
-                output_path=NULL, output_sha256=NULL, approved_output_sha256=NULL,
+                output_path=NULL, output_sha256=NULL, output_variants_json='{}', approved_output_sha256=NULL,
                 error=NULL, youtube_video_id=NULL, publish_key=NULL WHERE id=?""",
                 (now, version, provider, model, json.dumps(fallback, ensure_ascii=False), job_id),
             )
@@ -404,7 +426,7 @@ class Database:
                 return self.get_job(job_id)  # type: ignore[return-value]
             conn.execute(
                 """UPDATE jobs SET status='render_queued',render_version=?,render_script_hash=?,
-                output_path=NULL,output_sha256=NULL,approved_render_version=NULL,approved_output_sha256=NULL,
+                output_path=NULL,output_sha256=NULL,output_variants_json='{}',approved_render_version=NULL,approved_output_sha256=NULL,
                 updated_at=?,error=NULL WHERE id=?""",
                 (expected, actual_hash, now, job_id),
             )
@@ -436,6 +458,18 @@ class Database:
         return self.get_job(row["id"])
 
     def finish_render(self, job_id: str, version: int, output_path: str, output_sha256: str, tts_mode: str) -> None:
+        job = self.get_job(job_id)
+        if not job:
+            raise KeyError(job_id)
+        self.finish_render_variants(
+            job_id, version,
+            {job["aspect_ratio"]: {"path": output_path, "sha256": output_sha256}},
+            tts_mode,
+        )
+
+    def finish_render_variants(
+        self, job_id: str, version: int, outputs: dict[str, dict[str, str]], tts_mode: str
+    ) -> None:
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             row = conn.execute(
@@ -447,14 +481,19 @@ class Database:
             actual_hash = self._verified_script_hash(conn, job_id, version)
             if row["render_script_hash"] != actual_hash:
                 raise ValueError("render_script_hash_mismatch")
+            selected = conn.execute("SELECT aspect_ratio,aspect_ratios_json FROM jobs WHERE id=?", (job_id,)).fetchone()
+            required = json.loads(selected["aspect_ratios_json"])
+            if set(outputs) != set(required):
+                raise ValueError("render_formats_incomplete")
+            primary = outputs[selected["aspect_ratio"]]
             conn.execute(
-                """UPDATE jobs SET status='video_review',output_path=?,output_sha256=?,tts_mode=?,
+                """UPDATE jobs SET status='video_review',output_path=?,output_sha256=?,output_variants_json=?,tts_mode=?,
                 updated_at=?,error=NULL WHERE id=?""",
-                (output_path, output_sha256, tts_mode, utcnow(), job_id),
+                (primary["path"], primary["sha256"], json.dumps(outputs), tts_mode, utcnow(), job_id),
             )
             self._event(
                 conn, job_id, "render_finished", "Video ist zur Prüfung bereit.",
-                {"tts_mode": tts_mode, "script_hash": actual_hash, "output_sha256": output_sha256},
+                {"tts_mode": tts_mode, "script_hash": actual_hash, "output_sha256": primary["sha256"], "formats": required},
             )
             conn.commit()
 
@@ -484,12 +523,16 @@ class Database:
                 raise ValueError("script_not_approved")
             if row["status"] in {"render_queued", "rendering", "publish_queued", "publishing"}:
                 raise ValueError("job_busy")
+            if len(json.loads(row["aspect_ratios_json"])) != 1:
+                raise ValueError("import_requires_single_format")
             conn.execute(
                 """UPDATE jobs SET status='video_review',render_version=?,render_script_hash=?,
-                output_path=?,output_sha256=?,tts_mode=?,approved_render_version=NULL,
+                output_path=?,output_sha256=?,output_variants_json=?,tts_mode=?,approved_render_version=NULL,
                 approved_output_sha256=NULL,publish_key=NULL,youtube_video_id=NULL,
                 updated_at=?,error=NULL WHERE id=?""",
-                (expected, actual_hash, output_path, output_sha256, f"import:{source}", now, job_id),
+                (expected, actual_hash, output_path, output_sha256,
+                 json.dumps({row["aspect_ratio"]: {"path": output_path, "sha256": output_sha256}}),
+                 f"import:{source}", now, job_id),
             )
             conn.execute(
                 """UPDATE publication_targets SET status='planned',approved_output_sha256=NULL,
@@ -550,7 +593,7 @@ class Database:
                 """UPDATE jobs SET updated_at=?, status='script_review', script_version=?,
                 video_type=?,production_config_json=?,approved_script_version=NULL,
                 approved_script_hash=NULL,render_version=NULL,render_script_hash=NULL,
-                approved_render_version=NULL,output_path=NULL,output_sha256=NULL,
+                approved_render_version=NULL,output_path=NULL,output_sha256=NULL,output_variants_json='{}',
                 approved_output_sha256=NULL,tts_mode=NULL,error=NULL,youtube_video_id=NULL,
                 publish_key=NULL WHERE id=?""",
                 (now, version, normalized["video_type"], json.dumps(normalized, ensure_ascii=False), job_id),
@@ -600,6 +643,7 @@ class Database:
         expected: int,
         expected_hash: str,
         enabled_platforms: set[str] | bool,
+        selected_platforms: list[str] | None = None,
     ) -> dict[str, Any]:
         now = utcnow()
         enabled = {"youtube"} if enabled_platforms is True else set() if enabled_platforms is False else set(enabled_platforms)
@@ -618,11 +662,42 @@ class Database:
             actual_script_hash = self._verified_script_hash(conn, job_id, expected)
             if row["render_script_hash"] != actual_script_hash:
                 raise ValueError("render_script_hash_mismatch")
+            outputs = json.loads(row["output_variants_json"] or "{}")
+            if selected_platforms is not None:
+                unique = list(dict.fromkeys(selected_platforms))
+                if not unique:
+                    raise ValueError("targets_required")
+                if row["approved_output_sha256"]:
+                    existing = [item["platform"] for item in conn.execute(
+                        "SELECT platform FROM publication_targets WHERE job_id=? ORDER BY position", (job_id,)
+                    )]
+                    if existing == unique:
+                        conn.rollback()
+                        return self.get_job(job_id)  # type: ignore[return-value]
+                    raise ValueError("publication_already_approved")
+                assignments = []
+                for platform in unique:
+                    profile = profile_for(platform)
+                    if profile["media"] != "video" and platform != "download":
+                        raise ValueError("media_unavailable")
+                    ratio = row["aspect_ratio"] if platform == "download" else choose_video_format(platform, list(outputs))
+                    if not ratio:
+                        raise ValueError("format_unavailable")
+                    assignments.append((platform, profile["delivery_mode"], ratio))
+                conn.execute("DELETE FROM publication_targets WHERE job_id=?", (job_id,))
+                for position, (platform, mode, ratio) in enumerate(assignments):
+                    conn.execute(
+                        """INSERT INTO publication_targets
+                        (job_id,platform,position,delivery_mode,aspect_ratio,status,created_at,updated_at)
+                        VALUES(?,?,?,?,?,'planned',?,?)""",
+                        (job_id, platform, position, mode, ratio, now, now),
+                    )
+                conn.execute("UPDATE jobs SET target_platform=? WHERE id=?", (unique[0], job_id))
             targets = conn.execute(
-                "SELECT platform,delivery_mode FROM publication_targets WHERE job_id=? ORDER BY position",
+                "SELECT platform,delivery_mode,aspect_ratio FROM publication_targets WHERE job_id=? ORDER BY position",
                 (job_id,),
             ).fetchall()
-            if row["target_platform"] not in {target["platform"] for target in targets} and len(targets) == 1:
+            if selected_platforms is None and row["target_platform"] not in {target["platform"] for target in targets} and len(targets) == 1:
                 conn.execute("DELETE FROM publication_targets WHERE job_id=?", (job_id,))
                 mode = profile_for(row["target_platform"])["delivery_mode"]
                 conn.execute(
@@ -632,12 +707,14 @@ class Database:
                     (job_id, row["target_platform"], 0, mode, row["created_at"], now),
                 )
                 targets = conn.execute(
-                    "SELECT platform,delivery_mode FROM publication_targets WHERE job_id=? ORDER BY position",
+                    "SELECT platform,delivery_mode,aspect_ratio FROM publication_targets WHERE job_id=? ORDER BY position",
                     (job_id,),
                 ).fetchall()
             for target in targets:
                 platform = target["platform"]
                 mode = target["delivery_mode"]
+                target_ratio = target["aspect_ratio"] or row["aspect_ratio"]
+                target_hash = outputs.get(target_ratio, {}).get("sha256") or expected_hash
                 if platform == "download":
                     target_status = "ready"
                 elif mode == "automatic" and platform in enabled:
@@ -648,12 +725,12 @@ class Database:
                     # RSS feeds and distributor release packages are planned artifacts,
                     # but do not exist merely because a video was approved.
                     target_status = "setup_required"
-                key = f"publish:v1:{job_id}:{platform}:{expected_hash}"
+                key = f"publish:v1:{job_id}:{platform}:{target_hash}"
                 conn.execute(
                     """UPDATE publication_targets SET status=?,approved_output_sha256=?,
                     idempotency_key=?,remote_id=NULL,remote_url=NULL,error=NULL,updated_at=?
                     WHERE job_id=? AND platform=?""",
-                    (target_status, expected_hash, key, now, job_id, platform),
+                    (target_status, target_hash, key, now, job_id, platform),
                 )
             publish_key = row["publish_key"] or f"{job_id}:{expected}:{expected_hash}"
             conn.execute(
@@ -675,7 +752,7 @@ class Database:
             row = conn.execute(
                 """SELECT target.job_id,target.platform FROM publication_targets target
                 JOIN jobs ON jobs.id=target.job_id
-                WHERE target.status='queued' AND target.approved_output_sha256=jobs.output_sha256
+                WHERE target.status='queued'
                 AND jobs.approved_output_sha256=jobs.output_sha256
                 ORDER BY target.updated_at,target.position LIMIT 1"""
             ).fetchone()
@@ -705,6 +782,11 @@ class Database:
             job["publication_target"] = next(
                 target for target in job["publication_targets"] if target["platform"] == row["platform"]
             )
+            target = job["publication_target"]
+            ratio = target["aspect_ratio"] or job["aspect_ratio"]
+            output = job["render_outputs"].get(ratio)
+            if output:
+                job["publication_output"] = output
         return job
 
     def finish_publication(self, job_id: str, platform: str, remote_id: str, remote_url: str | None) -> None:

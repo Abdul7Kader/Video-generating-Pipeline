@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 import threading
+import time
 from concurrent.futures import Future, TimeoutError as FutureTimeoutError
 from pathlib import Path
 from typing import Any
@@ -37,6 +38,8 @@ class AntigravityError(RuntimeError):
 
 _INFLIGHT_LOCK = threading.Lock()
 _INFLIGHT: dict[str, Future[tuple[dict[str, Any], dict[str, Any]]]] = {}
+_STATUS_LOCK = threading.Lock()
+_STATUS_CACHE: tuple[str, str, float, dict[str, Any]] | None = None
 
 
 def _executable() -> str:
@@ -130,8 +133,16 @@ def _invoke_cli(prompt: str, schema: dict[str, Any]) -> tuple[dict[str, Any], di
             if not line.strip():
                 continue
             event = json.loads(line)
-            if event.get("event") == "step_update" and event.get("step_update", {}).get("step_type") == "tool":
-                tool_attempted = True
+            if event.get("event") == "step_update":
+                step = event.get("step_update", {})
+                if step.get("step_type") == "tool":
+                    # `finish` is Antigravity's structured-output completion,
+                    # not a filesystem, shell, network or delegation action.
+                    info = step.get("tool_info", {})
+                    if step.get("tool_name") != "finish" or (info and info.get("name") != "finish"):
+                        tool_attempted = True
+                elif step.get("step_type") == "subagent":
+                    tool_attempted = True
             if event.get("event") == "result":
                 result = event.get("result")
     except (json.JSONDecodeError, AttributeError, TypeError) as exc:
@@ -193,13 +204,42 @@ def generate_structured(prompt: str, schema: dict[str, Any]) -> tuple[dict[str, 
 
 
 def antigravity_status() -> dict[str, Any]:
+    global _STATUS_CACHE
     if not settings.antigravity_enabled:
         return {"ready": False, "provider": "antigravity", "model": settings.antigravity_model, "message": str(AntigravityError("disabled"))}
-    if not shutil.which(settings.antigravity_command):
+    executable = shutil.which(settings.antigravity_command)
+    if not executable:
         return {"ready": False, "provider": "antigravity", "model": settings.antigravity_model, "message": str(AntigravityError("missing"))}
-    return {
-        "ready": True,
-        "provider": "antigravity",
-        "model": settings.antigravity_model,
-        "message": "CLI installiert; Anmeldung wird beim ersten echten Auftrag geprüft.",
-    }
+    with _STATUS_LOCK:
+        cached = _STATUS_CACHE
+        if cached and cached[:2] == (executable, settings.antigravity_model) and time.monotonic() - cached[2] < 30:
+            return dict(cached[3])
+        result = None
+        try:
+            with tempfile.TemporaryDirectory(prefix="video-pipeline-antigravity-status-", ignore_cleanup_errors=True) as workspace:
+                result = subprocess.run(
+                    [executable, "--log-file", os.devnull, "models"],
+                    cwd=workspace,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=20,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                    check=False,
+                )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        models = {line.split("\t", 1)[0].strip() for line in result.stdout.splitlines()} if result and result.returncode == 0 else set()
+        ready = settings.antigravity_model in models
+        message = (
+            "Anmeldung und gewähltes Modell bestätigt."
+            if ready else
+            "Antigravity ist nicht angemeldet oder die Modellliste ist nicht erreichbar. Starte 'agy' interaktiv."
+            if not models else
+            "Das konfigurierte Antigravity-Modell ist für dieses Konto nicht verfügbar."
+        )
+        status = {"ready": ready, "provider": "antigravity", "model": settings.antigravity_model, "message": message}
+        _STATUS_CACHE = (executable, settings.antigravity_model, time.monotonic(), status)
+        return dict(status)

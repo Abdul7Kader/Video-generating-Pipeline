@@ -1,6 +1,37 @@
 # Entwicklungsstatus – Video Pipeline V2
 
-Letzte Aktualisierung: 2026-09-19
+Letzte Aktualisierung: 2026-10-10
+
+## Aktiver Auftrag: ausschließlich Strichmenschen-Geschichten
+
+Der Nutzerauftrag vom 2026-10-10 ersetzt die bisherigen offenen Ausbaupläne. Stockproduktion, MoneyPrinterTurbo, Podcast und andere Videoarten sind eingefroren. Die folgenden älteren Abschnitte bleiben als Verlauf erhalten und sind kein aktueller Arbeitsauftrag.
+
+Implementiert: validierter Zeichenplan mit bis zu vier Figuren und acht Requisiten, Mimik/Kleidung/Posen, Laufwegen, zeitlichen Auftritten, Schauplätzen, Ausschnitten und Kamera. Neuer SVG-Renderer mit heller Ink-Bildsprache, gezeichneten Gegenständen und wechselnden Szenen. Bearbeitbare Zeichenregie im Editor; 16:9 als Standard. Fremde SVGs, URLs, Code und übergroße Pläne sind ausgeschlossen. Alte Entwürfe brauchen einen Zeichenplan; vorhandene Videos bleiben zugänglich. Andere Profile lassen sich auch über direkte API-Aufrufe nicht aktivieren.
+
+Stilprobe: `examples/stickman-demo.json`, reproduzierbar mit `scripts/render_stickman_demo.py`. Reale lokale Ausgabe unter `data/style-preview/video.mp4`: sechs Szenen, rund 43 Sekunden, 1920×1080, H.264/AAC, Piper-Stimme und 19 Untertitelabschnitte. Medienprüfung bestanden; alle sechs Einstellungen visuell geprüft. Die Probe übernimmt keine historischen Behauptungen oder Sprechertexte aus der Referenz.
+
+Antigravity: Die strukturierte Rückgabe `finish` wird gemäß offizieller Dokumentation als Ausgabeabschluss akzeptiert. Datei-, Shell-, Web- und Subagenten-Aufrufe bleiben abgewiesen. Negative Regressionstests prüfen diese Abgrenzung. Qwen-Ausgabelimit für umfangreichere Zeichenpläne auf 4096 erhöht; abgeschnittene Antworten melden den konkreten Fehler statt einen generischen JSON-Fehler.
+
+Geprüft: 134 Python-Tests ausgeführt (133 bestanden, ein optionaler Rendertest regulär übersprungen), zehn Node-Tests bestanden, TypeScript und Python-/JavaScript-Syntax geprüft. Der optionale Echtrender für Hoch- und Querformat wurde separat erfolgreich ausgeführt. Zwei reale Antigravity-Entwürfe mit je drei ausführbaren Zeichenplänen validiert, zuletzt mit dem finalen Vertrag. Im isolierten Browser-Testserver wurde eine Zeichenregie als neue Planversion gespeichert; Objekt-Abgang 0,8 blieb erhalten, keine Konsolenfehler. Zusätzlich die Initialisierung einer sehr alten Datenbank ohne Video-Digest-Spalte abgesichert. Keine bestehenden Produktionsdaten migriert oder veröffentlicht.
+
+Abhängigkeiten: Der aktuelle npm-Audit meldete `source-map-js` (hoch, GHSA-68fv-2mgg-jv7q) und `fast-uri` (moderat, GHSA-hrr3-gc8f-f4qj). Nach Prüfung ausschließlich kompatible Patchversionen 1.2.2 beziehungsweise 3.1.8 aktualisiert, ohne Installationsskripte oder Force-Update. Lockfile-Diff auf diese zwei Pakete begrenzt. Node-/TypeScript-Prüfungen bestanden; `npm audit --omit=dev` meldet danach null bekannte Schwachstellen. Advisory-Quellen: https://github.com/advisories/GHSA-68fv-2mgg-jv7q und https://github.com/advisories/GHSA-hrr3-gc8f-f4qj.
+
+Offene Qualitätsgrenze: Der begrenzte Zeichenbaukasten kann keine beliebige handgezeichnete Illustration erzeugen. Redaktionelle Sichtprüfung und beide Freigaben bleiben notwendig. Kein Upload und keine kostenpflichtige API wurde aktiviert.
+
+## Verfügbarkeit der Produktionsprofile
+
+- Der neue Auftrag prüft die Produktionsprofile bei jedem Öffnen erneut und erklärt gesperrte Verfahren direkt unter der Auswahl. Die Antigravity-Statusprüfung bestätigt nun die reguläre Anmeldung und das konfigurierte Modell mit `agy models`; eine verzögerte Windows-Bereinigung des temporären Arbeitsordners wird nicht mehr fälschlich als Authentifizierungsfehler gemeldet.
+- Auf diesem Rechner sind `Cloud-Qualität · Strichmännchen` und `Lokal · Strichmännchen` verfügbar, nachdem die Pipeline lokal auf `127.0.0.1:8091` und der bereits installierte Ollama-Dienst auf `127.0.0.1:11434` gestartet wurden. Antigravity ist angemeldet; `gemini-3.1-pro-high` ist die höchste in der Konto-Modellliste angebotene Gemini-Pro-Variante und bleibt für Cloud-Skripte eingestellt. Qwen `qwen3.5:9b-q8_0` bleibt lokale Ausweichlösung.
+- Stockprofile benötigen weiterhin einen Pexels-API-Schlüssel; dieser ist nicht vorhanden und wird später vom Benutzer selbst eingerichtet. MoneyPrinterTurbo benötigt außerdem eine geprüfte separate Installation. Podcast-/Talking-Head- und generative Medienadapter sind weiterhin nicht implementiert. Diese Optionen werden nicht künstlich aktiviert. Für Gemini CLI steht das Google-AI-Pro-Login weiterhin nicht zur Verfügung; eine kostenpflichtige API wurde nicht aktiviert.
+- Prüfung: 121 Python-Tests bestanden (ein optionaler Rendertest standardmäßig übersprungen), 4 Node-Tests bestanden; Python-/JavaScript-/TypeScript-Prüfungen und `git diff --check` bestanden. Der Browser zeigte beide auswählbaren Profile, den Modellstatus und die konkreten Sperrgründe. Ein veralteter Theme-Vertragstest wurde an den bereits vorhandenen CSS-Versionsparameter angepasst.
+
+## Aktuelle Änderung: Formate vor Produktion, Ziele erst nach Video
+
+- Im Dialog „Neuer Auftrag“ werden 9:16, 16:9 und 1:1 mehrfach ausgewählt; Veröffentlichungsplattformen erscheinen dort nicht mehr. Ein Format kann später mehreren Plattformen dienen.
+- Der Auftrag speichert die ausgewählten Formate. Der Render-Worker erzeugt und prüft für jedes gewählte Format eine eigene MP4; die Ausgabe wird erst dann als vollständig markiert, wenn alle Varianten vorhanden sind.
+- Erst in der Video-Prüfung werden Plattformen mehrfach ausgewählt und mit der zweiten Freigabe gespeichert. Die Plattform erhält das passende, hashgeprüfte Videoformat; unpassende oder noch nicht unterstützte Medienziele sind nicht wählbar. Bestehende Einzel-Format-Aufträge und alte API-Aufrufe bleiben lesbar.
+- Grenzen: Externer MP4-Import unterstützt weiterhin nur genau ein gewähltes Format. Ein echter Plattform-Upload wurde nicht ausgelöst; automatische Veröffentlichungsadapter erfordern weiterhin ihre eigene Einrichtung und Freigabe.
+- Prüfung: Ein echter lokaler Piper-/Remotion-Render erzeugte erfolgreich zwei MP4-Dateien mit geprüften Hoch- und Querformat-Abmessungen (`RUN_RENDER_INTEGRATION=1`). Remotion verwendet auf Windows einen vorhandenen Chrome- oder Edge-Browser, bevor es einen Browser herunterladen müsste; `REMOTION_BROWSER_EXECUTABLE` kann weiterhin einen Pfad vorgeben. Dazu 110 bestandene Python-Tests (ein standardmäßig ausgesetzter, separat bestandener Rendertest), Syntaxprüfung von Python und JavaScript, Diff-Hygiene und isolierter Browser-Smoke-Test ohne Konsolenfehler. Der Browser-Testserver lief ausschließlich auf `127.0.0.1` mit separaten Testdaten und wurde beendet; Testdaten wurden entfernt.
 
 ## Aktiver Auftrag: qualitätsorientierte, auswählbare Produktionsverfahren
 

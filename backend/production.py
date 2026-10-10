@@ -7,7 +7,7 @@ PROFILE_SPECS: tuple[dict[str, Any], ...] = (
     {
         "id": "cloud_stickman",
         "label": "Cloud-Qualität · Strichmännchen",
-        "description": "Antigravity für Skript und Szenenplan, programmatische Strichmännchen, Piper und Remotion.",
+        "description": "Antigravity plant gezeichnete Geschichten: Figuren, Mimik, Schauplätze und Requisiten; Piper und Remotion.",
         "config": {
             "profile_id": "cloud_stickman",
             "video_type": "stickman",
@@ -20,7 +20,7 @@ PROFILE_SPECS: tuple[dict[str, Any], ...] = (
     {
         "id": "local_stickman",
         "label": "Lokal · Strichmännchen",
-        "description": "Qwen, programmatische Strichmännchen, Piper und Remotion.",
+        "description": "Qwen plant gezeichnete Geschichten: Figuren, Mimik, Schauplätze und Requisiten; Piper und Remotion.",
         "config": {
             "profile_id": "local_stickman",
             "video_type": "stickman",
@@ -126,6 +126,13 @@ IMPLEMENTED_PROVIDER_IDS = {
 }
 
 
+def require_active_production(config: dict[str, Any]) -> None:
+    if (config.get("video_type") != "stickman"
+            or config.get("media_provider") != "procedural_stickman"
+            or config.get("editor") != "remotion"):
+        raise ValueError("Dieses Produktionsverfahren ist vorübergehend eingefroren. Aktiver Schwerpunkt: gezeichnete Strichmenschen.")
+
+
 def _provider(identifier: str, label: str, available: bool, reason: str = "") -> dict[str, Any]:
     return {"id": identifier, "label": label, "available": available, "reason": "" if available else reason}
 
@@ -140,12 +147,13 @@ def build_production_catalog(
     gemini_tts_ready: bool,
     remotion_ready: bool,
     moneyprinter_ready: bool,
+    antigravity_reason: str = "Antigravity CLI ist deaktiviert oder nicht installiert.",
 ) -> dict[str, Any]:
     providers = {
         "script": [
             _provider("qwen", "Qwen 3.5 · lokal", qwen_ready, "Ollama oder das konfigurierte Qwen-Modell ist nicht erreichbar."),
             _provider("gemini_cli", "Gemini CLI", gemini_cli_ready, "Kein unterstütztes und verfügbares Gemini-CLI-Profil ist aktiviert."),
-            _provider("antigravity", "Antigravity", antigravity_ready, "Antigravity CLI ist deaktiviert oder nicht installiert."),
+            _provider("antigravity", "Antigravity", antigravity_ready, antigravity_reason),
         ],
         "media": [
             _provider("procedural_stickman", "Programmatische Strichmännchen", True),
@@ -179,13 +187,22 @@ def build_production_catalog(
             ("editor", config["editor"]),
         )
         reasons = [availability[slot][provider]["reason"] for slot, provider in selected if not availability[slot][provider]["available"]]
+        frozen = config["video_type"] != "stickman"
+        if frozen:
+            reasons.insert(0, "Vorübergehend eingefroren: Entwicklung konzentriert sich auf Strichmenschen.")
         profiles.append({
             **definition,
+            "frozen": frozen,
             "available": not reasons,
             "reason": " ".join(dict.fromkeys(reason for reason in reasons if reason)),
         })
     preferred = next((profile for profile in profiles if profile["id"] == "cloud_stickman"), None)
     default_profile_id = "cloud_stickman" if preferred and preferred["available"] else "local_stickman"
+    for slot in ("media", "editor"):
+        for item in providers[slot]:
+            if item["id"] != {"media": "procedural_stickman", "editor": "remotion"}[slot]:
+                item["available"] = False
+                item["reason"] = "Vorübergehend eingefroren: Schwerpunkt Strichmenschen."
     return {"default_profile_id": default_profile_id, "profiles": profiles, "providers": providers}
 
 

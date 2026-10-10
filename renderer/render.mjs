@@ -4,10 +4,12 @@ import {readFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {createReadStream, statSync} from 'node:fs';
 import http from 'node:http';
+import {resolveBrowserExecutable} from './browser.mjs';
 
 const [propsFile, outputLocation, concurrencyArg = '2', audioFile] = process.argv.slice(2);
 if (!propsFile || !outputLocation) throw new Error('Usage: node render.mjs PROPS_JSON OUTPUT_MP4 [CONCURRENCY] [AUDIO_WAV]');
 const inputProps = JSON.parse(await readFile(propsFile, 'utf8'));
+const browserExecutable = resolveBrowserExecutable();
 let audioServer;
 const mediaFiles = new Map();
 if (audioFile) mediaFiles.set('/audio.wav', {path: audioFile, contentType: 'audio/wav'});
@@ -54,7 +56,7 @@ if (mediaFiles.size) {
 }
 const require = createRequire(import.meta.url);
 const serveUrl = await bundle({entryPoint: require.resolve('./src/index.ts'), webpackOverride: (config) => config});
-const composition = await selectComposition({serveUrl, id: 'PipelineVideo', inputProps});
+const composition = await selectComposition({serveUrl, id: 'PipelineVideo', inputProps, browserExecutable});
 try { await renderMedia({
   codec: 'h264',
   composition,
@@ -65,6 +67,7 @@ try { await renderMedia({
   crf: 20,
   imageFormat: 'jpeg',
   chromiumOptions: {enableMultiProcessOnLinux: true},
+  browserExecutable,
   logLevel: 'info',
 }); } finally { if (audioServer) await new Promise((resolve) => audioServer.close(resolve)); }
 console.log(JSON.stringify({ok: true, outputLocation, frames: composition.durationInFrames}));

@@ -1,0 +1,59 @@
+{
+  "title": "Zwei Tagesrhythmen – Strichmenschen-Stilprobe",
+  "description": "Eigene Stilprobe: gezeichnete Schauplätze, Figuren, Mimik und Requisiten. Keine historischen Zahlen oder Aussagen aus dem Referenzvideo übernommen.",
+  "scenes": [
+    {
+      "scene_id": "scene-alarm",
+      "narration": "Der Wecker klingelt. Noch bevor wir aufstehen, scheint der Tag schon verplant.",
+      "visual": "Ein roter Wecker auf einem Holztisch im hellen Zimmer.",
+      "visual_type": "stickman", "duration_seconds": 6, "transition": "cut",
+      "stickman": {"setting": "room", "framing": "closeup", "camera_move": "push_in", "characters": [],
+        "props": [{"kind": "desk", "x": 50, "y": 78, "scale": 2}, {"kind": "clock", "x": 50, "y": 58, "scale": 2}]}
+    },
+    {
+      "scene_id": "scene-office",
+      "narration": "Am Schreibtisch wartet die nächste Aufgabe. Unsere Figur tippt, schaut auf die Uhr und wird müde.",
+      "visual": "Eine müde Bürofigur arbeitet am Laptop und schaut zum Wecker.",
+      "visual_type": "stickman", "duration_seconds": 7, "transition": "cut",
+      "stickman": {"setting": "office", "framing": "medium", "camera_move": "static",
+        "characters": [{"id": "modern", "x": 42, "y": 84, "scale": 1.2, "pose": "work", "expression": "tired", "outfit": "office"}],
+        "props": [{"kind": "chair", "x": 42, "y": 84, "scale": 2}, {"kind": "desk", "x": 55, "y": 84, "scale": 1.35}, {"kind": "laptop", "x": 52, "y": 67, "scale": 0.85}, {"kind": "clock", "x": 74, "y": 41, "scale": 0.8, "enter": 0.35}]}
+    },
+    {
+      "scene_id": "scene-contrast",
+      "narration": "Ein Schnitt, und daneben steht ein Mensch in einer ganz anderen Umgebung. Was bestimmt seinen Tagesrhythmus?",
+      "visual": "Bürofigur und Steinzeitfigur stehen einander gegenüber und wundern sich.",
+      "visual_type": "stickman", "duration_seconds": 7, "transition": "cut", "on_screen_text": "Was bestimmt unseren Tag?",
+      "stickman": {"setting": "white", "framing": "split", "camera_move": "static",
+        "characters": [{"id": "modern", "x": 25, "y": 80, "scale": 1.35, "pose": "think", "expression": "worried", "outfit": "office"}, {"id": "early", "x": 75, "y": 80, "scale": 1.35, "pose": "shrug", "expression": "surprised", "outfit": "prehistoric", "facing": "left"}],
+        "props": [{"kind": "clock", "x": 16, "y": 44, "scale": 0.8}, {"kind": "question", "x": 81, "y": 39, "scale": 0.65, "enter": 0.4}]}
+    },
+    {
+      "scene_id": "scene-gather",
+      "narration": "Wir zeigen ihn beim Sammeln. Die Hände bewegen sich zum Strauch, ein Korb steht bereit. Das Bild erklärt die Handlung.",
+      "visual": "Eine Steinzeitfigur sammelt Beeren, eine zweite geht mit einem Korb durch die Landschaft.",
+      "visual_type": "stickman", "duration_seconds": 8, "transition": "cut",
+      "stickman": {"setting": "nature", "framing": "wide", "camera_move": "pan_right",
+        "characters": [{"id": "early", "x": 30, "y": 80, "scale": 1.35, "pose": "gather", "expression": "determined", "outfit": "prehistoric"}, {"id": "friend", "x": 57, "end_x": 67, "y": 80, "scale": 1.15, "pose": "walk", "expression": "happy", "outfit": "prehistoric"}],
+        "props": [{"kind": "bush", "x": 35, "y": 81, "scale": 0.85}, {"kind": "basket", "x": 25, "y": 82, "scale": 0.65}, {"kind": "tree", "x": 87, "y": 81, "scale": 1.7}, {"kind": "sun", "x": 14, "y": 29, "scale": 0.6}]}
+    },
+    {
+      "scene_id": "scene-fire",
+      "narration": "Dann wird es ruhig. Zwei Figuren sitzen am Feuer. Eine erzählt, die andere hört zu. Auch eine Pause kann eine Geschichte tragen.",
+      "visual": "Zwei Steinzeitfiguren sitzen am flackernden Lagerfeuer vor einem Zelt.",
+      "visual_type": "stickman", "duration_seconds": 8, "transition": "dissolve",
+      "stickman": {"setting": "camp", "framing": "medium", "camera_move": "push_in",
+        "characters": [{"id": "early", "x": 28, "y": 81, "scale": 1.25, "pose": "sit", "expression": "happy", "outfit": "prehistoric"}, {"id": "friend", "x": 64, "y": 81, "scale": 1.25, "pose": "sit", "expression": "happy", "outfit": "prehistoric", "facing": "left"}],
+        "props": [{"kind": "rock", "x": 28, "y": 79, "scale": 2}, {"kind": "rock", "x": 64, "y": 79, "scale": 2}, {"kind": "fire", "x": 46, "y": 82, "scale": 1}, {"kind": "basket", "x": 73, "y": 81, "scale": 0.7}]}
+    },
+    {
+      "scene_id": "scene-conclusion",
+      "narration": "So entsteht eine gezeichnete Erklärung: konkrete Szenen, klare Gefühle und Gegenstände, die zur Erzählung gehören.",
+      "visual": "Die Bürofigur lächelt und zeigt auf eine aufleuchtende Idee.",
+      "visual_type": "stickman", "duration_seconds": 7, "transition": "cut",
+      "stickman": {"setting": "white", "framing": "medium", "camera_move": "static",
+        "characters": [{"id": "modern", "x": 39, "y": 81, "scale": 1.5, "pose": "point", "expression": "happy", "outfit": "office"}],
+        "props": [{"kind": "lightbulb", "x": 61, "y": 50, "scale": 1.1, "enter": 0.25}, {"kind": "book", "x": 69, "y": 80, "scale": 0.8}]}
+    }
+  ]
+}

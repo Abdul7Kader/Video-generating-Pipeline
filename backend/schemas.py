@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from .stickman import StickmanBoard
+
 
 PlatformId = Literal[
     "download", "youtube", "mastodon", "tiktok", "instagram_reels", "facebook_reels",
@@ -28,6 +30,7 @@ class ProductionConfig(BaseModel):
 
 
 class Scene(BaseModel):
+    stickman: StickmanBoard | None = None
     scene_id: str = Field(default="", max_length=64)
     narration: str = Field(min_length=2, max_length=1200)
     visual: str = Field(
@@ -61,7 +64,8 @@ class JobCreate(BaseModel):
     topic: str = Field(min_length=3, max_length=500)
     language: Literal["de", "en"] = "de"
     duration_seconds: int = Field(default=60, ge=15, le=600)
-    aspect_ratio: Literal["9:16", "16:9", "1:1"] = "9:16"
+    aspect_ratio: Literal["9:16", "16:9", "1:1"] = "16:9"
+    aspect_ratios: list[Literal["9:16", "16:9", "1:1"]] | None = Field(default=None, min_length=1, max_length=3)
     video_type: VideoType = "stickman"
     target_platform: PlatformId = "download"
     target_platforms: list[PlatformId] = Field(default_factory=list, max_length=15)
@@ -79,9 +83,12 @@ class JobCreate(BaseModel):
 
     @model_validator(mode="after")
     def normalize_targets(self):
-        selected = self.target_platforms or [self.target_platform]
+        self.aspect_ratios = list(dict.fromkeys(self.aspect_ratios or [self.aspect_ratio]))
+        self.aspect_ratio = self.aspect_ratios[0]
+        selected = self.target_platforms if "target_platforms" in self.model_fields_set else [self.target_platform]
         self.target_platforms = list(dict.fromkeys(selected))
-        self.target_platform = self.target_platforms[0]
+        if self.target_platforms:
+            self.target_platform = self.target_platforms[0]
         if self.production_config is not None:
             self.video_type = self.production_config.video_type
             if self.production_config.script_provider in {"qwen", "gemini_cli"}:
@@ -102,6 +109,7 @@ class ScriptUpdate(BaseModel):
 
 
 class SceneUpdate(BaseModel):
+    stickman: StickmanBoard | None = None
     expected_version: int = Field(ge=1)
     narration: str | None = Field(default=None, min_length=2, max_length=1200)
     visual: str | None = Field(default=None, min_length=2, max_length=1200)
@@ -149,3 +157,7 @@ class ScriptRevision(BaseModel):
 class VersionAction(BaseModel):
     expected_version: int = Field(ge=1)
     expected_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class VideoApproval(VersionAction):
+    target_platforms: list[PlatformId] | None = Field(default=None, min_length=1, max_length=15)

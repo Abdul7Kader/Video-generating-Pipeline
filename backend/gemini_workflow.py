@@ -15,7 +15,7 @@ from .plan import finalize_scene_plan, object_sha256
 from .schemas import ScriptDraft
 
 
-PROMPT_VERSION = "gemini-cli-script-v1"
+PROMPT_VERSION = "gemini-cli-script-ink-v2"
 STEP_NAMES = ("briefing", "outline", "narration", "scene_plan", "quality_review")
 
 
@@ -81,7 +81,10 @@ STEP_INSTRUCTIONS = {
     "narration": "Schreibe das vollständige natürliche Sprecher-Skript in Segmenten. Keine Regieanweisungen im Sprechertext.",
     "scene_plan": (
         "Erzeuge den vollständigen Produktions- und Szenenplan. Jede Szene braucht Sprechertext, sichtbare Bildbeschreibung, "
-        "visual_type, asset_prompt, Kamera, Bewegung über action/visual, Übergang und Dauer. Die Dauern müssen ungefähr passen."
+        "visual_type, asset_prompt, Kamera, Bewegung über action/visual, Übergang und Dauer. Die Dauern müssen ungefähr passen. "
+        "Bei Strichmenschen: visual_type=stickman und ausführbare stickman-Zeichenregie aus dem Schema. "
+        "Weißer Hintergrund, schwarze gezeichnete Konturen, ausdrucksstarke Figuren und konkrete Requisiten. "
+        "Wechselnde Schauplätze und Bildausschnitte, keine Präsentator-Karten. Figuren-IDs/Kleidung konsistent halten."
     ),
     "quality_review": (
         "Prüfe Grammatik, Kohärenz, Faktenrisiken, Sprechertext, visuelle Umsetzbarkeit und Schema. "
@@ -339,6 +342,13 @@ class GeminiScriptWorkflow:
 
             status = self.status(request_id)
             final = dict(completed["quality_review"]["final_script"])
+            if clean_request.get("video_type") == "stickman":
+                from .assets import render_plan_readiness
+
+                if any(scene.get("visual_type") != "stickman" for scene in final["scenes"]):
+                    raise ValueError("Strichmenschen-Skript enthält einen anderen Medientyp.")
+                if render_plan_readiness(final["scenes"]):
+                    raise ValueError("Der Szenenplan enthält keine ausführbare Zeichenregie.")
             last_step = status["steps"][-1]
             final["metadata"] = {
                 "provider": "gemini_cli",

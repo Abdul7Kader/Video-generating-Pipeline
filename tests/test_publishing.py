@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
-from backend.publishing import configured_automatic_platforms, platform_catalog, profile_for
+from backend.publishing import choose_video_format, configured_automatic_platforms, platform_catalog, profile_for
 from backend.schemas import JobCreate
 
 
@@ -19,11 +19,24 @@ class PublishingCatalogTests(unittest.TestCase):
         self.assertEqual(job.target_platform, "youtube")
         self.assertEqual(job.target_platforms, ["youtube", "mastodon", "spotify_podcast"])
 
+    def test_new_job_can_defer_targets_and_deduplicate_formats(self):
+        job = JobCreate(
+            topic="Formate zuerst wählen",
+            aspect_ratios=["16:9", "9:16", "16:9"],
+            target_platforms=[],
+        )
+        self.assertEqual(job.aspect_ratios, ["16:9", "9:16"])
+        self.assertEqual(job.aspect_ratio, "16:9")
+        self.assertEqual(job.target_platforms, [])
+
     def test_catalog_distinguishes_api_rss_and_distributor_targets(self):
         self.assertEqual(profile_for("youtube")["delivery_mode"], "automatic")
         self.assertEqual(profile_for("apple_podcasts")["delivery_mode"], "rss")
         self.assertEqual(profile_for("spotify_music")["delivery_mode"], "distributor")
         self.assertEqual(profile_for("tiktok")["preferred_aspect_ratio"], "9:16")
+        self.assertEqual(choose_video_format("tiktok", ["16:9", "9:16"]), "9:16")
+        self.assertIsNone(choose_video_format("tiktok", ["16:9"]))
+        self.assertEqual(choose_video_format("youtube", ["9:16", "16:9"]), "16:9")
 
     def test_only_fully_configured_automatic_targets_are_enabled(self):
         with TemporaryDirectory() as directory:
