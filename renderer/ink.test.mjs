@@ -17,7 +17,7 @@ compiled.filename = filename;
 compiled.paths = Module._nodeModulePaths(filename.replace(/[/\\][^/\\]+$/, ''));
 compiled.require = createRequire(import.meta.url);
 compiled._compile(code, filename);
-const {DrawingStage, actorMotion, entryProgress} = compiled.exports;
+const {DrawingStage, actorMotion, actorState, directedProp, entryProgress} = compiled.exports;
 const board = {
   setting:'camp', framing:'split', camera_move:'static',
   characters:[{id:'modern',x:25,y:78,pose:'work',outfit:'office',expression:'tired'},
@@ -62,4 +62,48 @@ test('every vocabulary prop draws and unknown assets fail clearly', () => {
   const kinds = ['clock','laptop','desk','chair','bed','phone','book','tree','bush','fire','spear','basket','rock','sun','moon','cloud','house','food','water','gear','lightbulb','arrow','question','check','cross','heart','chart'];
   for (const kind of kinds) assert.match(draw({characters:[],props:[{kind,x:50,y:70}]}),new RegExp(`data-prop="${kind}"`));
   assert.throws(()=>draw({characters:[],props:[{kind:'unknown',x:50,y:70}]}),/Unbekannte/);
+});
+
+test('speech cues switch action at the spoken phrase and complete movement quickly', () => {
+  const character = {x:20,y:80,pose:'stand',motion_cues:[
+    {at:.4,pose:'walk',move_to:60,duration:.7},
+    {at:2,pose:'gather',target_prop:0,duration:.4},
+  ]};
+  assert.equal(actorState(character,.2,6).pose,'stand');
+  assert.equal(actorState(character,1.5,6).x,60);
+  assert.equal(actorState(character,2.1,6).pose,'gather');
+  assert.equal(actorMotion({x:20,end_x:80,pose:'walk'},60,30,8).x,80);
+  const value = {characters:[character],props:[{kind:'bush',x:65,y:80}]};
+  assert.match(draw(value,75),/data-pose="gather"/);
+  assert.notEqual(draw(value,75),draw(value,80));
+});
+
+test('a carried prop follows its actor and points toward the narrative target', () => {
+  const value = {characters:[{id:'reader',x:40,y:80,pose:'stand',motion_cues:[
+    {at:0,pose:'pick',target_prop:0,duration:.4},
+    {at:1,pose:'read',target_prop:0,duration:.3},
+  ]}],props:[{kind:'book',x:60,y:80}]};
+  assert.match(draw(value,45),/data-pose="read"/);
+  assert.notEqual(draw(value,0),draw(value,45));
+  assert.match(draw(value,45),/data-target-prop="0"/);
+});
+
+test('picked objects travel with the actor and return to the surface on place', () => {
+  const prop = {kind:'book',x:30,y:65};
+  const value = {characters:[{x:20,y:80,motion_cues:[
+    {at:0,pose:'pick',target_prop:0,duration:.4},
+    {at:1,pose:'walk',move_to:60,duration:.7},
+    {at:2,pose:'place',target_prop:0,duration:.4},
+  ]}],props:[prop]};
+  assert.equal(directedProp(prop,0,value,0,6,1000,600).x,30);
+  assert.ok(directedProp(prop,0,value,1.8,6,1000,600).x>60);
+  assert.equal(actorMotion(value.characters[0],54,30,6).stride,0);
+  assert.deepEqual(directedProp(prop,0,value,2.5,6,1000,600),prop);
+});
+
+test('a new shot can place an object held in the preceding shot', () => {
+  const prop = {kind:'phone',x:55,y:65};
+  const value = {characters:[{x:40,y:80,motion_cues:[{at:1,pose:'place',target_prop:0,duration:.4}]}],props:[prop]};
+  assert.ok(directedProp(prop,0,value,.5,6,1000,600).x<45);
+  assert.deepEqual(directedProp(prop,0,value,1.5,6,1000,600),prop);
 });

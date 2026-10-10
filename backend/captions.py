@@ -27,9 +27,18 @@ def add_scene_captions(scenes: list[dict[str, Any]]) -> list[dict[str, Any]]:
         duration = float(scene["duration"])
         cursor = 0.0
         captions = []
+        words = scene.get('words') or []
+        word_index = 0
         for index, (chunk, weight) in enumerate(zip(chunks, weights)):
             chunk_duration = duration - cursor if index == len(chunks) - 1 else duration * weight / total_weight
-            captions.append({"text": chunk, "start": round(cursor, 3), "duration": round(chunk_duration, 3)})
+            if words:
+                end_index = word_index+weight-1
+                start = words[word_index]['start']
+                end = words[min(end_index, len(words)-1)]['end']
+                captions.append({'text':chunk, 'start':round(start,3), 'duration':round(end-start,3)})
+                word_index += weight
+            else:
+                captions.append({"text": chunk, "start": round(cursor, 3), "duration": round(chunk_duration, 3)})
             cursor += chunk_duration
         scene["captions"] = captions
     return scenes

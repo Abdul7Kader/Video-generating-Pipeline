@@ -10,6 +10,12 @@ Die Bildsprache orientiert sich an [Ink Explainer](https://www.youtube.com/watch
 
 Im Szeneneditor unter „Zeichenregie“ lässt sich jede Einstellung bearbeiten. Speichern erzeugt eine neue Planversion und macht alte Freigaben ungültig. Alte Entwürfe ohne Zeichenplan müssen ergänzt oder mit der KI überarbeitet werden, bevor sie gerendert werden können.
 
+Für einen ersten Test: Pipeline neu starten, **Neues Video** öffnen, Thema eingeben, **30 Sekunden**, **16:9** und **Cloud-Qualität · Strichmännchen** wählen. **Skriptentwurf erstellen**, Sprechertext und Zeichenregie prüfen, Änderungen speichern, **Skript freigeben**, dann **Video erzeugen**. Die installierte Skript-KI sowie Piper, FFmpeg und Remotion müssen verfügbar sein; der Erstellen-Dialog zeigt deren Status.
+
+Beispielthema: „Eine Figur legt ihr Handy weg, nimmt ein Buch, liest darin und zeigt einer zweiten Figur ihre Idee. Zeige die gesprochenen Handlungen mit schnellen, passenden Bewegungen und Gegenständen.“ Unter **Zeichenregie → Figur → Regieschritt** kann man etwa bei „nimmt ein Buch“ die Handlung **Aufheben** und die passende **Requisite** wählen. Startworte müssen wörtlich im Sprechertext stehen. Regieschritte folgen dessen Reihenfolge; **Bewegung dauert** bestimmt, wie schnell ein Griff oder Laufweg abgeschlossen wird.
+
+Strichmenschen-Videos folgen jetzt der tatsächlichen Stimme statt künstlich auf die geplante Szenenlänge zu warten. Lange stille TTS-Abschnitte werden gekürzt; kurze Wortabstände bleiben erhalten. Bewegungen, Gegenstandswechsel und Untertitel nutzen lokal geschätzte Wortzeiten aus Sprachsignal und Text. Diese Zuordnung ist keine wortgenaue Spracherkennung. Bestehende Entwürfe brauchen passende Regieschritte oder eine neue KI-Überarbeitung, um mehrere erzählte Handlungen zu zeigen.
+
 Die eigene Stilprobe liegt in `examples/stickman-demo.json`. Mit eingerichtetem Piper, Remotion und FFmpeg lässt sie sich ohne KI-Anfrage oder Veröffentlichung erzeugen:
 
 ```bash
@@ -17,6 +23,12 @@ python scripts/render_stickman_demo.py
 ```
 
 Die MP4, Untertitel sowie Stimmen-, Asset- und Qualitätsnachweise liegen anschließend in `data/style-preview`. Der Film ist eine Stilprobe, kein recherchierter Geschichtsbeitrag. Anforderungen und Sicherheitsgrenzen stehen in `SPEC-stickman-storytelling.md`.
+
+Die neue Bewegungsprobe verwendet zusammenhängende Erzählung und textgebundene Regieschritte:
+
+```powershell
+python scripts/render_stickman_demo.py --script examples/stickman-motion-demo.json --output data/motion-preview
+```
 
 ## Start
 

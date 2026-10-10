@@ -88,6 +88,17 @@ class StickmanContractTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             Scene.model_validate(bad)
 
+    def test_motion_cues_require_real_ordered_text_and_existing_props(self):
+        for cue in ({"on":"fliegt", "pose":"walk"},
+                    {"on":"sammelt", "pose":"gather", "target_prop":7}):
+            bad = copy.deepcopy(SCENE)
+            bad['stickman']['characters'][0]['cues'] = [cue]
+            with self.subTest(cue=cue), self.assertRaises(ValidationError):
+                Scene.model_validate(bad)
+        good = copy.deepcopy(SCENE)
+        good['stickman']['characters'][0]['cues'] = [{'on':'sammelt', 'pose':'gather', 'target_prop':0}]
+        self.assertEqual(Scene.model_validate(good).stickman.characters[0].cues[0].on, 'sammelt')
+
     def test_no_generic_presenter_fallback_for_old_plans(self):
         issues = render_plan_readiness([{key: value for key, value in SCENE.items() if key != "stickman"}])
         self.assertTrue(any("Zeichenplan" in issue for issue in issues))
@@ -100,7 +111,7 @@ class StickmanContractTests(unittest.TestCase):
             changed["stickman"]["characters"][0]["pose"] = "sleep"
             second = prepare_scene_assets(Path(directory), [changed], "16:9")["assets"][0]
             self.assertNotEqual(first["fingerprint"], second["fingerprint"])
-            self.assertEqual(first["renderer"], "ink-story-v1")
+            self.assertEqual(first["renderer"], "ink-story-v2")
 
     def test_prompt_and_model_schema_have_executable_direction(self):
         prompt = _prompt(JobCreate(topic="Ein Tag im Lager", video_type="stickman", aspect_ratio="16:9"))

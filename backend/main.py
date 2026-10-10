@@ -302,7 +302,10 @@ def update_scene(job_id: str, scene_id: str, payload: SceneUpdate):
     if index is None:
         raise HTTPException(404, "Szene nicht gefunden")
     changes = payload.model_dump(exclude={"expected_version"}, exclude_none=True)
-    candidate = Scene.model_validate({**scenes[index], **changes, "scene_id": scene_id}).model_dump()
+    try:
+        candidate = Scene.model_validate({**scenes[index], **changes, "scene_id": scene_id}).model_dump()
+    except ValueError as exc:
+        raise HTTPException(422, "Zeichenregie passt nicht zum Sprechertext oder Gegenständen. Textanker und Regieschritte prüfen.") from exc
     if candidate == Scene.model_validate(scenes[index]).model_dump():
         raise HTTPException(409, "Die Szene enthält keine tatsächliche Änderung.")
     scenes[index] = candidate

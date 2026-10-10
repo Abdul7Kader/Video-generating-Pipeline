@@ -59,6 +59,12 @@ class Scene(BaseModel):
     action: Literal["intro", "stand", "walk", "point", "think", "explain", "celebrate", "outro"] = "explain"
     accent: str = Field(default="#ff6b4a", pattern=r"^#[0-9a-fA-F]{6}$")
 
+    @model_validator(mode="after")
+    def validate_motion_narration(self):
+        if self.stickman:
+            self.stickman.validate_narration(self.narration)
+        return self
+
 
 class JobCreate(BaseModel):
     topic: str = Field(min_length=3, max_length=500)

@@ -3,7 +3,9 @@ import React from 'react';
 export type Character = {
   id?: string; x: number; y: number; scale?: number; pose?: string;
   expression?: string; outfit?: string; facing?: string; enter?: number; end_x?: number | null;
+  speed?: number; motion_cues?: MotionCue[];
 };
+export type MotionCue = {at: number; pose: string; expression?: string | null; target_prop?: number | null; move_to?: number | null; duration: number};
 export type Prop = {kind: string; x: number; y: number; scale?: number; enter?: number; exit?: number | null; label?: string};
 export type Board = {
   setting?: string; framing?: string; camera_move?: string;
@@ -24,15 +26,51 @@ export function entryProgress(frame: number, fps: number, duration: number, ente
   return clamp((frame / fps - enter * duration) / .28);
 }
 
-// Feet anchor at (0, 0). Art is deterministic; no random jitter between frames.
+export function actorState(c: Character, time: number, duration: number) {
+  const travel = Math.min(1.8, Math.max(.25, Math.abs((c.end_x ?? c.x) - c.x) / (35 * (c.speed ?? 1.35))));
+  let from = c.x;
+  let goal = c.end_x ?? c.x;
+  let at = (c.enter ?? 0) * duration;
+  let seconds = travel;
+  let pose = c.pose ?? 'stand';
+  let expression = c.expression ?? 'neutral';
+  let target_prop: number | null = null;
+  // A shot starting with placement continues an object already held in the previous shot.
+  const first = c.motion_cues?.[0];
+  let held_prop: number | null = first?.pose === 'place' ? first.target_prop ?? null : null;
+  let held_at = -1;
+  let held_duration = .55;
+  for (const cue of c.motion_cues ?? []) {
+    if (cue.at > time) break;
+    from += (goal - from) * clamp((cue.at - at) / seconds);
+    goal = cue.move_to ?? from;
+    at = cue.at;
+    seconds = cue.duration;
+    pose = cue.pose;
+    expression = cue.expression ?? expression;
+    target_prop = cue.target_prop ?? null;
+    if (['pick', 'carry', 'read'].includes(pose) && target_prop !== null && held_prop !== target_prop) {
+      held_prop = target_prop;
+      held_at = at;
+      held_duration = seconds;
+    }
+    if (pose === 'place' && time >= at + seconds) held_prop = null;
+  }
+  const progress = clamp((time - at) / seconds);
+  const x = from + (goal - from) * progress;
+  const action_pose = pose;
+  if ((pose === 'walk' || pose === 'run') && goal !== from && progress === 1) pose = 'stand';
+  return {x, pose, action_pose, expression, target_prop, held_prop, held_at, held_duration, at, progress};
+}
+
+// Feet anchor at (0, 0). Actions start at spoken text anchors, with no frame randomness.
 export function actorMotion(character: Character, frame: number, fps: number, duration: number) {
   const time = frame / fps;
-  const progress = clamp((time / duration - (character.enter ?? 0)) / (1 - (character.enter ?? 0)));
-  const moving = character.pose === 'walk' || character.pose === 'run';
-  const cycle = Math.sin(time * (character.pose === 'run' ? 15 : 8));
-  const x = character.x + ((character.end_x ?? character.x) - character.x) * progress;
-  const bob = moving ? -Math.abs(cycle) * (character.pose === 'run' ? 8 : 3) : Math.sin(time * 2.2) * .7;
-  return {x, bob, stride: moving ? cycle * 23 : 0, gesture: Math.sin(time * 3) * 5};
+  const state = actorState(character, time, duration);
+  const moving = state.pose === 'walk' || state.pose === 'run';
+  const cycle = Math.sin((time - state.at) * (state.pose === 'run' ? 17 : 11) * (character.speed ?? 1.35));
+  const bob = moving ? -Math.abs(cycle) * (state.pose === 'run' ? 8 : 4) : Math.sin(time * 3.5) * .7;
+  return {...state, bob, stride: moving ? cycle * 23 : 0, gesture: Math.sin((time - state.at) * 10 * (character.speed ?? 1.35)) * 9};
 }
 
 const Face: React.FC<{expression: string; frame: number; fps: number}> = ({expression, frame, fps}) => {
@@ -52,17 +90,23 @@ const Face: React.FC<{expression: string; frame: number; fps: number}> = ({expre
   </g>;
 };
 
-export const InkActor: React.FC<{character: Character; frame: number; fps: number; duration: number; stageWidth: number; stageHeight: number}> = ({character: c, frame, fps, duration, stageWidth, stageHeight}) => {
-  const pose = c.pose ?? 'stand';
+export const InkActor: React.FC<{character: Character; props?: Prop[]; frame: number; fps: number; duration: number; stageWidth: number; stageHeight: number}> = ({character: c, props = [], frame, fps, duration, stageWidth, stageHeight}) => {
   const motion = actorMotion(c, frame, fps, duration);
+  const {pose, expression} = motion;
   const entry = entryProgress(frame, fps, duration, c.enter);
   const scale = (c.scale ?? 1) * stageHeight / 600;
-  const seated = pose === 'sit' || pose === 'work';
+  const seated = pose === 'sit' || pose === 'work' || (['sit','work'].includes(c.pose ?? '') && ['talk','read','point','think','pick','place'].includes(pose));
   const bent = pose === 'gather';
-  const headTilt = c.expression === 'sad' || c.expression === 'tired' ? -8 : bent ? 12 : 0;
+  const headTilt = expression === 'sad' || expression === 'tired' ? -8 : bent ? 12 : pose === 'read' ? 9 : 0;
+  const target = motion.target_prop == null ? undefined : props[motion.target_prop];
+  const flip = c.facing === 'left' ? -1 : 1;
+  const handX = target ? Math.max(-80, Math.min(80, (target.x - motion.x) * stageWidth / 100 / scale * flip)) : 45;
+  const handY = target ? Math.max(-195, Math.min(-65, (target.y - c.y) * stageHeight / 100 / scale - 30)) : -95;
+  const pointX = 29 + (handX - 29) * motion.progress;
+  const pointY = -92 + ((target ? handY : -142 + motion.gesture) + 92) * motion.progress;
   const arms: Record<string, string> = {
     stand: 'M0 -127 Q-14 -105 -25 -89 M0 -127 Q15 -110 29 -92',
-    point: `M0 -127 Q24 -135 57 ${-142 + motion.gesture} M0 -127 Q-13 -103 -26 -88`,
+    point: `M0 -127 Q${pointX/2} -135 ${pointX} ${pointY} M0 -127 Q-13 -103 -26 -88`,
     think: 'M0 -127 Q21 -101 22 -137 L12 -150 M0 -125 Q-18 -110 -18 -90',
     shrug: `M0 -127 Q-21 -108 -46 ${-132 + motion.gesture} M0 -127 Q20 -108 46 ${-132 - motion.gesture}`,
     sit: 'M0 -127 Q-17 -111 -31 -100 M0 -127 Q16 -102 40 -99',
@@ -70,16 +114,26 @@ export const InkActor: React.FC<{character: Character; frame: number; fps: numbe
     work: `M0 -127 Q20 -100 58 ${-108 + motion.gesture} M0 -127 Q10 -90 40 -91`,
     gather: `M0 -127 Q12 -98 18 ${-66 + motion.gesture} M0 -127 Q32 -99 42 -64`,
     carry: 'M0 -127 Q-18 -114 -38 -127 M0 -127 Q24 -108 43 -127',
+    pick: `M0 -127 Q24 -112 ${handX + (32-handX)*motion.progress} ${handY + (-90-handY)*motion.progress} M0 -127 Q-12 -110 -24 -95`,
+    place: `M0 -127 Q24 -112 ${32 + (handX-32)*motion.progress} ${-90 + (handY+90)*motion.progress} M0 -127 Q-12 -110 -24 -95`,
+    read: `M0 -127 Q-5 -105 8 -102 M0 -127 Q39 -116 48 ${-101 + motion.gesture * .15}`,
     celebrate: `M0 -127 Q-24 -154 -38 ${-180 + motion.gesture} M0 -127 Q22 -151 39 ${-178 - motion.gesture}`,
     talk: `M0 -127 Q-22 -112 -42 ${-127 + motion.gesture} M0 -127 Q20 -113 35 -89`,
     walk: `M0 -127 L${-22 - motion.stride} -98 M0 -127 L${24 + motion.stride} -99`,
     run: `M0 -127 l${-22 - motion.stride} 26 -12 -21 M0 -127 l${24 + motion.stride} 17 10 -25`,
   };
-  return <g data-character={c.id} data-pose={pose} opacity={entry}
+  if (target && pose === 'work') arms.work = `M0 -127 Q${handX/2} -110 ${handX} ${handY + motion.gesture * .4} M0 -127 Q10 -90 ${handX-15} ${handY + 4 - motion.gesture * .4}`;
+  if (motion.held_prop != null) {
+    if (['walk','run'].includes(motion.action_pose)) arms[pose] = `M0 -127 L${-22 - motion.stride} -98 M0 -127 Q39 -136 48 -126`;
+    if (pose === 'carry') arms.carry = 'M0 -127 Q-5 -118 8 -126 M0 -127 Q39 -136 48 -126';
+    if (pose === 'point') arms.point = `M0 -127 Q${pointX/2} -135 ${pointX} ${pointY} M0 -127 Q-5 -105 8 -102`;
+    if (pose === 'think') arms.think = 'M0 -127 Q21 -101 22 -137 L12 -150 M0 -127 Q-5 -105 8 -102';
+  }
+  return <g data-character={c.id} data-pose={pose} data-target-prop={motion.target_prop ?? undefined} opacity={entry}
     transform={`translate(${motion.x * stageWidth / 100} ${c.y * stageHeight / 100 + motion.bob}) scale(${scale * (c.facing === 'left' ? -1 : 1)} ${scale})`}>
     <g {...pen} transform={pose === 'sleep' ? 'rotate(-75 0 -20)' : undefined}>
       <path d={seated ? 'M0 -66 L-33 -48 -32 0 M0 -66 L37 -45 42 0' : `M0 -66 Q${-14 - motion.stride / 2} -37 ${-24 - motion.stride} -2 l-9 0 M0 -66 Q${14 + motion.stride / 2} -34 ${23 + motion.stride} -2 l9 0`}/>
-      <g transform={bent ? 'rotate(38 0 -66)' : pose === 'work' ? 'rotate(8 0 -66)' : undefined}>
+      <g transform={bent ? `rotate(${32 + motion.gesture * .8} 0 -66)` : pose === 'work' ? 'rotate(8 0 -66)' : undefined}>
       <path d="M-1 -143 Q4 -107 0 -66"/>
       {c.outfit === 'prehistoric' && <path d="M-18 -139 l15 -5 20 6 8 62 -12 -4 -5 10 -9 -8 -12 9 -11 -13 Z" fill={brown}/>}
       {c.outfit === 'office' && <><path d="M-17 -139 l17 -6 18 6 -1 52 -34 0 Z" fill={blue}/><path d="M-7 -143 l7 14 8 -14 M0 -129 l-5 21 5 9 5 -9 Z" fill={red} strokeWidth="2"/></>}
@@ -90,11 +144,11 @@ export const InkActor: React.FC<{character: Character; frame: number; fps: numbe
         <path d="M-31 -176 C-37 -213 30 -215 33 -181 C41 -147 15 -133 -9 -140 C-26 -144 -35 -157 -31 -176 Z" fill="#fffdf8"/>
         <path d="M-30 -181 Q-35 -207 -4 -210 Q23 -211 32 -189" strokeWidth="1.2" opacity=".35"/>
         {c.outfit === 'prehistoric' && <path d="M-34 -180 l-3 -19 10 3 -4 -13 15 5 1 -14 12 8 12 -9 3 10 15 -2 -5 12 12 6 -9 9 -3 -6 -8 -15 -9 10 -9 -11 -10 13 -9 -2 Z" fill="#624a39" strokeWidth="2.3"/>}
-        <Face expression={c.expression ?? 'neutral'} frame={frame} fps={fps}/>
+        <Face expression={expression} frame={frame} fps={fps}/>
       </g>
       </g>
     </g>
-    {c.expression === 'worried' && <path d="M42 -187 q-8 14 0 15 q8 -1 0 -15" fill={blue} stroke={ink} strokeWidth="1.8"/>}
+    {expression === 'worried' && <path d="M42 -187 q-8 14 0 15 q8 -1 0 -15" fill={blue} stroke={ink} strokeWidth="1.8"/>}
     {pose === 'sleep' && <text x="44" y="-118" fill={ink} fontSize="22" fontFamily="cursive">z z</text>}
   </g>;
 };
@@ -169,6 +223,20 @@ const Setting: React.FC<{kind: string; w: number; h: number}> = ({kind, w, h}) =
   </g>;
 };
 
+export function directedProp(prop: Prop, index: number, board: Board, time: number, duration: number, w: number, h: number): Prop {
+  for (const c of board.characters) {
+    const state = actorState(c, time, duration);
+    if (state.held_prop !== index) continue;
+    const scale = (c.scale ?? 1) * h / 600;
+    const raised = state.pose === 'celebrate';
+    const handX = state.x + (raised ? 39 : 32) * scale * (c.facing === 'left' ? -1 : 1) / w * 100;
+    const handY = c.y - (raised ? 168 : ['carry','walk','run'].includes(state.action_pose) ? 116 : 90) * scale / h * 100;
+    const holding = state.pose === 'place' ? 1 - state.progress : clamp((time - state.held_at) / state.held_duration);
+    return {...prop, x: prop.x + (handX - prop.x) * holding, y: prop.y + (handY - prop.y) * holding};
+  }
+  return prop;
+}
+
 export const DrawingStage: React.FC<{board: Board; frame: number; fps: number; duration: number; portrait?: boolean}> = ({board, frame, fps, duration, portrait = false}) => {
   const w = portrait ? 600 : 1000;
   const h = portrait ? 900 : 600;
@@ -181,12 +249,13 @@ export const DrawingStage: React.FC<{board: Board; frame: number; fps: number; d
   const focusX = (board.framing === 'closeup' || board.framing === 'medium') && subjects.length
     ? subjects.reduce((sum, subject) => sum + subject.x, 0) / subjects.length / 100 * w : w/2;
   const focusY = h * .51;
+  const props = board.props.map((prop, i) => directedProp(prop, i, board, frame / fps, duration, w, h));
   return <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" style={{background:'#fffefa'}} aria-label="Gezeichnete Strichmenschen-Szene">
     <g transform={`translate(${w/2 + pan} ${h/2}) scale(${zoom}) translate(${-focusX} ${-focusY})`}>
       <Setting kind={board.setting ?? 'white'} w={w} h={h}/>
       {board.framing === 'split' && <path d={`M${w/2} ${h*.08} Q${w/2-3} ${h*.4} ${w/2} ${h*.83}`} stroke={ink} strokeWidth="2" strokeDasharray="9 9" fill="none"/>}
-      {board.props.map((prop, i) => <InkProp key={i} prop={prop} frame={frame} fps={fps} duration={duration} stageWidth={w} stageHeight={h}/>)}
-      {board.characters.map((character, i) => <InkActor key={character.id ?? i} character={character} frame={frame} fps={fps} duration={duration} stageWidth={w} stageHeight={h}/>)}
+      {props.map((prop, i) => <InkProp key={i} prop={prop} frame={frame} fps={fps} duration={duration} stageWidth={w} stageHeight={h}/>)}
+      {board.characters.map((character, i) => <InkActor key={character.id ?? i} character={character} props={props} frame={frame} fps={fps} duration={duration} stageWidth={w} stageHeight={h}/>)}
     </g>
   </svg>;
 };

@@ -50,6 +50,18 @@ class SceneUpdateTests(unittest.TestCase):
             update_scene(self.job_id, "scene-two", payload)
         self.assertEqual(raised.exception.status_code, 409)
 
+    def test_invalid_action_anchor_returns_422_and_keeps_saved_plan(self):
+        payload = SceneUpdate(expected_version=1, stickman={
+            'characters':[{'cues':[{'on':'Sprechertext', 'pose':'point', 'target_prop':0}]}],
+            'props':[{'kind':'book'}]})
+        with patch('backend.main.db', self.db):
+            saved = update_scene(self.job_id, 'scene-two', payload)
+            self.assertEqual(saved['script_version'], 2)
+            with self.assertRaises(HTTPException) as raised:
+                update_scene(self.job_id, 'scene-two', SceneUpdate(expected_version=2, narration='Andere Wörter.'))
+        self.assertEqual(raised.exception.status_code, 422)
+        self.assertEqual(self.db.get_job(self.job_id)['script_version'], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

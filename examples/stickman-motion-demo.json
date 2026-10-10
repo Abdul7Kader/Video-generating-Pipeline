@@ -1,0 +1,38 @@
+{
+  "title": "Vom Handy zur Idee",
+  "description": "Eigene Bewegungsprobe: gesprochenen Handlungen folgen schnelle Griffe, Lesen, Zeigen und ein kurzer Laufweg.",
+  "scenes": [
+    {
+      "scene_id": "scene-phone-book",
+      "narration": "Mila nimmt ihr Handy, legt es wieder ab und greift zum Buch.",
+      "visual": "Mila hebt das Handy auf, legt es zurück und nimmt das Buch in die Hand.",
+      "visual_type": "stickman", "duration_seconds": 7, "transition": "cut",
+      "stickman": {"setting": "room", "framing": "medium", "camera_move": "static",
+        "characters": [{"id": "mila", "x": 44, "y": 81, "scale": 1.35, "pose": "stand", "expression": "neutral", "outfit": "casual", "speed": 1.6,
+          "cues": [{"on": "nimmt ihr Handy", "pose": "pick", "target_prop": 0, "duration": 0.45}, {"on": "legt es", "pose": "place", "target_prop": 0, "duration": 0.45}, {"on": "greift zum Buch", "pose": "pick", "target_prop": 1, "duration": 0.45}]}],
+        "props": [{"kind": "phone", "x": 49, "y": 66, "scale": 0.65}, {"kind": "book", "x": 54, "y": 66, "scale": 0.65}, {"kind": "desk", "x": 54, "y": 81, "scale": 1.35}]}
+    },
+    {
+      "scene_id": "scene-read-idea",
+      "narration": "Sie liest darin. Plötzlich hat sie eine Idee und zeigt auf den leuchtenden Einfall.",
+      "visual": "Mila liest das Buch und zeigt dann freudig auf eine Glühbirne.",
+      "visual_type": "stickman", "duration_seconds": 7, "transition": "cut",
+      "stickman": {"setting": "room", "framing": "medium", "camera_move": "static",
+        "characters": [{"id": "mila", "x": 44, "y": 81, "scale": 1.35, "pose": "stand", "expression": "neutral", "outfit": "casual", "speed": 1.6,
+          "cues": [{"on": "Sie", "pose": "read", "target_prop": 0, "duration": 0.2}, {"on": "eine Idee", "pose": "think", "expression": "surprised", "duration": 0.35}, {"on": "zeigt", "pose": "point", "target_prop": 1, "expression": "happy", "duration": 0.4}]}],
+        "props": [{"kind": "book", "x": 48.32, "y": 60.75, "scale": 0.65}, {"kind": "lightbulb", "x": 58, "y": 49, "scale": 0.85, "enter_on": "eine Idee"}]}
+    },
+    {
+      "scene_id": "scene-share",
+      "narration": "Mit dem Buch geht sie zu Ben, zeigt ihm ihre Idee und beide freuen sich.",
+      "visual": "Mila trägt das Buch zügig zu Ben, zeigt auf eine Idee und beide freuen sich.",
+      "visual_type": "stickman", "duration_seconds": 8, "transition": "cut",
+      "stickman": {"setting": "white", "framing": "wide", "camera_move": "static",
+        "characters": [{"id": "mila", "x": 24, "y": 81, "scale": 1.35, "pose": "stand", "expression": "happy", "outfit": "casual", "speed": 1.6,
+          "cues": [{"on": "Mit dem Buch", "pose": "carry", "target_prop": 0, "duration": 0.15}, {"on": "geht sie", "pose": "walk", "move_to": 48, "duration": 0.7}, {"on": "zeigt ihm", "pose": "point", "target_prop": 1, "duration": 0.35}, {"on": "freuen", "pose": "celebrate", "duration": 0.35}]},
+          {"id": "ben", "x": 68, "y": 81, "scale": 1.35, "pose": "stand", "expression": "neutral", "outfit": "plain", "facing": "left", "speed": 1.5,
+          "cues": [{"on": "ihre Idee", "pose": "think", "expression": "surprised", "duration": 0.35}, {"on": "freuen", "pose": "celebrate", "expression": "happy", "duration": 0.35}]}],
+        "props": [{"kind": "book", "x": 28.32, "y": 54.9, "scale": 0.65}, {"kind": "lightbulb", "x": 58, "y": 46, "scale": 0.8, "enter_on": "ihre Idee"}]}
+    }
+  ]
+}

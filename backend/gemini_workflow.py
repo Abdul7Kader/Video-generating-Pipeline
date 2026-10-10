@@ -83,6 +83,10 @@ STEP_INSTRUCTIONS = {
         "Erzeuge den vollständigen Produktions- und Szenenplan. Jede Szene braucht Sprechertext, sichtbare Bildbeschreibung, "
         "visual_type, asset_prompt, Kamera, Bewegung über action/visual, Übergang und Dauer. Die Dauern müssen ungefähr passen. "
         "Bei Strichmenschen: visual_type=stickman und ausführbare stickman-Zeichenregie aus dem Schema. "
+        "Figuren erhalten 2-4 schnelle cues: on zitiert Sprecherworte wörtlich und in Reihenfolge, "
+        "duration 0.35..0.9 Sekunden. pick/read/carry/place nutzen target_prop als Index der Requisite; "
+        "walk nutzt move_to. Ein-/Ausblenden über enter_on/exit_on an passenden Sprecherworten. "
+        "Lesen braucht pose=read, Aufheben pick und Ablegen place; work zeigt nur Tippen, sit nur Sitzen. "
         "Weißer Hintergrund, schwarze gezeichnete Konturen, ausdrucksstarke Figuren und konkrete Requisiten. "
         "Wechselnde Schauplätze und Bildausschnitte, keine Präsentator-Karten. Figuren-IDs/Kleidung konsistent halten."
     ),

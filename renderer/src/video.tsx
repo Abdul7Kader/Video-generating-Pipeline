@@ -96,11 +96,11 @@ const SceneView: React.FC<{scene: Scene; index: number; total: number}> = (props
   props.scene.assetSrc ? <AssetScene {...props}/> : <StickmanScene {...props}/>
 );
 
-export const Video: React.FC<VideoProps> = ({scenes, audioSrc}) => (
+export const Video: React.FC<VideoProps> = ({scenes, audioSrc, durationSeconds}) => (
   <AbsoluteFill style={{background:'#fffefa'}}>
     {audioSrc ? <Audio src={audioSrc}/> : null}
     {scenes.map((scene, index) => (
-      <Sequence key={scene.scene_id ?? `${index}-${scene.start}`} from={Math.round(scene.start*30)} durationInFrames={Math.max(1,Math.round(scene.duration*30))}>
+      <Sequence key={scene.scene_id ?? `${index}-${scene.start}`} from={Math.round(scene.start*30)} durationInFrames={Math.max(1,(index===scenes.length-1?Math.ceil(durationSeconds*30):Math.round((scene.start+scene.duration)*30))-Math.round(scene.start*30))}>
         <SceneView scene={scene} index={index} total={scenes.length}/>
       </Sequence>
     ))}

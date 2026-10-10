@@ -16,6 +16,7 @@ from .config import settings
 from .moneyprinter import moneyprinter_status, render_with_moneyprinter, write_render_comparison
 from .plan import file_sha256, object_sha256
 from .quality import find_ffmpeg, find_ffprobe, run_quality_gate
+from .speech import VOICE_POLICY, TIMING_METHOD, compact_speech, estimate_word_timings, speech_scene_durations, direct_scene
 
 
 _PIPER_VOICE_CACHE: dict[str, Any] = {}
@@ -122,7 +123,7 @@ def synthesize(text: str, output: Path, language: str, *, provider: str | None =
         raise RuntimeError(f"Spracherzeugung fehlgeschlagen: {exc}") from exc
 
 
-def _voice_fingerprint(scene: dict[str, Any], language: str, provider: str | None = None) -> str:
+def _voice_fingerprint(scene: dict[str, Any], language: str, provider: str | None = None, *, continuous: bool = False) -> str:
     provider = provider or settings.tts_provider
     normalized_provider = "gemini" if provider == "gemini_tts" else provider
     configuration = {
@@ -134,6 +135,8 @@ def _voice_fingerprint(scene: dict[str, Any], language: str, provider: str | Non
         "gemini_voice": settings.gemini_tts_voice if normalized_provider == "gemini" else None,
         "gemini_style": settings.gemini_tts_style if normalized_provider == "gemini" else None,
     }
+    if continuous:
+        configuration["speech_policy"] = VOICE_POLICY
     return object_sha256(configuration)
 
 
@@ -159,6 +162,7 @@ def prepare_scene_audio(
     language: str,
     *,
     provider: str | None = None,
+    continuous: bool = False,
 ) -> tuple[list[dict[str, Any]], str]:
     audio_dir = job_dir / "audio"
     audio_dir.mkdir(parents=True, exist_ok=True)
@@ -166,7 +170,7 @@ def prepare_scene_audio(
     modes: set[str] = set()
     for scene in scenes:
         scene_id = str(scene["scene_id"])
-        fingerprint = _voice_fingerprint(scene, language, provider)
+        fingerprint = _voice_fingerprint(scene, language, provider, continuous=continuous)
         destination = audio_dir / f"{scene_id}.wav"
         cached = _cached_voice(job_dir, scene_id, fingerprint)
         if cached:
@@ -182,6 +186,13 @@ def prepare_scene_audio(
             else:
                 mode, duration = synthesize(str(scene["narration"]), destination, language, provider=provider)
             reused_from = None
+        speech = {}
+        if continuous:
+            if not cached:
+                speech = compact_speech(destination)
+                duration = speech['duration']
+            else:
+                speech = previous.get('speech', {})
         modes.add(mode)
         entry = {
             "scene_id": scene_id,
@@ -193,6 +204,10 @@ def prepare_scene_audio(
         }
         if reused_from:
             entry["reused_from"] = reused_from
+        if continuous:
+            entry['speech'] = speech
+            entry['words'] = previous['words'] if cached else estimate_word_timings(str(scene['narration']), destination)
+            entry['timing_method'] = TIMING_METHOD
         segments.append(entry)
     if len(modes) != 1:
         raise RuntimeError("Szenen verwenden inkonsistente Sprecherprofile.")
@@ -271,13 +286,15 @@ def render_job(job: dict[str, Any], *, job_dir_override: Path | None = None) -> 
     if editor not in {"remotion", "moneyprinter"}:
         raise RuntimeError(f"Der gewählte Schnittanbieter {editor} ist noch nicht integriert.")
     prepare_scene_assets(job_dir, job["script"]["scenes"], job["aspect_ratio"])
+    continuous = editor == 'remotion' and all(scene.get('visual_type') == 'stickman' for scene in job['script']['scenes'])
     audio_segments, tts_mode = prepare_scene_audio(
         job_dir,
         job["script"]["scenes"],
         job["language"],
         provider=production_config.get("voice_provider"),
+        continuous=continuous,
     )
-    scene_durations = [
+    scene_durations = speech_scene_durations(job['script']['scenes'], audio_segments) if continuous else [
         max(float(scene.get("duration_seconds") or 0.1), float(segment["duration"]) + 0.2)
         for scene, segment in zip(job["script"]["scenes"], audio_segments)
     ]
@@ -288,8 +305,9 @@ def render_job(job: dict[str, Any], *, job_dir_override: Path | None = None) -> 
     total = audio_duration
     scenes = []
     cursor = 0.0
-    for scene, duration in zip(job["script"]["scenes"], scene_durations):
-        scenes.append({**scene, "start": cursor, "duration": duration})
+    for scene, duration, segment in zip(job["script"]["scenes"], scene_durations, audio_segments):
+        directed = direct_scene(scene, segment['words'], duration) if continuous else scene
+        scenes.append({**directed, "start": cursor, "duration": duration})
         cursor += duration
     add_scene_captions(scenes)
     subtitles_path = job_dir / "subtitles.srt"

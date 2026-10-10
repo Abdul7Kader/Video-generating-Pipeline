@@ -51,7 +51,8 @@ def render_plan_readiness(scenes: list[dict[str, Any]]) -> list[str]:
         visual_type = scene.get("visual_type", "stickman")
         if visual_type == "stickman":
             try:
-                StickmanBoard.model_validate(scene.get("stickman"))
+                board = StickmanBoard.model_validate(scene.get("stickman"))
+                board.validate_narration(str(scene.get("narration", "")))
             except ValueError:
                 issues.append(f"{scene_id}: Ausführbarer Zeichenplan fehlt oder ist ungültig. Bitte Zeichenregie ergänzen oder Skript neu erzeugen.")
             continue
