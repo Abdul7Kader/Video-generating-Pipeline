@@ -107,3 +107,44 @@ test('a new shot can place an object held in the preceding shot', () => {
   assert.ok(directedProp(prop,0,value,.5,6,1000,600).x<45);
   assert.deepEqual(directedProp(prop,0,value,1.5,6,1000,600),prop);
 });
+
+test('walking eases in and out and overlapping cues preserve the current position', () => {
+  const character = {x:20,motion_cues:[{at:1,pose:'walk',move_to:80,duration:1}]};
+  assert.ok(actorState(character,1.1,6).x < 23);
+  assert.equal(actorState(character,1.5,6).x,50);
+  assert.ok(actorState(character,1.9,6).x > 77);
+  const interrupted = {...character,motion_cues:[...character.motion_cues,
+    {at:1.25,pose:'walk',move_to:10,duration:1}]};
+  assert.equal(actorState(interrupted,1.25,6).x,actorState(character,1.25,6).x);
+  assert.ok(Math.abs(actorState(interrupted,1.25001,6).x-actorState(character,1.25,6).x)<.001);
+  assert.equal(actorMotion(character,30,30,6).stride,0);
+  assert.ok(Math.abs(actorMotion(character,59,30,6).stride)<8);
+});
+
+test('direction changes turn the actor and its held prop together without a jump', () => {
+  const prop = {kind:'book',x:30,y:65};
+  const character = {id:'walker',x:20,y:80,facing:'right',motion_cues:[
+    {at:0,pose:'carry',target_prop:0,duration:.2},
+    {at:1,pose:'walk',move_to:60,duration:.8},
+    {at:2,pose:'walk',move_to:20,duration:.8},
+  ]};
+  const value = {characters:[character],props:[prop]};
+  const before = directedProp(prop,0,value,1.99999,6,1000,600);
+  const after = directedProp(prop,0,value,2.00001,6,1000,600);
+  assert.ok(Math.abs(before.x-after.x)<.001);
+  assert.ok(directedProp(prop,0,value,2.5,6,1000,600).x<actorState(character,2.5,6).x);
+  assert.match(draw(value,90),/data-facing="left"/);
+  assert.equal(actorState(character,3,6).facing,-1);
+  assert.equal(actorState({x:80,end_x:20,pose:'walk'},1,6).facing,-1);
+  assert.equal(actorState({x:40,facing:'left'},1,6).facing,-1);
+});
+
+test('running settles onto the same standing drawing at arrival in both formats', () => {
+  const character = {id:'runner',x:80,y:80,pose:'run',end_x:20};
+  for (const portrait of [false,true]) {
+    assert.equal(draw({characters:[character],props:[]},90,portrait),
+      draw({characters:[{id:'runner',x:20,y:80,pose:'stand',facing:'left'}],props:[]},90,portrait));
+  }
+  assert.equal(actorMotion(character,0,30,6).stride,0);
+  assert.ok(actorMotion(character,10,30,6).stride!==0);
+});

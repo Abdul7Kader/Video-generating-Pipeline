@@ -1,6 +1,35 @@
 # Entwicklungsstatus – Video Pipeline V2
 
-Letzte Aktualisierung: 2026-10-10
+Letzte Aktualisierung: 2026-10-11
+
+## Neue Etappe: weichere Strichmenschen-Bewegungen
+
+Implementiert: weiches Anlaufen und Abbremsen, reduzierte Schritte an den Enden des
+Laufwegs und automatische Drehung in Laufrichtung. Figur und getragene Requisite
+verwenden dieselbe kontinuierliche Drehung; unterbrochene Laufwege beginnen an der
+tatsächlichen Zwischenposition. Ruhende Figuren behalten die vorgegebene Blickrichtung.
+Renderer-Provenienz auf `ink-story-v3` erhöht, ohne bestehende Videos zu verändern.
+
+Getestet: 152 Python-Tests ausgeführt, 151 bestanden und ein optionaler Rendertest
+regulär übersprungen. 17 Node-Tests und TypeScript-Prüfung bestanden. Neue Regressionen
+prüfen Anlaufen/Abbremsen, Laufunterbrechung, Buchposition beim Drehen und Standpose nach
+dem Rennen in Quer-/Hochformat. Vorhandene Schema-/Injection-/Freigabetests bestanden.
+Windows-Sandbox blockierte temporäre Testverzeichnisse und die lokale Remotion-
+Browserverbindung; beide vollständigen Läufe außerhalb der Sandbox erfolgreich.
+
+Reale Probe: `examples/stickman-turn-demo.json` → `data/turn-preview/video.mp4`,
+5,91 Sekunden, 1920×1080, H.264/AAC, lokale Piper-Stimme, vier Untertitelabschnitte.
+Alle neun Qualitätsprüfungen bestanden. Zwölf extrahierte Bilder zeigen Hinweg,
+Richtungswechsel, Rückweg und abgelegtes Buch; `data/turn-preview/contact-sheet.jpg`.
+Keine neuen Abhängigkeiten, externen Dienste, Kosten oder Veröffentlichungen.
+
+Offen: Wortzeiten bleiben Schätzungen; Handkontakt und Gegenstandskontinuität über
+Szenenschnitte brauchen weitere redaktionelle Sichtproben. Die Drehung ist eine kurze
+SVG-Spiegelanimation, keine anatomische 3D-Bewegung. Keine Sicherheitsgarantie.
+
+Git: GitHub-Konto Abdul7Kader mit API-ID 207606823 verifiziert. Die E-Mail-API benötigt
+zusätzlichen Scope; keine Zugangsrechte erweitert. Für diesen lokalen Savepoint wird
+die aus der bestätigten ID gebildete GitHub-Noreply-Adresse verwendet. Kein Push.
 
 ## Aktiver Auftrag: ausschließlich Strichmenschen-Geschichten
 

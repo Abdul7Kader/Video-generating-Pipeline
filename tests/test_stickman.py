@@ -111,7 +111,7 @@ class StickmanContractTests(unittest.TestCase):
             changed["stickman"]["characters"][0]["pose"] = "sleep"
             second = prepare_scene_assets(Path(directory), [changed], "16:9")["assets"][0]
             self.assertNotEqual(first["fingerprint"], second["fingerprint"])
-            self.assertEqual(first["renderer"], "ink-story-v2")
+            self.assertEqual(first["renderer"], "ink-story-v3")
 
     def test_prompt_and_model_schema_have_executable_direction(self):
         prompt = _prompt(JobCreate(topic="Ein Tag im Lager", video_type="stickman", aspect_ratio="16:9"))

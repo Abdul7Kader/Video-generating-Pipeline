@@ -1,4 +1,16 @@
-# Aktueller Auftrag: Qualitätsorientierte Produktionsverfahren
+# Aktueller Auftrag: Strichmenschen-Videos
+
+- [x] Stimmenstudio und gezielte Szenenüberarbeitung (vorherige Etappe)
+- [x] Weiches Anlaufen/Abbremsen und Richtungswechsel mit getragenen Gegenständen
+- [x] Regressionstests und reale Full-HD-Probe mit lokaler Stimme prüfen
+- [ ] Handkontakt und Gegenstandskontinuität über Szenenschnitte weiter verbessern
+
+Maßgeblicher Stand: `STATUS.md` und `tasks/plan.md`. Die älteren Aufgaben bleiben
+als eingefrorener Verlauf erhalten und stellen keinen aktiven Ausbauauftrag dar.
+
+---
+
+# Bisheriger Auftrag: Qualitätsorientierte Produktionsverfahren
 
 - [x] Unterbrochenen Sperr-/Idempotenz-Fix abschließen
 - [x] 69/69 Tests sowie Syntax- und Diff-Prüfungen bestehen

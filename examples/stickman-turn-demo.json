@@ -1,0 +1,31 @@
+{
+  "title": "Ein Buch auf Reisen",
+  "description": "Eigene Bewegungsprobe für weiches Anlaufen, Abbremsen und Richtungswechsel mit einem getragenen Buch.",
+  "scenes": [
+    {
+      "scene_id": "scene-book-trip",
+      "narration": "Mila nimmt das Buch und geht damit zu Ben. Dann dreht sie um, bringt das Buch zurück und legt es auf den Tisch.",
+      "visual": "Mila nimmt ein Buch vom Tisch, trägt es zu Ben, dreht sich nach links und legt es wieder auf denselben Tisch.",
+      "visual_type": "stickman",
+      "duration_seconds": 10,
+      "transition": "cut",
+      "stickman": {
+        "setting": "room", "framing": "wide", "camera_move": "static",
+        "characters": [
+          {"id": "mila", "x": 24, "y": 81, "scale": 1.35, "outfit": "casual", "expression": "happy",
+            "cues": [
+              {"on": "nimmt das Buch", "pose": "pick", "target_prop": 0, "duration": 0.4},
+              {"on": "geht damit", "pose": "walk", "move_to": 58, "duration": 1.2},
+              {"on": "dreht sie um", "pose": "walk", "move_to": 24, "duration": 1.2},
+              {"on": "legt es", "pose": "place", "target_prop": 0, "duration": 0.45}
+            ]},
+          {"id": "ben", "x": 75, "y": 81, "scale": 1.35, "facing": "left", "expression": "happy", "pose": "stand"}
+        ],
+        "props": [
+          {"kind": "book", "x": 29, "y": 66, "scale": 0.65},
+          {"kind": "desk", "x": 30, "y": 81, "scale": 1.35}
+        ]
+      }
+    }
+  ]
+}

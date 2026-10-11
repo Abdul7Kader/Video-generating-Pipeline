@@ -1,5 +1,22 @@
 # Strichmenschen: gezeichnete Geschichten
 
+## Erweiterung 2026-10-11: weichere Laufwege und Richtungswechsel
+
+- Laufwege verwenden weiches Anlaufen/Abbremsen; Schritte und Körperbewegung werden
+  an den Rändern des Laufwegs reduziert und enden nach der Ankunft in der Standpose.
+- Neue Laufwege bestimmen die Blickrichtung. Eine 0,18-Sekunden-Drehung spiegelt Figur
+  und gehaltenen Gegenstand kontinuierlich. Ruhende Figuren behalten ihre Zeichenregie.
+- Unterbricht ein neuer Regieschritt einen Laufweg, setzt er an dessen tatsächlicher
+  Zwischenposition an. Keine zufällige oder vom Renderdurchlauf abhängige Animation.
+- Der Assetnachweis verwendet `ink-story-v3`; bestehende Dateien bleiben erhalten.
+- Eigene reproduzierbare Probe: `examples/stickman-turn-demo.json`. Keine neue
+  Abhängigkeit, API, Eingabemöglichkeit oder Änderung an den Freigabegates.
+
+Schutzgrenzen bleiben KI-JSON → begrenztes Pydantic-Schema → feste SVG-Elemente.
+Die Regressionstests prüfen Laufunterbrechung, Gegenstandsposition beim Drehen,
+Standpose nach dem Rennen in Quer-/Hochformat sowie vorhandenes Text-Encoding.
+Wortzeiten und redaktionelle Beurteilung bleiben die bestehenden Qualitätsgrenzen.
+
 ## Erweiterung 2026-10-11: Stimmenstudio und gezielte Skriptarbeit
 
 Die Oberfläche zeigt ausschließlich Strichmenschen-Aufträge und zugehörige Erstellung,

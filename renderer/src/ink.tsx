@@ -20,6 +20,7 @@ const yellow = '#f0cf75';
 const red = '#cf5e4f';
 const pen = {stroke: ink, strokeWidth: 3.4, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none'};
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
+const ease = (value: number) => {const p = clamp(value); return p * p * (3 - 2 * p);};
 
 export function entryProgress(frame: number, fps: number, duration: number, enter = 0) {
   if (enter === 0) return 1;
@@ -35,6 +36,9 @@ export function actorState(c: Character, time: number, duration: number) {
   let pose = c.pose ?? 'stand';
   let expression = c.expression ?? 'neutral';
   let target_prop: number | null = null;
+  let facingFrom = c.facing === 'left' ? -1 : 1;
+  let facingGoal = goal === from ? facingFrom : Math.sign(goal - from);
+  let turnAt = at;
   // A shot starting with placement continues an object already held in the previous shot.
   const first = c.motion_cues?.[0];
   let held_prop: number | null = first?.pose === 'place' ? first.target_prop ?? null : null;
@@ -42,8 +46,13 @@ export function actorState(c: Character, time: number, duration: number) {
   let held_duration = .55;
   for (const cue of c.motion_cues ?? []) {
     if (cue.at > time) break;
-    from += (goal - from) * clamp((cue.at - at) / seconds);
+    from += (goal - from) * ease((cue.at - at) / seconds);
     goal = cue.move_to ?? from;
+    if (goal !== from && Math.sign(goal - from) !== facingGoal) {
+      facingFrom += (facingGoal - facingFrom) * ease((cue.at - turnAt) / .18);
+      facingGoal = Math.sign(goal - from);
+      turnAt = cue.at;
+    }
     at = cue.at;
     seconds = cue.duration;
     pose = cue.pose;
@@ -57,10 +66,11 @@ export function actorState(c: Character, time: number, duration: number) {
     if (pose === 'place' && time >= at + seconds) held_prop = null;
   }
   const progress = clamp((time - at) / seconds);
-  const x = from + (goal - from) * progress;
+  const x = from + (goal - from) * ease(progress);
+  const facing = facingFrom + (facingGoal - facingFrom) * ease((time - turnAt) / .18);
   const action_pose = pose;
   if ((pose === 'walk' || pose === 'run') && goal !== from && progress === 1) pose = 'stand';
-  return {x, pose, action_pose, expression, target_prop, held_prop, held_at, held_duration, at, progress};
+  return {x, pose, action_pose, expression, target_prop, held_prop, held_at, held_duration, at, progress, facing, traveling: goal !== from};
 }
 
 // Feet anchor at (0, 0). Actions start at spoken text anchors, with no frame randomness.
@@ -69,8 +79,10 @@ export function actorMotion(character: Character, frame: number, fps: number, du
   const state = actorState(character, time, duration);
   const moving = state.pose === 'walk' || state.pose === 'run';
   const cycle = Math.sin((time - state.at) * (state.pose === 'run' ? 17 : 11) * (character.speed ?? 1.35));
-  const bob = moving ? -Math.abs(cycle) * (state.pose === 'run' ? 8 : 4) : Math.sin(time * 3.5) * .7;
-  return {...state, bob, stride: moving ? cycle * 23 : 0, gesture: Math.sin((time - state.at) * 10 * (character.speed ?? 1.35)) * 9};
+  const weight = state.traveling ? ease(state.progress / .18) * ease((1 - state.progress) / .18) : 1;
+  const breathing = Math.sin(time * 3.5) * .7;
+  const bob = moving ? breathing * (1 - weight) - Math.abs(cycle) * weight * (state.pose === 'run' ? 8 : 4) : breathing;
+  return {...state, bob, stride: moving ? cycle * 23 * weight : 0, gesture: Math.sin((time - state.at) * 10 * (character.speed ?? 1.35)) * 9};
 }
 
 const Face: React.FC<{expression: string; frame: number; fps: number}> = ({expression, frame, fps}) => {
@@ -99,7 +111,7 @@ export const InkActor: React.FC<{character: Character; props?: Prop[]; frame: nu
   const bent = pose === 'gather';
   const headTilt = expression === 'sad' || expression === 'tired' ? -8 : bent ? 12 : pose === 'read' ? 9 : 0;
   const target = motion.target_prop == null ? undefined : props[motion.target_prop];
-  const flip = c.facing === 'left' ? -1 : 1;
+  const flip = motion.facing < 0 ? -1 : 1;
   const handX = target ? Math.max(-80, Math.min(80, (target.x - motion.x) * stageWidth / 100 / scale * flip)) : 45;
   const handY = target ? Math.max(-195, Math.min(-65, (target.y - c.y) * stageHeight / 100 / scale - 30)) : -95;
   const pointX = 29 + (handX - 29) * motion.progress;
@@ -129,8 +141,8 @@ export const InkActor: React.FC<{character: Character; props?: Prop[]; frame: nu
     if (pose === 'point') arms.point = `M0 -127 Q${pointX/2} -135 ${pointX} ${pointY} M0 -127 Q-5 -105 8 -102`;
     if (pose === 'think') arms.think = 'M0 -127 Q21 -101 22 -137 L12 -150 M0 -127 Q-5 -105 8 -102';
   }
-  return <g data-character={c.id} data-pose={pose} data-target-prop={motion.target_prop ?? undefined} opacity={entry}
-    transform={`translate(${motion.x * stageWidth / 100} ${c.y * stageHeight / 100 + motion.bob}) scale(${scale * (c.facing === 'left' ? -1 : 1)} ${scale})`}>
+  return <g data-character={c.id} data-pose={pose} data-facing={flip < 0 ? 'left' : 'right'} data-target-prop={motion.target_prop ?? undefined} opacity={entry}
+    transform={`translate(${motion.x * stageWidth / 100} ${c.y * stageHeight / 100 + motion.bob}) scale(${scale * motion.facing} ${scale})`}>
     <g {...pen} transform={pose === 'sleep' ? 'rotate(-75 0 -20)' : undefined}>
       <path d={seated ? 'M0 -66 L-33 -48 -32 0 M0 -66 L37 -45 42 0' : `M0 -66 Q${-14 - motion.stride / 2} -37 ${-24 - motion.stride} -2 l-9 0 M0 -66 Q${14 + motion.stride / 2} -34 ${23 + motion.stride} -2 l9 0`}/>
       <g transform={bent ? `rotate(${32 + motion.gesture * .8} 0 -66)` : pose === 'work' ? 'rotate(8 0 -66)' : undefined}>
@@ -229,7 +241,7 @@ export function directedProp(prop: Prop, index: number, board: Board, time: numb
     if (state.held_prop !== index) continue;
     const scale = (c.scale ?? 1) * h / 600;
     const raised = state.pose === 'celebrate';
-    const handX = state.x + (raised ? 39 : 32) * scale * (c.facing === 'left' ? -1 : 1) / w * 100;
+    const handX = state.x + (raised ? 39 : 32) * scale * state.facing / w * 100;
     const handY = c.y - (raised ? 168 : ['carry','walk','run'].includes(state.action_pose) ? 116 : 90) * scale / h * 100;
     const holding = state.pose === 'place' ? 1 - state.progress : clamp((time - state.held_at) / state.held_duration);
     return {...prop, x: prop.x + (handX - prop.x) * holding, y: prop.y + (handY - prop.y) * holding};

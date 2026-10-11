@@ -64,6 +64,15 @@ Die neue Bewegungsprobe verwendet zusammenhängende Erzählung und textgebundene
 python scripts/render_stickman_demo.py --script examples/stickman-motion-demo.json --output data/motion-preview
 ```
 
+Laufwege starten und bremsen weich ab. Bei einem Richtungswechsel dreht sich die Figur
+kurz in die neue Laufrichtung; getragene Gegenstände folgen dieser Drehung ohne Sprung.
+Nach der Ankunft endet die Laufbewegung. Die Blickrichtung im Editor gilt weiterhin
+für Figuren ohne Laufweg. Eine eigene Probe mit Hinweg, Rückweg und getragenem Buch:
+
+```powershell
+python scripts/render_stickman_demo.py --script examples/stickman-turn-demo.json --output data/turn-preview
+```
+
 ## Start
 
 Direkt im Projektordner liegen Starter und Stopper:

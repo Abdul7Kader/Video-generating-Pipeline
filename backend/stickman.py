@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-RENDERER_VERSION = "ink-story-v2"
+RENDERER_VERSION = "ink-story-v3"
 Pose = Literal["stand", "walk", "run", "point", "think", "shrug", "sit", "sleep", "work", "gather", "carry", "celebrate", "talk", "pick", "place", "read"]
 Expression = Literal["neutral", "happy", "sad", "worried", "angry", "surprised", "tired", "determined"]
 

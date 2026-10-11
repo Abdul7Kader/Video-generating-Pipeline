@@ -1,4 +1,19 @@
-# Aktiver Implementierungsplan: Qualitätsorientierte Produktionsverfahren
+# Aktiver Entwicklungsplan: Strichmenschen-Videos
+
+Stand: 2026-10-11. Der aktuelle Nutzerauftrag ist die Weiterentwicklung der
+Strichmenschenproduktion. Die älteren Ausbaupläne darunter sind eingefrorener Verlauf.
+
+1. [x] Stimmenstudio und gezielte Szenenüberarbeitung (vorherige Etappe).
+2. [x] Weiche Laufwege, kontinuierliche Richtungswechsel und mitgeführte Requisiten.
+3. [x] Neue Bewegungsprobe mit Piper rendern, Sichtprüfung und Qualitätsgate dokumentieren.
+4. [x] Abschließende Diff-Prüfung und unter verifizierter Identität lokal sichern.
+
+Nächste mögliche Qualitätsarbeit: Hand-/Gegenstandsinteraktion und Kontinuität über
+Szenenschnitte anhand echter Filmproben verbessern; keine weiteren Videoarten aktivieren.
+
+---
+
+# Bisheriger Implementierungsplan: Qualitätsorientierte Produktionsverfahren
 
 Stand: 2026-09-19
 
