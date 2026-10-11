@@ -6,6 +6,40 @@ Eine lokale Videoproduktion für Windows und Linux. Aktueller Schwerpunkt sind g
 
 Seit 2026-10-10 ist ausschließlich die Strichmenschenproduktion aktiv. Stockmedien, MoneyPrinterTurbo, Podcast und andere Videoarten sind eingefroren; ihre vorhandenen Daten und Adapter bleiben erhalten. Die nachfolgenden Beschreibungen dieser Wege dokumentieren den bisherigen Stand.
 
+Seit 2026-10-11 blendet die Oberfläche auch andere Produktionsprofile, Stockfelder,
+externe Videoimporte, Renderer-Vergleiche und Veröffentlichung aus. Die Auftragsliste
+zeigt Strichmenschen; bestehende andere Aufträge und Backend-Adapter werden nicht gelöscht.
+
+**Stimmen ausprobieren:** Unter **Stimmenstudio · lokal → Stimmen hören und vergleichen**
+einen kurzen Testtext eingeben und **Alle verfügbaren Stimmen vergleichen** wählen.
+Deutsch bietet Thorsten · klar, Thorsten · lebhaft und Kerstin; Englisch LJ.
+Die Player verwenden denselben Text und dasselbe gewählte Tempo (0,85–1,25×).
+**Diese Stimme wählen** übernimmt die Auswahl. Bei bestehenden Aufträgen anschließend
+**Produktionskonfiguration speichern** und das Skript erneut freigeben.
+Die Stimmen werden lokal mit Piper erzeugt; fehlende feste Modelle werden bei
+aktiviertem `PIPER_AUTO_DOWNLOAD` einmalig heruntergeladen. Es wird kein Cloud-TTS aktiviert.
+Kerstins Modell ist als niedrige Qualität gekennzeichnet; eine andere Stimme ist nicht
+automatisch besser. Wortbudget und Sprechzeitschätzung berücksichtigen Stimme und Tempo,
+bleiben aber Näherungen auf Basis einer kurzen lokalen Vergleichspassage.
+
+**Skripte verbessern:** **Umfang der Überarbeitung** auf das gesamte Skript oder eine
+einzelne Szene setzen. **Natürlich erzählen**, **Besser visualisieren** oder **Straffen**
+füllt einen bearbeitbaren Änderungswunsch aus; erst **Entwurf überarbeiten** startet die KI.
+Bei einer einzelnen Szene bleiben Titel, Beschreibung, andere Szenen und deren Dauer
+serverseitig erhalten. Sprechertext und Zeichenregie werden zusammen überarbeitet.
+Wortzahl und geschätzte Sprechzeit erscheinen im Editor. Ungespeicherte Änderungen
+sperren KI-Überarbeitung/Freigabe und verhindern einen versehentlichen Auftragswechsel.
+Skript- und Stimmenänderungen getrennt speichern; **verwerfen** setzt nur ungespeicherte
+Eingaben auf den zuletzt gespeicherten Stand zurück. Sachprüfungsnotizen bleiben bei
+manuellen Textänderungen sichtbar.
+
+Quellen für den lokalen Stimmenvergleich: [Piper Python API](https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/API_PYTHON.md),
+[Thorsten emotional](https://huggingface.co/rhasspy/piper-voices/blob/main/de/de_DE/thorsten_emotional/medium/MODEL_CARD),
+[Kerstin](https://huggingface.co/rhasspy/piper-voices/blob/main/de/de_DE/kerstin/low/MODEL_CARD),
+[LJ Speech](https://huggingface.co/rhasspy/piper-voices/blob/main/en/en_US/ljspeech/high/MODEL_CARD).
+Die Modellkarten nennen CC0 für die deutschen Trainingsdatensätze und Public Domain für LJ Speech.
+Lizenzpflichten der Piper-Laufzeit bestehen unabhängig davon.
+
 Die Bildsprache orientiert sich an [Ink Explainer](https://www.youtube.com/watch?v=49_Ph2q6uIM): heller Zeichenhintergrund, schwarze Konturen, wenige flache Farben, Mimik, Kleidung, Requisiten und wechselnde Schauplätze. Standardformat ist 16:9. Ein ausführbarer `stickman`-Zeichenplan steuert bis zu vier Figuren und acht Requisiten pro Szene, Posen, Gefühle, Positionen, Laufwege, zeitliche Auftritte, Ausschnitt und Kamerabewegung. Die KI darf nur den validierten Zeichenbaukasten verwenden; sie erzeugt keine beliebigen Illustrationen aus Freitext.
 
 Im Szeneneditor unter „Zeichenregie“ lässt sich jede Einstellung bearbeiten. Speichern erzeugt eine neue Planversion und macht alte Freigaben ungültig. Alte Entwürfe ohne Zeichenplan müssen ergänzt oder mit der KI überarbeitet werden, bevor sie gerendert werden können.
@@ -66,11 +100,10 @@ Auf diesem Rechner liegt zusätzlich eine verifizierte projektlokale Testlaufzei
 
 ## Bedienung
 
-1. Unter **Neues Video** Thema, Sprache, Länge, ein oder mehrere Videoformate und ein Produktionsprofil wählen. Es entsteht zunächst nur ein Skriptentwurf.
-2. Skript und Szenenplan prüfen, bei Bedarf bearbeiten und **Skript freigeben**.
+1. Unter **Neues Video** Thema, Sprache, Länge, Videoformate, Strichmenschenprofil und lokale Stimme wählen. Es entsteht zunächst nur ein Skriptentwurf.
+2. Skript und Zeichenregie prüfen, bei Bedarf gezielt überarbeiten, Änderungen speichern und **Skript freigeben**.
 3. **Video erzeugen**. Der Rechner bearbeitet bewusst nur einen Renderauftrag gleichzeitig.
-4. Jedes fertige Format ansehen und bei Bedarf herunterladen. Erst jetzt Veröffentlichungsziele auswählen.
-5. **Für gewählte Ziele freigeben** ist die zweite, versionsgebundene Freigabe. Nur eingerichtete Ziele werden automatisch beliefert.
+4. Jedes fertige Format ansehen und herunterladen. **Skript bearbeiten** führt zurück zum Entwurf. Veröffentlichungsfunktionen sind derzeit ausgeblendet.
 
 Das **i** im Seitenkopf öffnet die Bedienhilfe. Felder und Aktionen erklären sich zusätzlich beim Darüberfahren mit der Maus oder beim Fokussieren mit der Tab-Taste.
 

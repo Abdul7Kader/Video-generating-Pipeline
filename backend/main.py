@@ -4,6 +4,8 @@ import asyncio
 import copy
 import json
 import logging
+import re
+import threading
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -24,12 +26,16 @@ from .plan import file_sha256, finalize_scene_plan, script_hash
 from .planner import ScriptProviderUnavailable, generate_script, script_provider_status, unload_script_model
 from .production import build_production_catalog, normalize_production_config, production_plan_readiness, require_active_production
 from .publishing import configured_automatic_platforms, platform_catalog, publish_to_target
-from .rendering import dependency_status, render_job
-from .schemas import JobCreate, ProductionConfigUpdate, Scene, SceneUpdate, ScriptRevision, ScriptUpdate, VersionAction, VideoApproval
+from .rendering import dependency_status, render_job, synthesize
+from .schemas import JobCreate, ProductionConfigUpdate, Scene, SceneUpdate, ScriptRevision, ScriptUpdate, VersionAction, VideoApproval, VoicePreview
+from .voices import VOICE_CHOICES, voice_choice, validate_voice_language, estimated_words_per_minute
+from .speech import compact_speech, VOICE_POLICY
+from .plan import object_sha256
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("video-pipeline")
 db = Database(settings.database_path)
+_voice_preview_slot = threading.BoundedSemaphore(1)
 try:
     _gemini_profile_names = parse_profile_names(settings.gemini_cli_profiles)
 except ValueError:
@@ -208,6 +214,51 @@ def gemini_profiles():
     }
 
 
+@app.get("/api/voices")
+def voice_catalog():
+    return [{**item, "estimated_words_per_minute": estimated_words_per_minute(item["id"]), "installed": (settings.voices_dir / f"{item['model']}.onnx").is_file(),
+             "available": settings.piper_auto_download or (
+                 (settings.voices_dir / f"{item['model']}.onnx").is_file()
+                 and (settings.voices_dir / f"{item['model']}.onnx.json").is_file())}
+            for item in VOICE_CHOICES]
+
+
+@app.post("/api/voice-previews")
+def create_voice_preview(payload: VoicePreview):
+    if not _voice_preview_slot.acquire(blocking=False):
+        raise HTTPException(429, "Eine Hörprobe wird gerade erstellt. Bitte danach erneut versuchen.")
+    try:
+        key = object_sha256({**payload.model_dump(), "voice": voice_choice(payload.voice_id), "policy": VOICE_POLICY})
+        root = settings.data_dir / "voice-previews"
+        root.mkdir(parents=True, exist_ok=True)
+        destination = root / f"{key}.wav"
+        if not destination.is_file():
+            if sum(path.stat().st_size for path in root.glob("*.wav")) > 128 * 1024 * 1024:
+                raise HTTPException(429, "Der Hörproben-Cache ist voll. Vor weiteren Proben lokal bereinigen.")
+            temporary = root / f"{key}.tmp.wav"
+            try:
+                synthesize(payload.text, temporary, voice_choice(payload.voice_id)["language"], provider="piper", voice_id=payload.voice_id, speed=payload.speed)
+                compact_speech(temporary)
+                temporary.replace(destination)
+            finally:
+                temporary.unlink(missing_ok=True)
+        return {"voice_id": payload.voice_id, "url": f"/api/voice-previews/{key}", "speed": payload.speed}
+    except (RuntimeError, ValueError, OSError) as exc:
+        raise HTTPException(503, "Hörprobe konnte nicht erzeugt werden. Lokale Stimme und Piper-Installation prüfen.") from exc
+    finally:
+        _voice_preview_slot.release()
+
+
+@app.get("/api/voice-previews/{preview_id}")
+def get_voice_preview(preview_id: str):
+    if not re.fullmatch(r"[0-9a-f]{64}", preview_id):
+        raise HTTPException(404, "Hörprobe nicht gefunden.")
+    path = settings.data_dir / "voice-previews" / f"{preview_id}.wav"
+    if not path.is_file():
+        raise HTTPException(404, "Hörprobe nicht gefunden.")
+    return FileResponse(path, media_type="audio/wav", headers={"Cache-Control": "private, max-age=3600"})
+
+
 @app.get("/api/jobs")
 def list_jobs():
     return db.list_jobs()
@@ -224,6 +275,7 @@ def create_job(payload: JobCreate):
         )
         values["production_config"] = production_config
         require_active_production(production_config)
+        validate_voice_language(production_config, payload.language)
         values["video_type"] = production_config["video_type"]
         script_provider = production_config["script_provider"]
         job_id = None
@@ -280,6 +332,7 @@ def update_script(job_id: str, payload: ScriptUpdate):
         current = require_job(job_id)
         script = payload.model_dump(exclude={"expected_version"})
         script["metadata"] = {
+            **{key: current["script"].get("metadata", {}).get(key) for key in ("audience", "tone", "fact_check_notes")},
             "provider": "manual_edit",
             "model": None,
             "parent": current["script"].get("metadata", {}),
@@ -314,6 +367,7 @@ def update_scene(job_id: str, scene_id: str, payload: SceneUpdate):
         "description": current["script"].get("description", ""),
         "scenes": scenes,
         "metadata": {
+            **{key: current["script"].get("metadata", {}).get(key) for key in ("audience", "tone", "fact_check_notes")},
             "provider": "scene_edit",
             "model": None,
             "changed_scene_id": scene_id,
@@ -333,6 +387,9 @@ def revise_script(job_id: str, payload: ScriptRevision):
     current = require_job(job_id)
     if current["script_version"] != payload.expected_version:
         raise HTTPException(409, "Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.")
+    selected_scene = next((scene for scene in current["script"]["scenes"] if scene["scene_id"] == payload.scene_id), None)
+    if payload.scene_id and selected_scene is None:
+        raise HTTPException(404, "Szene nicht gefunden.")
     request = JobCreate.model_validate({
         "topic": current["topic"],
         "language": current["language"],
@@ -343,7 +400,21 @@ def revise_script(job_id: str, payload: ScriptRevision):
         "production_config": current["production_config"],
     })
     try:
-        revised = generate_script(request, previous=current["script"], instructions=payload.instructions)
+        instructions = payload.instructions
+        if selected_scene:
+            instructions = (f"Revise ONLY scene_id={payload.scene_id}; preserve this id and its duration. "
+                            "Keep every other scene, title and description unchanged. Rewrite narration AND its drawing cues together. "
+                            f"Requested scene change: {instructions}")
+        revised = generate_script(request, previous=current["script"], instructions=instructions)
+        if selected_scene:
+            replacement = next((scene for scene in revised["scenes"] if scene["scene_id"] == payload.scene_id), None)
+            if replacement is None:
+                raise ValueError("Die KI hat die ausgewählte Szene nicht mit ihrer ID zurückgegeben.")
+            replacement = Scene.model_validate({**replacement, "duration_seconds": selected_scene["duration_seconds"]}).model_dump()
+            merged = copy.deepcopy(current["script"])
+            merged["scenes"] = [replacement if scene["scene_id"] == payload.scene_id else scene for scene in merged["scenes"]]
+            merged["metadata"] = {**revised.get("metadata", {}), "changed_scene_id": payload.scene_id, "revision_scope": "scene"}
+            revised = merged
         if script_hash(revised) == current["script"]["content_hash"]:
             raise RuntimeError("Das Modell hat den Szenenplan trotz Änderungswunsch nicht verändert.")
         return db.update_script(job_id, payload.expected_version, revised)
@@ -373,6 +444,7 @@ def approve_script(job_id: str, payload: VersionAction):
 def update_production_config(job_id: str, payload: ProductionConfigUpdate):
     try:
         require_active_production(payload.production_config.model_dump())
+        validate_voice_language(payload.production_config.model_dump(), require_job(job_id)["language"])
         return db.update_production_config(
             job_id,
             payload.expected_version,

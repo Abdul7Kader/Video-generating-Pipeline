@@ -1,5 +1,49 @@
 # Strichmenschen: gezeichnete Geschichten
 
+## Erweiterung 2026-10-11: Stimmenstudio und gezielte Skriptarbeit
+
+Die Oberfläche zeigt ausschließlich Strichmenschen-Aufträge und zugehörige Erstellung,
+Stimme, Skript, Zeichenregie und Downloads. Andere Daten und Adapter bleiben erhalten;
+die Darstellung wird reduziert, keine Bereinigung oder Migration bestehender Aufträge.
+
+- Lokaler Hörvergleich mit identischem Text und Tempo: Thorsten klar, Thorsten lebhaft
+  (Emotions-Sprecher-ID 0), Kerstin; LJ für Englisch. Kerstins niedrigere Modellqualität
+  bleibt sichtbar. Modellwahl ist eine feste Liste, keine nutzerdefinierten Pfade/URLs.
+- Stimme/Tempo sind Teil der versionierten Produktionskonfiguration und des Audio-
+  Cache-Fingerprints. Eine Änderung entwertet die Freigabe; alte Konfigurationen werden
+  ohne Änderung ihrer gespeicherten Inhalte weiterhin gelesen.
+- Skript-Wortbudget und Editor-Sprechzeit verwenden eine grobe lokale Kalibrierung
+  je Stimme (deutscher Vergleich: 25 Wörter / 7,05, 8,38, 8,02 Sekunden). Thema, Satzbau
+  und Aussprache beeinflussen die tatsächliche Länge. Keine zugesicherte Zieldauer.
+- KI-Überarbeitung optional auf stabile Szenen-ID begrenzt. Server übernimmt nur diese
+  Szene samt Sprechertext/Zeichenregie; andere Szenen, Titel und Dauern bleiben erhalten.
+  Fehlende Szene/ID, ungültige Textanker und konkurrierende Versionen werden abgewiesen.
+- Redaktionelle Prompts verlangen verbundene Erzählung, Ursache/Wirkung und Gegenstands-
+  Kontinuität. Presets sind bearbeitbare Anweisungen, keine automatischen KI-Aufrufe.
+- Ungespeicherte Eingaben schützen Freigaben und Auftragswechsel. Laufende Änderungen
+  sperren doppelte Aktionen; Fehler erhalten den Entwurf. Sachprüfungsnotizen bleiben
+  bei manuellen Änderungen sichtbar und müssen weiterhin redaktionell geprüft werden.
+
+Schutzbedarf: Entwürfe, lokale Hörproben, Medien und vorhandene Anbieterzugänge.
+Sprechertexte werden lokal synthetisiert; Downloads gehen ausschließlich über den
+vorhandenen Piper-Downloader. Keine neuen Cloud-Dienste/Kosten oder Zugangsdatenänderungen.
+Hörproben: max. 600 Zeichen, endliches Tempo 0,85–1,25, eine gleichzeitige Anfrage,
+atomarer Cache mit 128-MB-Schwelle, private Audioantworten und streng geprüfte Hash-IDs.
+Der lokale Piper-Zugriff ist serialisiert. KI-Ausgabe bleibt untrusted und wird validiert.
+
+Offen: subjektive Stimmenqualität, menschliche Faktenprüfung und approximative Wort-
+Synchronisierung. Ein Hörvergleich ersetzt keine Beurteilung längerer Erzählungen.
+
+Nachweis dieser Erweiterung: echte drei deutsche Hörproben; echte Antigravity-
+Überarbeitung einer Szene mit unverändertem Titel und unveränderten übrigen Szenen;
+Browserprüfung von Stimmen-/Tempowahl, Versionswechsel und Schutz ungespeicherter
+Eingaben. Anschließende Full-HD-Probe mit Thorsten lebhaft bei 1,1×: 13,62 Sekunden,
+automatisches Qualitäts-Gate bestanden. 151 Python-Tests bestanden, ein optionaler
+Render-Test übersprungen; 14 Renderer-Tests und TypeScript-Prüfung bestanden.
+Sicherheitsnachweis: ungültige Stimm-/Medien-IDs, nicht endliches Tempo, falsche
+Sprache, konkurrierende Vorschauanfragen und veraltete Szenenversionen abgewiesen;
+Stimmenwechsel entwertet Freigaben und trennt Audio-Caches. Keine Sicherheitsgarantie.
+
 Stand: 2026-10-10. Aktueller Nutzerauftrag ersetzt die bisherigen offenen Ausbaupläne.
 
 Erweiterung 2026-10-10: Strichmenschenfilme folgen der tatsächlichen Sprechdauer,

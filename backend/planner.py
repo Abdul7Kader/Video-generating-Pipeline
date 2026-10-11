@@ -234,6 +234,14 @@ def _system_prompt() -> str:
 def _prompt(request: JobCreate, previous: dict[str, Any] | None = None, instructions: str | None = None) -> str:
     words_per_minute = 130 if request.language == "de" else 145
     target_words = round(request.duration_seconds * words_per_minute / 60)
+    voice_config = request.production_config
+    voice_speed = voice_config.get("voice_speed", 1.0) if isinstance(voice_config, dict) else voice_config.voice_speed if voice_config else 1.0
+    voice_id = voice_config.get("voice_id") if isinstance(voice_config, dict) else voice_config.voice_id if voice_config else None
+    if voice_id:
+        from .voices import estimated_words_per_minute
+        words_per_minute = estimated_words_per_minute(voice_id)
+        target_words = round(request.duration_seconds * words_per_minute / 60)
+    target_words = round(target_words * voice_speed)
     beat_seconds = 6 if request.video_type == "stickman" else 12
     scene_count_min = max(3, min(30, round(request.duration_seconds / beat_seconds)))
     scene_count_max = max(scene_count_min, min(30, round(request.duration_seconds / (4 if request.video_type == "stickman" else 6))))
@@ -278,6 +286,9 @@ Editorial requirements
 - Without supplied sources, avoid exact numbers, rankings, superlatives and claims of certainty. State only robust high-level mechanisms, and quote every claim needing verification precisely in fact_check_notes.
 - An analogy may clarify one aspect but must never pretend to reproduce the scientific mechanism. Explain where necessary what the analogy does and does not mean.
 - Narration must sound natural when spoken aloud; do not include headings, stage directions or citation markers in narration.
+- Write connected spoken prose, with one clear thought per sentence and a concrete example before abstract conclusions. Avoid repetitive sentence openings, empty rhetorical questions and a second introduction in each scene.
+- For a drawn story, make cause and effect visible: introduce a character's problem, show their action and its consequence, then resolve it. Keep the same character ids, outfits and held objects across connected shots.
+- Every visual beat must explain the sentence being spoken. Revise narration and literal cue anchors together; check pickup, carrying and placement continuity across cuts. Do not add idle presenter gestures to fill time.
 - Do not add a commercial, political or donation call to action unless the brief explicitly asks for one.
 - Do not add follow, subscribe, like, next-episode or teaser cards unless explicitly requested. End with the subject's clearest conclusion.
 - Keep deliberate on-screen text short. Never copy the visual instruction or full narration into on_screen_text.

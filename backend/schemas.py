@@ -27,6 +27,8 @@ class ProductionConfig(BaseModel):
     media_provider: MediaProviderId = "procedural_stickman"
     voice_provider: VoiceProviderId = "piper"
     editor: EditorId = "remotion"
+    voice_id: Literal["thorsten", "thorsten_amused", "kerstin", "ljspeech"] | None = None
+    voice_speed: float = Field(default=1.0, ge=0.85, le=1.25, allow_inf_nan=False)
 
 
 class Scene(BaseModel):
@@ -153,12 +155,29 @@ class ScriptDraft(BaseModel):
 class ScriptRevision(BaseModel):
     expected_version: int = Field(ge=1)
     instructions: str = Field(min_length=3, max_length=4000)
+    scene_id: str | None = Field(default=None, min_length=3, max_length=64, pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]+$")
 
     @field_validator("instructions")
     @classmethod
     def normalize_instructions(cls, value: str) -> str:
-        return " ".join(value.split())
+        value = " ".join(value.split())
+        if len(value) < 3:
+            raise ValueError("Bitte einen konkreten Änderungswunsch eingeben.")
+        return value
 
+
+class VoicePreview(BaseModel):
+    voice_id: Literal["thorsten", "thorsten_amused", "kerstin", "ljspeech"]
+    text: str = Field(min_length=3, max_length=600)
+    speed: float = Field(default=1.0, ge=0.85, le=1.25, allow_inf_nan=False)
+
+    @field_validator("text")
+    @classmethod
+    def normalize_text(cls, value: str) -> str:
+        value = " ".join(value.split())
+        if len(value) < 3:
+            raise ValueError("Bitte einen hörbaren Sprechertext eingeben.")
+        return value
 
 class VersionAction(BaseModel):
     expected_version: int = Field(ge=1)

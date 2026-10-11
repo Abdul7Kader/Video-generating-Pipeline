@@ -253,9 +253,11 @@ def normalize_production_config(
     *,
     legacy_video_type: str,
     legacy_script_provider: str,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     explicit = config is not None
     candidate = dict(config or legacy_production_config(legacy_video_type, legacy_script_provider))
+    voice_id = candidate.pop("voice_id", None)
+    voice_speed = candidate.pop("voice_speed", 1.0)
     required = {"profile_id", "video_type", "script_provider", "media_provider", "voice_provider", "editor"}
     if set(candidate) != required:
         raise ValueError("Die Produktionskonfiguration ist unvollständig.")
@@ -280,4 +282,13 @@ def normalize_production_config(
         None,
     )
     candidate["profile_id"] = matching or "custom"
-    return {key: str(candidate[key]) for key in required}
+    result = {key: str(candidate[key]) for key in required}
+    if voice_id is not None:
+        from .voices import voice_choice
+        voice_choice(voice_id)
+        result["voice_id"] = voice_id
+    if not isinstance(voice_speed, (int, float)) or not 0.85 <= voice_speed <= 1.25:
+        raise ValueError("Sprechtempo muss zwischen 0,85 und 1,25 liegen.")
+    if voice_speed != 1.0:
+        result["voice_speed"] = voice_speed
+    return result

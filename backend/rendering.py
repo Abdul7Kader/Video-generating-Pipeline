@@ -4,6 +4,8 @@ import base64
 import json
 import shutil
 import subprocess
+import sys
+import threading
 import urllib.error
 import urllib.request
 import wave
@@ -17,9 +19,11 @@ from .moneyprinter import moneyprinter_status, render_with_moneyprinter, write_r
 from .plan import file_sha256, object_sha256
 from .quality import find_ffmpeg, find_ffprobe, run_quality_gate
 from .speech import VOICE_POLICY, TIMING_METHOD, compact_speech, estimate_word_timings, speech_scene_durations, direct_scene
+from .voices import voice_choice, validate_voice_language
 
 
 _PIPER_VOICE_CACHE: dict[str, Any] = {}
+_PIPER_LOCK = threading.Lock()
 
 
 def _run(command: list[str], *, input_text: str | None = None, timeout: int = 1800) -> subprocess.CompletedProcess[str]:
@@ -34,15 +38,15 @@ def _voice_model() -> Path:
     return settings.voices_dir / f"{settings.piper_voice}.onnx"
 
 
-def ensure_voice() -> Path | None:
-    model = _voice_model()
+def ensure_voice(voice_id: str | None = None) -> Path | None:
+    model = settings.voices_dir / f"{voice_choice(voice_id)['model']}.onnx" if voice_id else _voice_model()
     if model.exists() and model.with_suffix(".onnx.json").exists():
         return model
     if not settings.piper_auto_download:
         return None
     settings.voices_dir.mkdir(parents=True, exist_ok=True)
     try:
-        _run(["python3", "-m", "piper.download_voices", "--data-dir", str(settings.voices_dir), settings.piper_voice], timeout=900)
+        _run([sys.executable, "-m", "piper.download_voices", "--data-dir", str(settings.voices_dir), model.stem], timeout=900)
     except (subprocess.SubprocessError, OSError):
         return None
     return model if model.exists() else None
@@ -97,24 +101,30 @@ def _synthesize_gemini(text: str, output: Path, language: str) -> tuple[str, flo
     return f"gemini:{settings.gemini_tts_model}:{settings.gemini_tts_voice}", duration
 
 
-def synthesize(text: str, output: Path, language: str, *, provider: str | None = None) -> tuple[str, float]:
+def synthesize(text: str, output: Path, language: str, *, provider: str | None = None, voice_id: str | None = None, speed: float = 1.0) -> tuple[str, float]:
     selected_provider = provider or settings.tts_provider
     if selected_provider in {"gemini", "gemini_tts"}:
         return _synthesize_gemini(text, output, language)
     if selected_provider != "piper":
         raise RuntimeError(f"Unbekannter Stimmenanbieter: {selected_provider}")
-    model = ensure_voice()
-    if not model:
-        raise RuntimeError("Keine funktionsfähige Sprecherstimme verfügbar; stumme Ersatzvideos sind deaktiviert.")
+    validate_voice_language({"voice_id": voice_id, "voice_provider": selected_provider}, language)
+    if not 0.85 <= speed <= 1.25:
+        raise ValueError("Unzulässiges Sprechtempo.")
     try:
-        from piper import PiperVoice
+        from piper import PiperVoice, SynthesisConfig
 
-        voice = _PIPER_VOICE_CACHE.get(str(model))
-        if voice is None:
-            voice = PiperVoice.load(str(model), use_cuda=False)
-            _PIPER_VOICE_CACHE[str(model)] = voice
-        with wave.open(str(output), "wb") as wav_file:
-            voice.synthesize_wav(text, wav_file)
+        # Piper/espeak and downloads share process-global state; serialize them.
+        with _PIPER_LOCK:
+            model = ensure_voice(voice_id) if voice_id else ensure_voice()
+            if not model:
+                raise RuntimeError("Keine funktionsfähige Sprecherstimme verfügbar; stumme Ersatzvideos sind deaktiviert.")
+            voice = _PIPER_VOICE_CACHE.get(str(model))
+            if voice is None:
+                voice = PiperVoice.load(str(model), use_cuda=False)
+                _PIPER_VOICE_CACHE[str(model)] = voice
+            with wave.open(str(output), "wb") as wav_file:
+                config = SynthesisConfig(speaker_id=voice_choice(voice_id)["speaker_id"] if voice_id else None, length_scale=voice.config.length_scale / speed)
+                voice.synthesize_wav(text, wav_file, syn_config=config)
         with wave.open(str(output), "rb") as wav_file:
             duration = wav_file.getnframes() / wav_file.getframerate()
         return "piper", max(1.0, duration)
@@ -123,7 +133,7 @@ def synthesize(text: str, output: Path, language: str, *, provider: str | None =
         raise RuntimeError(f"Spracherzeugung fehlgeschlagen: {exc}") from exc
 
 
-def _voice_fingerprint(scene: dict[str, Any], language: str, provider: str | None = None, *, continuous: bool = False) -> str:
+def _voice_fingerprint(scene: dict[str, Any], language: str, provider: str | None = None, *, continuous: bool = False, voice_id: str | None = None, speed: float = 1.0) -> str:
     provider = provider or settings.tts_provider
     normalized_provider = "gemini" if provider == "gemini_tts" else provider
     configuration = {
@@ -137,6 +147,11 @@ def _voice_fingerprint(scene: dict[str, Any], language: str, provider: str | Non
     }
     if continuous:
         configuration["speech_policy"] = VOICE_POLICY
+    if voice_id:
+        configuration["local_voice"] = voice_choice(voice_id)
+        configuration["piper_voice"] = voice_choice(voice_id)["model"]
+    if speed != 1.0:
+        configuration["speed"] = speed
     return object_sha256(configuration)
 
 
@@ -163,6 +178,8 @@ def prepare_scene_audio(
     *,
     provider: str | None = None,
     continuous: bool = False,
+    voice_id: str | None = None,
+    speed: float = 1.0,
 ) -> tuple[list[dict[str, Any]], str]:
     audio_dir = job_dir / "audio"
     audio_dir.mkdir(parents=True, exist_ok=True)
@@ -170,7 +187,7 @@ def prepare_scene_audio(
     modes: set[str] = set()
     for scene in scenes:
         scene_id = str(scene["scene_id"])
-        fingerprint = _voice_fingerprint(scene, language, provider, continuous=continuous)
+        fingerprint = _voice_fingerprint(scene, language, provider, continuous=continuous, voice_id=voice_id, speed=speed)
         destination = audio_dir / f"{scene_id}.wav"
         cached = _cached_voice(job_dir, scene_id, fingerprint)
         if cached:
@@ -181,10 +198,10 @@ def prepare_scene_audio(
             duration = float(previous["duration"])
             reused_from = str(source)
         else:
-            if provider is None:
-                mode, duration = synthesize(str(scene["narration"]), destination, language)
-            else:
-                mode, duration = synthesize(str(scene["narration"]), destination, language, provider=provider)
+            options = {"provider": provider} if provider else {}
+            if voice_id or speed != 1.0:
+                options.update(voice_id=voice_id, speed=speed)
+            mode, duration = synthesize(str(scene["narration"]), destination, language, **options)
             reused_from = None
         speech = {}
         if continuous:
@@ -293,6 +310,8 @@ def render_job(job: dict[str, Any], *, job_dir_override: Path | None = None) -> 
         job["language"],
         provider=production_config.get("voice_provider"),
         continuous=continuous,
+        voice_id=production_config.get("voice_id"),
+        speed=production_config.get("voice_speed", 1.0),
     )
     scene_durations = speech_scene_durations(job['script']['scenes'], audio_segments) if continuous else [
         max(float(scene.get("duration_seconds") or 0.1), float(segment["duration"]) + 0.2)

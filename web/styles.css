@@ -38,3 +38,11 @@ label.help-field{position:relative;padding-right:22px}label.help-field:not(.targ
 .drawing-item{margin:14px 0;padding:14px;background:var(--paper);border-radius:8px}
 .drawing-item h4{margin:0 0 12px}
 .scene[data-visual-type="stickman"] label:has([data-key="source_strategy"], [data-key="asset_query"], [data-key="asset_prompt"], [data-key="source_ref"], [data-key="camera"]){display:none}
+:where([hidden]){display:none!important}
+.voice-editor{margin:18px 0;padding:18px;border:1px solid var(--line);border-radius:12px}
+.voice-editor h3{margin-top:0}.voice-editor details{margin-top:14px}.voice-editor summary{cursor:pointer;margin-bottom:12px}
+.voice-samples{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px}
+.voice-sample{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--line);border-radius:10px}
+.voice-sample audio{width:100%;max-width:100%}.editor-status{display:flex;flex-wrap:wrap;gap:12px;margin:18px 0;padding:12px;background:var(--surface-soft);border-radius:8px}
+.revision-presets{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.secondary{color:var(--card)}
