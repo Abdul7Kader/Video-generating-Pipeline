@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Video Pipeline</title><script src="/theme.js"></script><link rel="stylesheet" href="/styles.css?v=stickman-studio-3">
+  <title>Video Pipeline</title><script src="/theme.js"></script><link rel="stylesheet" href="/styles.css?v=process-progress-1">
 </head>
 <body>
   <header><div class="brand"><span class="brandmark">▶</span><div><strong>Video Pipeline</strong><small>Strichmenschen · gezeichnete Geschichten</small></div></div><div class="header-tools"><div class="header-status"><div id="health" class="health">System wird geprüft …</div></div><button id="help-button" class="help-toggle" type="button" aria-label="Hilfe zur Bedienung öffnen" aria-haspopup="dialog" title="Hilfe zur Bedienung öffnen">i</button><button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false" aria-label="Dunklen Modus aktivieren" title="Dunklen Modus aktivieren"><span class="theme-icon" aria-hidden="true">☾</span><span class="theme-label">Dunkel</span></button></div></header>
@@ -31,7 +31,7 @@
         <label class="help-field" data-help="Setzt Bild, Ton und Untertitel zum fertigen Video zusammen.">Schnitt<select id="new-editor-provider" name="editor" title="Werkzeug für Videoschnitt und Zusammensetzung wählen."></select></label>
       </div>
     </details>
-    <div class="dialog-actions"><button type="button" class="ghost" data-close title="Auftrag schließen, ohne etwas anzulegen">Abbrechen</button><button id="create-submit" class="primary" title="Nur den Skriptentwurf erzeugen; noch kein Video oder Upload">Skriptentwurf erstellen</button></div>
+    <div id="create-progress"></div><div class="dialog-actions"><button type="button" class="ghost" data-close title="Auftrag schließen, ohne etwas anzulegen">Abbrechen</button><button id="create-submit" class="primary" title="Nur den Skriptentwurf erzeugen; noch kein Video oder Upload">Skriptentwurf erstellen</button></div>
   </form></dialog>
-  <div id="toast"></div><script src="/stickman.js?v=stickman-studio-3"></script><script src="/voices.js?v=qwen-narrator-1"></script><script src="/app.js?v=qwen-narrator-1"></script>
+  <div id="toast"></div><script src="/stickman.js?v=stickman-studio-3"></script><script src="/progress.js?v=process-progress-1"></script><script src="/voices.js?v=process-progress-1"></script><script src="/app.js?v=process-progress-1"></script>
 </body></html>

@@ -20,7 +20,7 @@ window.VoiceEditor = (() => {
       <div class="grid2"><label>Erzählerstimme<select id="${prefix}-voice-id">${matching.map(v => `<option value="${v.id}" ${selected === v.id ? 'selected' : ''} ${v.available ? '' : 'disabled'}>${escape(v.label)}${v.quality === 'low' ? ' · geringere Modellqualität' : ''}${v.available ? '' : ' · nicht installiert'}</option>`).join('')}</select></label>
       <label>Sprechtempo<select id="${prefix}-voice-speed">${speeds.map(speed => `<option value="${speed}" ${Number(config.voice_speed || 1) === speed ? 'selected' : ''}>${speed.toLocaleString('de-DE')}×${speed === 1 ? ' · normal' : ''}</option>`).join('')}</select></label></div>
       <details><summary>Stimmen hören und vergleichen</summary><label>Text für den Hörvergleich<textarea data-voice-text rows="3" minlength="3" maxlength="600">${escape(text.slice(0, 600) || sample(language))}</textarea></label>
-      <button type="button" class="secondary" data-voice-preview>Ausgewählte Stimme anhören</button> <button type="button" class="ghost" data-voice-compare>Alle verfügbaren Stimmen vergleichen</button><p class="field-hint" data-voice-status role="status" aria-live="polite"></p><div class="voice-samples" data-voice-samples></div></details></section>`;
+      <button type="button" class="secondary" data-voice-preview>Ausgewählte Stimme anhören</button> <button type="button" class="ghost" data-voice-compare>Alle verfügbaren Stimmen vergleichen</button><div data-voice-progress></div><p class="field-hint" data-voice-status role="status" aria-live="polite"></p><div class="voice-samples" data-voice-samples></div></details></section>`;
   }
   function collect(prefix) {
     const voice_id = document.getElementById(`${prefix}-voice-id`).value;
@@ -29,6 +29,7 @@ window.VoiceEditor = (() => {
   function bind(root = document) {
     root.querySelectorAll('[data-voice-compare], [data-voice-preview]').forEach(button => {
       button.onclick = async () => {
+        if (ProcessProgress.busy) return;
         const studio = button.closest('.voice-editor');
         const prefix = studio.dataset.voicePrefix;
         const status = studio.querySelector('[data-voice-status]');
@@ -36,37 +37,55 @@ window.VoiceEditor = (() => {
         const text = studio.querySelector('[data-voice-text]').value.trim();
         if (text.length < 3) { status.textContent = 'Bitte einen Sprechertext eingeben.'; return; }
         const speed = collect(prefix).voice_speed;
-        const buttons = [...studio.querySelectorAll('[data-voice-compare], [data-voice-preview]')];
-        buttons.forEach(item => { item.disabled = true; });
+        const controls = [...(studio.closest('form') || root).querySelectorAll('button, input, textarea, select')];
+        const disabled = controls.map(item => item.disabled);
+        controls.forEach(item => { item.disabled = true; });
         samples.replaceChildren();
         let completed = 0;
         const selected = collect(prefix).voice_id;
-        for (const voice of choices.filter(v => v.language === studio.dataset.language && v.available && (!button.hasAttribute('data-voice-preview') || v.id === selected))) {
-          status.textContent = `${voice.label}: Hörprobe wird erstellt …`;
-          try {
-            const response = await fetch('/api/voice-previews', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({voice_id:voice.id, text, speed})});
-            const result = await response.json();
-            if (!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : 'Ungültige Hörprobe.');
-            const card = document.createElement('div');
-            card.className = 'voice-sample';
-            card.innerHTML = `<strong>${escape(voice.label)} · ${speed}×</strong><audio controls preload="metadata" src="${escape(result.url)}" aria-label="Hörprobe ${escape(voice.label)}"></audio><button type="button" class="ghost">Diese Stimme wählen</button>`;
-            card.querySelector('button').onclick = () => {
-              const select = document.getElementById(`${prefix}-voice-id`);
-              select.value = voice.id;
-              select.dispatchEvent(new Event('change', {bubbles:true}));
-              status.textContent = `${voice.label} ausgewählt. ${prefix === 'job' ? 'Produktionskonfiguration speichern, um die Stimme zu übernehmen.' : 'Gilt für den neuen Auftrag.'}`;
-            };
-            samples.append(card);
-            completed++;
-          } catch (error) {
-            const notice = document.createElement('p');
-            notice.className = 'notice error';
-            notice.textContent = `${voice.label}: ${error.message}`;
-            samples.append(notice);
+        const targets = choices.filter(v => v.language === studio.dataset.language && v.available && (!button.hasAttribute('data-voice-preview') || v.id === selected));
+        const estimates = targets.map(voice => ProcessProgress.voiceOptions(voice, text));
+        const options = targets.length === 1 ? estimates[0] : {label: `${targets.length} Stimmen vergleichen`, key: `voice-compare:${studio.dataset.language}`, baseline: estimates.reduce((sum, item) => sum + item.baseline, 0), minimumSample: 20, detail: 'Die Hörproben werden nacheinander erstellt. Gespeicherte Hörproben sind sofort verfügbar.'};
+        const progress = ProcessProgress.start(studio.querySelector('[data-voice-progress]'), options);
+        studio.querySelector('[data-voice-progress]').scrollIntoView({block: 'nearest'});
+        try {
+          for (const [index, voice] of targets.entries()) {
+            status.textContent = `${index + 1} von ${targets.length} · ${voice.label}: Hörprobe wird erstellt …`;
+            try {
+              const response = await fetch('/api/voice-previews', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({voice_id:voice.id, text, speed})});
+              const result = await response.json();
+              if (!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : 'Ungültige Hörprobe.');
+              const card = document.createElement('div');
+              card.className = 'voice-sample';
+              card.innerHTML = `<strong>${escape(voice.label)} · ${speed}×</strong><audio controls preload="metadata" src="${escape(result.url)}" aria-label="Hörprobe ${escape(voice.label)}"></audio><button type="button" class="ghost">Diese Stimme wählen</button>`;
+              card.querySelector('button').onclick = () => {
+                if (ProcessProgress.busy) return;
+                const select = document.getElementById(`${prefix}-voice-id`);
+                select.value = voice.id;
+                select.dispatchEvent(new Event('change', {bubbles:true}));
+                status.textContent = `${voice.label} ausgewählt. ${prefix === 'job' ? 'Produktionskonfiguration speichern, um die Stimme zu übernehmen.' : 'Gilt für den neuen Auftrag.'}`;
+              };
+              card.querySelector('button').disabled = true;
+              samples.append(card);
+              completed++;
+            } catch (error) {
+              const notice = document.createElement('p');
+              notice.className = 'notice error';
+              notice.textContent = `${voice.label}: ${error.message}`;
+              samples.append(notice);
+            }
           }
+          const message = completed === targets.length && completed ? 'Hörprobe bereit. Höre sie an und wähle deine Stimme.' : `${completed} von ${targets.length} Hörproben erzeugt. Bitte die angezeigte Fehlermeldung prüfen.`;
+          status.textContent = message;
+          if (completed === targets.length && completed) progress.finish(message);
+          else progress.fail(message);
+        } catch (error) {
+          progress.fail(error.message);
+          status.textContent = error.message;
+        } finally {
+          controls.forEach((item, index) => { item.disabled = disabled[index]; });
+          samples.querySelectorAll('button').forEach(item => { item.disabled = false; });
         }
-        status.textContent = completed ? 'Hörprobe bereit. Höre sie an und wähle deine Stimme.' : 'Keine Hörprobe erzeugt. Bitte die angezeigte Fehlermeldung prüfen.';
-        buttons.forEach(item => { item.disabled = false; });
       };
     });
   }
