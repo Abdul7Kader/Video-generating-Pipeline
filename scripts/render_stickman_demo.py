@@ -18,6 +18,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / "data" / "style-preview")
     parser.add_argument("--script", type=Path, default=ROOT / "examples" / "stickman-demo.json")
+    parser.add_argument("--voice", choices=("piper", "qwen_tts"), default="piper")
     args = parser.parse_args()
     script = json.loads(args.script.read_text(encoding="utf-8"))
     script["scenes"] = [Scene.model_validate(scene).model_dump() for scene in script["scenes"]]
@@ -25,7 +26,8 @@ def main() -> None:
     output, mode = render_job({
         "id": "stickman-style-demo", "render_version": 1, "language": "de",
         "aspect_ratio": "16:9", "script": script, "render_script_hash": script_hash(script),
-        "production_config": {"editor": "remotion", "voice_provider": "piper"},
+        "production_config": {"editor": "remotion", "voice_provider": args.voice,
+                              **({"voice_id": "qwen_narrator"} if args.voice == "qwen_tts" else {})},
     }, job_dir_override=args.output.resolve())
     print(json.dumps({"video": output, "voice": mode}, ensure_ascii=False))
 

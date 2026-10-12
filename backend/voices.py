@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 VOICE_CHOICES = (
+    {"id": "qwen_narrator", "label": "Qwen · tiefer Erzähler", "provider": "qwen_tts", "language": "de", "model": "Qwen3-TTS-12Hz-1.7B-Base", "speaker_id": None, "quality": "neural", "license": "Apache-2.0"},
     {"id": "thorsten", "label": "Thorsten · klar", "language": "de", "model": "de_DE-thorsten-high", "speaker_id": None, "quality": "high", "license": "CC0"},
     {"id": "thorsten_amused", "label": "Thorsten · lebhaft", "language": "de", "model": "de_DE-thorsten_emotional-medium", "speaker_id": 0, "quality": "medium", "license": "CC0"},
     {"id": "kerstin", "label": "Kerstin · andere Stimme", "language": "de", "model": "de_DE-kerstin-low", "speaker_id": None, "quality": "low", "license": "CC0"},
@@ -18,12 +19,14 @@ def voice_choice(identifier: str) -> dict:
 
 def estimated_words_per_minute(identifier: str) -> int:
     # Rough local calibration with the same 25-word comparison passage, not ASR.
-    return {"thorsten": 210, "thorsten_amused": 180, "kerstin": 185, "ljspeech": 170}[voice_choice(identifier)["id"]]
+    return {"qwen_narrator": 156, "thorsten": 210, "thorsten_amused": 180, "kerstin": 185, "ljspeech": 170}[voice_choice(identifier)["id"]]
 
 
 def validate_voice_language(config: dict, language: str) -> None:
+    if config.get("voice_provider") == "qwen_tts" and config.get("voice_id") != "qwen_narrator":
+        raise ValueError("Qwen benötigt die ausgewählte Erzählerstimme.")
     if config.get("voice_id"):
-        if config.get("voice_provider") != "piper":
-            raise ValueError("Die gewählte lokale Stimme benötigt Piper.")
+        if config.get("voice_provider") != voice_choice(config["voice_id"]).get("provider", "piper"):
+            raise ValueError("Stimme und Stimmenanbieter müssen übereinstimmen.")
         if voice_choice(config["voice_id"])["language"] != language:
             raise ValueError("Stimme und Skriptsprache müssen übereinstimmen.")

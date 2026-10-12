@@ -66,6 +66,13 @@ class Settings:
     )
     piper_voice: str = os.getenv("PIPER_VOICE", "de_DE-thorsten-high")
     piper_auto_download: bool = _bool("PIPER_AUTO_DOWNLOAD", True)
+    qwen_tts_python: Path = Path(os.getenv("QWEN_TTS_PYTHON", str(
+        Path(__file__).resolve().parents[1] / ".runtime" / "qwen-python" /
+        ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    ))).resolve()
+    qwen_tts_model_dir: Path = Path(os.getenv("QWEN_TTS_MODEL_DIR", str(data_dir / "voices" / "qwen-model"))).resolve()
+    qwen_tts_threads: int = max(1, min(8, int(os.getenv("QWEN_TTS_THREADS", "4"))))
+    qwen_tts_timeout_seconds: int = max(60, min(3600, int(os.getenv("QWEN_TTS_TIMEOUT_SECONDS", "1800"))))
     render_concurrency: int = max(1, min(3, int(os.getenv("RENDER_CONCURRENCY", "2"))))
     moneyprinter_enabled: bool = _bool("MONEYPRINTER_ENABLED", False)
     moneyprinter_root: Path = Path(os.getenv("MONEYPRINTER_ROOT", str(_DEFAULT_MONEYPRINTER_ROOT))).resolve()

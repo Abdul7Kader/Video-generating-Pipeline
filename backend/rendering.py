@@ -20,6 +20,7 @@ from .plan import file_sha256, object_sha256
 from .quality import find_ffmpeg, find_ffprobe, run_quality_gate
 from .speech import VOICE_POLICY, TIMING_METHOD, compact_speech, estimate_word_timings, speech_scene_durations, direct_scene
 from .voices import voice_choice, validate_voice_language
+from . import qwen_tts
 
 
 _PIPER_VOICE_CACHE: dict[str, Any] = {}
@@ -103,6 +104,9 @@ def _synthesize_gemini(text: str, output: Path, language: str) -> tuple[str, flo
 
 def synthesize(text: str, output: Path, language: str, *, provider: str | None = None, voice_id: str | None = None, speed: float = 1.0) -> tuple[str, float]:
     selected_provider = provider or settings.tts_provider
+    if selected_provider == "qwen_tts":
+        validate_voice_language({"voice_id": voice_id, "voice_provider": selected_provider}, language)
+        return qwen_tts.synthesize(text, output, language, speed)
     if selected_provider in {"gemini", "gemini_tts"}:
         return _synthesize_gemini(text, output, language)
     if selected_provider != "piper":
@@ -149,7 +153,10 @@ def _voice_fingerprint(scene: dict[str, Any], language: str, provider: str | Non
         configuration["speech_policy"] = VOICE_POLICY
     if voice_id:
         configuration["local_voice"] = voice_choice(voice_id)
-        configuration["piper_voice"] = voice_choice(voice_id)["model"]
+        if normalized_provider == "piper":
+            configuration["piper_voice"] = voice_choice(voice_id)["model"]
+    if normalized_provider == "qwen_tts":
+        configuration["qwen_voice"] = qwen_tts.voice_fingerprint()
     if speed != 1.0:
         configuration["speed"] = speed
     return object_sha256(configuration)

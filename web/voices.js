@@ -11,20 +11,23 @@ window.VoiceEditor = (() => {
   }
   function render(prefix, config, language, text = '') {
     const matching = choices.filter(v => v.language === language);
-    const selected = config.voice_id || (language === 'de' ? 'thorsten' : 'ljspeech');
+    const preferred = prefix === 'new' && matching.find(v => v.id === 'qwen_narrator' && v.available);
+    const selected = config.voice_id || (preferred ? preferred.id : (language === 'de' ? 'thorsten' : 'ljspeech'));
     const speeds = [...new Set([0.85, 1, 1.1, 1.2, 1.25, Number(config.voice_speed || 1)])].sort((a,b) => a-b);
     return `<section class="voice-editor" data-voice-prefix="${prefix}" data-language="${language}">
-      <h3>Stimmenstudio · lokal</h3><p class="field-hint">Vergleiche denselben Text. Die Hörprobe verwendet das Tempo und die Pausenkürzung der Produktion. Fehlende Modelle werden beim ersten Hören geladen.</p>
+      <h3>Stimmenstudio · lokal</h3><p class="field-hint">Die Hörprobe verwendet das Tempo und die Pausenkürzung der Produktion. Qwen nutzt den ausgewählten tiefen Erzähler und läuft auf deinem Rechner; auf einer CPU kann die Erzeugung mehrere Minuten dauern. Piper-Modelle werden bei Bedarf geladen.</p>
+      ${matching.filter(v => !v.available && v.reason).map(v => `<p class="field-hint">${escape(v.reason)}</p>`).join('')}
       <div class="grid2"><label>Erzählerstimme<select id="${prefix}-voice-id">${matching.map(v => `<option value="${v.id}" ${selected === v.id ? 'selected' : ''} ${v.available ? '' : 'disabled'}>${escape(v.label)}${v.quality === 'low' ? ' · geringere Modellqualität' : ''}${v.available ? '' : ' · nicht installiert'}</option>`).join('')}</select></label>
       <label>Sprechtempo<select id="${prefix}-voice-speed">${speeds.map(speed => `<option value="${speed}" ${Number(config.voice_speed || 1) === speed ? 'selected' : ''}>${speed.toLocaleString('de-DE')}×${speed === 1 ? ' · normal' : ''}</option>`).join('')}</select></label></div>
       <details><summary>Stimmen hören und vergleichen</summary><label>Text für den Hörvergleich<textarea data-voice-text rows="3" minlength="3" maxlength="600">${escape(text.slice(0, 600) || sample(language))}</textarea></label>
-      <button type="button" class="secondary" data-voice-compare>Alle verfügbaren Stimmen vergleichen</button><p class="field-hint" data-voice-status role="status" aria-live="polite"></p><div class="voice-samples" data-voice-samples></div></details></section>`;
+      <button type="button" class="secondary" data-voice-preview>Ausgewählte Stimme anhören</button> <button type="button" class="ghost" data-voice-compare>Alle verfügbaren Stimmen vergleichen</button><p class="field-hint" data-voice-status role="status" aria-live="polite"></p><div class="voice-samples" data-voice-samples></div></details></section>`;
   }
   function collect(prefix) {
-    return {voice_id: document.getElementById(`${prefix}-voice-id`).value, voice_speed: Number(document.getElementById(`${prefix}-voice-speed`).value)};
+    const voice_id = document.getElementById(`${prefix}-voice-id`).value;
+    return {voice_id, voice_provider: choices.find(v => v.id === voice_id)?.provider || 'piper', voice_speed: Number(document.getElementById(`${prefix}-voice-speed`).value)};
   }
   function bind(root = document) {
-    root.querySelectorAll('[data-voice-compare]').forEach(button => {
+    root.querySelectorAll('[data-voice-compare], [data-voice-preview]').forEach(button => {
       button.onclick = async () => {
         const studio = button.closest('.voice-editor');
         const prefix = studio.dataset.voicePrefix;
@@ -33,9 +36,12 @@ window.VoiceEditor = (() => {
         const text = studio.querySelector('[data-voice-text]').value.trim();
         if (text.length < 3) { status.textContent = 'Bitte einen Sprechertext eingeben.'; return; }
         const speed = collect(prefix).voice_speed;
-        button.disabled = true;
+        const buttons = [...studio.querySelectorAll('[data-voice-compare], [data-voice-preview]')];
+        buttons.forEach(item => { item.disabled = true; });
         samples.replaceChildren();
-        for (const voice of choices.filter(v => v.language === studio.dataset.language && v.available)) {
+        let completed = 0;
+        const selected = collect(prefix).voice_id;
+        for (const voice of choices.filter(v => v.language === studio.dataset.language && v.available && (!button.hasAttribute('data-voice-preview') || v.id === selected))) {
           status.textContent = `${voice.label}: Hörprobe wird erstellt …`;
           try {
             const response = await fetch('/api/voice-previews', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({voice_id:voice.id, text, speed})});
@@ -51,6 +57,7 @@ window.VoiceEditor = (() => {
               status.textContent = `${voice.label} ausgewählt. ${prefix === 'job' ? 'Produktionskonfiguration speichern, um die Stimme zu übernehmen.' : 'Gilt für den neuen Auftrag.'}`;
             };
             samples.append(card);
+            completed++;
           } catch (error) {
             const notice = document.createElement('p');
             notice.className = 'notice error';
@@ -58,8 +65,8 @@ window.VoiceEditor = (() => {
             samples.append(notice);
           }
         }
-        status.textContent = 'Vergleich abgeschlossen. Höre die Proben an und wähle deine Stimme.';
-        button.disabled = false;
+        status.textContent = completed ? 'Hörprobe bereit. Höre sie an und wähle deine Stimme.' : 'Keine Hörprobe erzeugt. Bitte die angezeigte Fehlermeldung prüfen.';
+        buttons.forEach(item => { item.disabled = false; });
       };
     });
   }

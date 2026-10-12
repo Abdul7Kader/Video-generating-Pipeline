@@ -9,6 +9,7 @@ data/
 out/
 *.mp4
 *.wav
+!examples/qwen-narrator-reference.wav
 .cache/
 .remotion/
 :memory:.ses

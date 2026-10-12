@@ -7,7 +7,7 @@ PROFILE_SPECS: tuple[dict[str, Any], ...] = (
     {
         "id": "cloud_stickman",
         "label": "Cloud-Qualität · Strichmännchen",
-        "description": "Antigravity plant gezeichnete Geschichten: Figuren, Mimik, Schauplätze und Requisiten; Piper und Remotion.",
+        "description": "Antigravity plant gezeichnete Geschichten: Figuren, Mimik, Schauplätze und Requisiten; lokale Erzählerstimme und Remotion.",
         "config": {
             "profile_id": "cloud_stickman",
             "video_type": "stickman",
@@ -20,7 +20,7 @@ PROFILE_SPECS: tuple[dict[str, Any], ...] = (
     {
         "id": "local_stickman",
         "label": "Lokal · Strichmännchen",
-        "description": "Qwen plant gezeichnete Geschichten: Figuren, Mimik, Schauplätze und Requisiten; Piper und Remotion.",
+        "description": "Qwen plant gezeichnete Geschichten: Figuren, Mimik, Schauplätze und Requisiten; lokale Erzählerstimme und Remotion.",
         "config": {
             "profile_id": "local_stickman",
             "video_type": "stickman",
@@ -114,14 +114,14 @@ PROFILE_SPECS: tuple[dict[str, Any], ...] = (
 PROVIDER_IDS = {
     "script": {"qwen", "gemini_cli", "antigravity"},
     "media": {"procedural_stickman", "pexels_stock", "generated_media", "moneyprinter_media", "podcast_layout"},
-    "voice": {"piper", "gemini_tts", "moneyprinter_voice"},
+    "voice": {"piper", "qwen_tts", "gemini_tts", "moneyprinter_voice"},
     "editor": {"remotion", "moneyprinter", "podcast_editor"},
 }
 
 IMPLEMENTED_PROVIDER_IDS = {
     "script": {"qwen", "gemini_cli", "antigravity"},
     "media": {"procedural_stickman", "pexels_stock"},
-    "voice": {"piper", "gemini_tts"},
+    "voice": {"piper", "qwen_tts", "gemini_tts"},
     "editor": {"remotion", "moneyprinter"},
 }
 
@@ -148,6 +148,7 @@ def build_production_catalog(
     remotion_ready: bool,
     moneyprinter_ready: bool,
     antigravity_reason: str = "Antigravity CLI ist deaktiviert oder nicht installiert.",
+    qwen_tts_ready: bool = False,
 ) -> dict[str, Any]:
     providers = {
         "script": [
@@ -163,6 +164,7 @@ def build_production_catalog(
             _provider("podcast_layout", "Podcast-/Talking-Head-Layout", False, "Der spezialisierte Renderer folgt in einer späteren Etappe."),
         ],
         "voice": [
+            _provider("qwen_tts", "Qwen · lokale Erzählerstimme", qwen_tts_ready, "Isolierte Qwen-Laufzeit und Sprachmodell einmalig einrichten: docs/qwen-voice.md."),
             _provider("piper", "Piper · lokal", piper_ready, "Piper-Stimme ist nicht installiert und automatischer Download ist deaktiviert."),
             _provider("gemini_tts", "Gemini TTS · API", gemini_tts_ready, "Cloud-TTS und ein separater API-Schlüssel sind nicht freigegeben."),
             _provider("moneyprinter_voice", "MoneyPrinterTurbo Stimme", False, "Im kontrollierten Pilot bleibt die Stimme bei Piper."),

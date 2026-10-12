@@ -12,11 +12,15 @@ zeigt Strichmenschen; bestehende andere Aufträge und Backend-Adapter werden nic
 
 **Stimmen ausprobieren:** Unter **Stimmenstudio · lokal → Stimmen hören und vergleichen**
 einen kurzen Testtext eingeben und **Alle verfügbaren Stimmen vergleichen** wählen.
-Deutsch bietet Thorsten · klar, Thorsten · lebhaft und Kerstin; Englisch LJ.
+Deutsch bietet Qwen · tiefer Erzähler, Thorsten · klar, Thorsten · lebhaft und Kerstin; Englisch LJ.
 Die Player verwenden denselben Text und dasselbe gewählte Tempo (0,85–1,25×).
 **Diese Stimme wählen** übernimmt die Auswahl. Bei bestehenden Aufträgen anschließend
 **Produktionskonfiguration speichern** und das Skript erneut freigeben.
-Die Stimmen werden lokal mit Piper erzeugt; fehlende feste Modelle werden bei
+Die ausgewählte Qwen-Stimme läuft kostenlos lokal in einer separaten Laufzeit;
+Einrichtung und kurze UI-Anleitung stehen in [docs/qwen-voice.md](docs/qwen-voice.md).
+**Ausgewählte Stimme anhören** erzeugt eine einzelne Probe. Bei neuen deutschen
+Aufträgen wird Qwen vorausgewählt, sobald es eingerichtet ist. Die übrigen
+Stimmen werden lokal mit Piper erzeugt; fehlende feste Modelle werden bei
 aktiviertem `PIPER_AUTO_DOWNLOAD` einmalig heruntergeladen. Es wird kein Cloud-TTS aktiviert.
 Kerstins Modell ist als niedrige Qualität gekennzeichnet; eine andere Stimme ist nicht
 automatisch besser. Wortbudget und Sprechzeitschätzung berücksichtigen Stimme und Tempo,

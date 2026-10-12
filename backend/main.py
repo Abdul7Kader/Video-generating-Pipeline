@@ -30,6 +30,7 @@ from .rendering import dependency_status, render_job, synthesize
 from .schemas import JobCreate, ProductionConfigUpdate, Scene, SceneUpdate, ScriptRevision, ScriptUpdate, VersionAction, VideoApproval, VoicePreview
 from .voices import VOICE_CHOICES, voice_choice, validate_voice_language, estimated_words_per_minute
 from .speech import compact_speech, VOICE_POLICY
+from . import qwen_tts
 from .plan import object_sha256
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -201,6 +202,7 @@ def production_options():
         ),
         moneyprinter_ready=bool(dependencies.get("moneyprinter")),
         antigravity_reason=str(cloud_status.get("message", "Antigravity ist nicht verfügbar.")),
+        qwen_tts_ready=qwen_tts.voice_status()["ready"],
     )
 
 
@@ -216,11 +218,19 @@ def gemini_profiles():
 
 @app.get("/api/voices")
 def voice_catalog():
-    return [{**item, "estimated_words_per_minute": estimated_words_per_minute(item["id"]), "installed": (settings.voices_dir / f"{item['model']}.onnx").is_file(),
-             "available": settings.piper_auto_download or (
-                 (settings.voices_dir / f"{item['model']}.onnx").is_file()
-                 and (settings.voices_dir / f"{item['model']}.onnx.json").is_file())}
-            for item in VOICE_CHOICES]
+    catalog = []
+    for item in VOICE_CHOICES:
+        if item.get("provider") == "qwen_tts":
+            status = qwen_tts.voice_status()
+            installed, available, reason = status["ready"], status["ready"], status["message"]
+        else:
+            model = settings.voices_dir / f"{item['model']}.onnx"
+            installed = model.is_file() and model.with_suffix(".onnx.json").is_file()
+            available, reason = settings.piper_auto_download or installed, ""
+        catalog.append({**item, "provider": item.get("provider", "piper"),
+                        "estimated_words_per_minute": estimated_words_per_minute(item["id"]),
+                        "installed": installed, "available": available, "reason": reason})
+    return catalog
 
 
 @app.post("/api/voice-previews")
@@ -228,7 +238,11 @@ def create_voice_preview(payload: VoicePreview):
     if not _voice_preview_slot.acquire(blocking=False):
         raise HTTPException(429, "Eine Hörprobe wird gerade erstellt. Bitte danach erneut versuchen.")
     try:
-        key = object_sha256({**payload.model_dump(), "voice": voice_choice(payload.voice_id), "policy": VOICE_POLICY})
+        choice = voice_choice(payload.voice_id)
+        cache_config = {**payload.model_dump(), "voice": choice, "policy": VOICE_POLICY}
+        if choice.get("provider") == "qwen_tts":
+            cache_config["qwen_voice"] = qwen_tts.voice_fingerprint()
+        key = object_sha256(cache_config)
         root = settings.data_dir / "voice-previews"
         root.mkdir(parents=True, exist_ok=True)
         destination = root / f"{key}.wav"
@@ -237,14 +251,16 @@ def create_voice_preview(payload: VoicePreview):
                 raise HTTPException(429, "Der Hörproben-Cache ist voll. Vor weiteren Proben lokal bereinigen.")
             temporary = root / f"{key}.tmp.wav"
             try:
-                synthesize(payload.text, temporary, voice_choice(payload.voice_id)["language"], provider="piper", voice_id=payload.voice_id, speed=payload.speed)
+                if choice.get("provider") == "qwen_tts":
+                    unload_script_model()
+                synthesize(payload.text, temporary, choice["language"], provider=choice.get("provider", "piper"), voice_id=payload.voice_id, speed=payload.speed)
                 compact_speech(temporary)
                 temporary.replace(destination)
             finally:
                 temporary.unlink(missing_ok=True)
         return {"voice_id": payload.voice_id, "url": f"/api/voice-previews/{key}", "speed": payload.speed}
     except (RuntimeError, ValueError, OSError) as exc:
-        raise HTTPException(503, "Hörprobe konnte nicht erzeugt werden. Lokale Stimme und Piper-Installation prüfen.") from exc
+        raise HTTPException(503, "Hörprobe konnte nicht erzeugt werden. Lokale Stimme und ihre Laufzeit prüfen.") from exc
     finally:
         _voice_preview_slot.release()
 

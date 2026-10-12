@@ -16,7 +16,7 @@ PlatformId = Literal[
 VideoType = Literal["stickman", "explainer", "social", "podcast", "generated"]
 ScriptProviderId = Literal["qwen", "gemini_cli", "antigravity"]
 MediaProviderId = Literal["procedural_stickman", "pexels_stock", "generated_media", "moneyprinter_media", "podcast_layout"]
-VoiceProviderId = Literal["piper", "gemini_tts", "moneyprinter_voice"]
+VoiceProviderId = Literal["piper", "qwen_tts", "gemini_tts", "moneyprinter_voice"]
 EditorId = Literal["remotion", "moneyprinter", "podcast_editor"]
 
 
@@ -27,7 +27,7 @@ class ProductionConfig(BaseModel):
     media_provider: MediaProviderId = "procedural_stickman"
     voice_provider: VoiceProviderId = "piper"
     editor: EditorId = "remotion"
-    voice_id: Literal["thorsten", "thorsten_amused", "kerstin", "ljspeech"] | None = None
+    voice_id: Literal["thorsten", "thorsten_amused", "kerstin", "ljspeech", "qwen_narrator"] | None = None
     voice_speed: float = Field(default=1.0, ge=0.85, le=1.25, allow_inf_nan=False)
 
 
@@ -167,7 +167,7 @@ class ScriptRevision(BaseModel):
 
 
 class VoicePreview(BaseModel):
-    voice_id: Literal["thorsten", "thorsten_amused", "kerstin", "ljspeech"]
+    voice_id: Literal["thorsten", "thorsten_amused", "kerstin", "ljspeech", "qwen_narrator"]
     text: str = Field(min_length=3, max_length=600)
     speed: float = Field(default=1.0, ge=0.85, le=1.25, allow_inf_nan=False)
 
