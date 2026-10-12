@@ -1,0 +1,19 @@
+{
+  "title": "Eine Katze kommt an",
+  "description": "Zeichenprobe: Die Katze ist als handelnde Figur sichtbar, vom Kennenlernen bis zum Ankommen.",
+  "scenes": [
+    {"scene_id": "meet-cat", "narration": "Mila lernt die Katze kennen und streichelt sie.", "visual": "Mila streichelt die Katze im Tierheim.", "visual_type": "stickman", "duration_seconds": 4,
+     "stickman": {"setting": "room", "framing": "medium", "characters": [
+       {"id": "mila", "x": 43, "y": 81, "scale": 1.1, "outfit": "casual", "cues": [{"on": "streichelt", "pose": "pet", "target_character": "luna", "expression": "happy", "duration": 0.45}]},
+       {"id": "luna", "species": "cat", "x": 50, "y": 81, "scale": 1, "pose": "sit", "facing": "left"}
+     ], "props": []}},
+    {"scene_id": "cat-carrier", "narration": "Die Katze geht in die Transportbox und reist sicher nach Hause.", "visual": "Die Katze läuft zur offenen Transportbox und verschwindet hinein.", "visual_type": "stickman", "duration_seconds": 5,
+     "stickman": {"setting": "room", "framing": "closeup", "characters": [
+       {"id": "luna", "species": "cat", "x": 35, "y": 80, "exit_on": "und reist", "cues": [{"on": "geht in die Transportbox", "pose": "walk", "move_to": 56, "duration": 0.7}]}
+     ], "props": [{"kind": "carrier", "x": 60, "y": 80, "scale": 1.2}]}},
+    {"scene_id": "cat-at-home", "narration": "Zu Hause schnuppert die Katze am Napf und ruht im Katzenbett.", "visual": "Die Katze schnuppert am Napf und schläft auf ihrem flachen Katzenbett.", "visual_type": "stickman", "duration_seconds": 5,
+     "stickman": {"setting": "room", "framing": "medium", "characters": [
+       {"id": "luna", "species": "cat", "x": 50, "y": 79, "cues": [{"on": "schnuppert", "pose": "sniff", "target_prop": 0, "duration": 0.4}, {"on": "ruht", "pose": "sleep", "duration": 0.5}]}
+     ], "props": [{"kind": "bowl", "x": 58, "y": 81, "scale": 0.7, "exit_on": "und ruht"}, {"kind": "pet_bed", "x": 50, "y": 81, "enter_on": "und ruht"}]}}
+  ]
+}

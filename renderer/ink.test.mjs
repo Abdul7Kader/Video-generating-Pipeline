@@ -17,7 +17,7 @@ compiled.filename = filename;
 compiled.paths = Module._nodeModulePaths(filename.replace(/[/\\][^/\\]+$/, ''));
 compiled.require = createRequire(import.meta.url);
 compiled._compile(code, filename);
-const {DrawingStage, actorMotion, actorState, directedProp, entryProgress} = compiled.exports;
+const {DrawingStage, actorMotion, actorState, directedProp, entryProgress, interactionCharacters} = compiled.exports;
 const board = {
   setting:'camp', framing:'split', camera_move:'static',
   characters:[{id:'modern',x:25,y:78,pose:'work',outfit:'office',expression:'tired'},
@@ -59,9 +59,35 @@ test('directed object disappears at its exit cue', () => {
   assert.match(draw(value,120),/data-prop="phone"[^>]*opacity="0"/);
 });
 test('every vocabulary prop draws and unknown assets fail clearly', () => {
-  const kinds = ['clock','laptop','desk','chair','bed','phone','book','tree','bush','fire','spear','basket','rock','sun','moon','cloud','house','food','water','gear','lightbulb','arrow','question','check','cross','heart','chart'];
+  const kinds = ['clock','laptop','desk','chair','bed','phone','book','tree','bush','fire','spear','basket','rock','sun','moon','cloud','house','food','water','gear','lightbulb','arrow','question','check','cross','heart','chart','carrier','pet_bed','bowl','litter_box','cat_tree','document'];
   for (const kind of kinds) assert.match(draw({characters:[],props:[{kind,x:50,y:70}]}),new RegExp(`data-prop="${kind}"`));
   assert.throws(()=>draw({characters:[],props:[{kind:'unknown',x:50,y:70}]}),/Unbekannte/);
+});
+
+test('animals are recognizable separate actors with animated movement and interaction targets', () => {
+  const cat = {id:'luna',species:'cat',x:65,y:81,pose:'walk',end_x:45};
+  const value = {characters:[{id:'mila',x:40,y:81,motion_cues:[{at:0,pose:'pet',target_character:'luna',duration:.6}]},cat],props:[{kind:'bowl',x:70,y:81}]};
+  const svg = draw(value,10);
+  assert.match(svg,/data-species="cat"/);
+  assert.match(svg,/data-character="mila" data-pose="pet"/);
+  assert.notEqual(svg,draw(value,20));
+  assert.notEqual(svg,draw({...value,characters:[{...cat,species:'dog'}]},10));
+  assert.notEqual(draw({...value,characters:[{...cat,pose:'sit'}]}),draw({...value,characters:[{...cat,pose:'sleep'}]}));
+});
+
+test('petting approaches the actual animal head and keeps its position after contact in both formats', () => {
+  const value={characters:[{id:'human',x:20,y:82,motion_cues:[{at:1,pose:'pet',target_character:'cat',duration:.6},{at:2,pose:'stand',duration:.3}]},{id:'cat',species:'cat',x:56,y:82,pose:'sit',facing:'left'}],props:[]};
+  for (const [w,h] of [[1000,600],[600,900]]) {
+    const directed=interactionCharacters(value,6,w,h);
+    const before=actorState(directed[0],1,6).x, after=actorState(directed[0],1.6,6).x;
+    const head=56-33*h/600/w*100;
+    assert.equal(before,20);
+    assert.ok(Math.abs(head-after)*w/100/(h/600)<=100);
+    assert.equal(actorState(directed[0],3,6).x,after);
+    assert.equal(value.characters[0].motion_cues[0].move_to,undefined);
+  }
+  const leaving={characters:[{id:'cat',species:'cat',x:50,y:81,exit:.5}],props:[]};
+  assert.match(draw(leaving,120),/data-species="cat"[^>]*opacity="0"/);
 });
 
 test('speech cues switch action at the spoken phrase and complete movement quickly', () => {

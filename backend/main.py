@@ -27,9 +27,11 @@ from .planner import ScriptProviderUnavailable, generate_script, script_provider
 from .production import build_production_catalog, normalize_production_config, production_plan_readiness, require_active_production
 from .publishing import configured_automatic_platforms, platform_catalog, publish_to_target
 from .rendering import dependency_status, render_job, synthesize
-from .schemas import JobCreate, ProductionConfigUpdate, Scene, SceneUpdate, ScriptRevision, ScriptUpdate, VersionAction, VideoApproval, VoicePreview
+from .schemas import JobCreate, ProductionConfig, ProductionConfigUpdate, Scene, SceneUpdate, ScriptRevision, ScriptUpdate, VersionAction, VideoApproval, VoicePreview
 from .voices import VOICE_CHOICES, voice_choice, validate_voice_language, estimated_words_per_minute
 from .speech import compact_speech, VOICE_POLICY
+from .story import generate_story, generate_storyboard, spoken_story
+from .visual_coverage import visual_coverage_issues
 from . import qwen_tts
 from .plan import object_sha256
 
@@ -37,6 +39,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger("video-pipeline")
 db = Database(settings.database_path)
 _voice_preview_slot = threading.BoundedSemaphore(1)
+_story_plan_slot = threading.BoundedSemaphore(1)
 try:
     _gemini_profile_names = parse_profile_names(settings.gemini_cli_profiles)
 except ValueError:
@@ -294,9 +297,12 @@ def create_job(payload: JobCreate):
         validate_voice_language(production_config, payload.language)
         values["video_type"] = production_config["video_type"]
         script_provider = production_config["script_provider"]
+        story_mode = payload.script_mode == 'story' and production_config['video_type'] == 'stickman'
         job_id = None
         if payload.generation_id:
             provider_key = "gemini-cli" if script_provider == "gemini_cli" else script_provider
+            if story_mode:
+                provider_key += ':story'
             job_id = str(
                 uuid.uuid5(
                     uuid.NAMESPACE_URL,
@@ -306,7 +312,9 @@ def create_job(payload: JobCreate):
             existing = db.get_job(job_id)
             if existing:
                 return existing
-        if script_provider == "gemini_cli":
+        if story_mode:
+            script = generate_story(payload.model_copy(update={'production_config': ProductionConfig.model_validate(production_config)}))
+        elif script_provider == "gemini_cli":
             if not settings.gemini_cli_enabled or not _gemini_profile_names:
                 raise ScriptProviderUnavailable(
                     "Gemini CLI ist noch nicht aktiviert oder es ist kein angemeldetes Profil eingerichtet."
@@ -317,7 +325,8 @@ def create_job(payload: JobCreate):
             db.create_job(values, script, job_id=job_id)
             gemini_script_workflow.attach_job(payload.generation_id, job_id)
             return require_job(job_id)
-        script = generate_script(payload.model_copy(update={"video_type": production_config["video_type"]}))
+        else:
+            script = generate_script(payload.model_copy(update={"video_type": production_config["video_type"]}))
     except ScriptProviderUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc
     except HTTPException:
@@ -403,6 +412,23 @@ def revise_script(job_id: str, payload: ScriptRevision):
     current = require_job(job_id)
     if current["script_version"] != payload.expected_version:
         raise HTTPException(409, "Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.")
+    if payload.story_mode or current['script'].get('metadata', {}).get('workflow') == 'story_draft':
+        if current['video_type'] != 'stickman':
+            raise HTTPException(422, 'Dieser Ablauf ist für Strichmännchen-Videos vorgesehen.')
+        if payload.scene_id:
+            raise HTTPException(422, 'Im Text-zuerst-Ablauf wird das ganze Skript überarbeitet.')
+        if current['status'] in {'render_queued', 'rendering', 'publishing', 'publish_queued'}:
+            raise HTTPException(409, 'Während der Produktion kann das Skript nicht überarbeitet werden.')
+        request = JobCreate.model_validate({**{key: current[key] for key in ('topic', 'language', 'duration_seconds', 'aspect_ratio', 'production_config')}, 'script_mode': 'story'})
+        try:
+            revised = generate_story(request, previous=current['script'], instructions=payload.instructions)
+            if script_hash(revised) == current['script']['content_hash'] and revised.get('metadata', {}).get('visual_summary') == current['script'].get('metadata', {}).get('visual_summary'):
+                raise ValueError('Die KI hat weder Text noch Bildidee verändert.')
+            return db.update_script(job_id, payload.expected_version, revised)
+        except ScriptProviderUnavailable as exc:
+            raise HTTPException(503, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(409 if str(exc) == 'version_conflict' else 502, str(exc)) from exc
     selected_scene = next((scene for scene in current["script"]["scenes"] if scene["scene_id"] == payload.scene_id), None)
     if payload.scene_id and selected_scene is None:
         raise HTTPException(404, "Szene nicht gefunden.")
@@ -494,6 +520,7 @@ def queue_render(job_id: str, payload: VersionAction):
         *adapter_issues,
         *production_plan_readiness(job["production_config"], job["script"]["scenes"]),
         *render_plan_readiness(job["script"]["scenes"]),
+        *(visual_coverage_issues(job['script']['scenes'], job['topic']) if job['video_type'] == 'stickman' else []),
     ]
     if readiness_issues:
         raise HTTPException(
@@ -508,6 +535,44 @@ def queue_render(job_id: str, payload: VersionAction):
         if str(exc) in {"hash_conflict", "script_integrity_error"}:
             raise HTTPException(409, "Der freigegebene Szenenplan stimmt nicht mit der aktuellen Fassung überein.") from exc
         raise HTTPException(409, "Die aktuelle Skriptversion ist nicht freigegeben.") from exc
+
+
+@app.post('/api/jobs/{job_id}/approve-and-render')
+def approve_story_and_render(job_id: str, payload: VersionAction):
+    current = require_job(job_id)
+    script = current['script']
+    if not script['integrity_verified']:
+        raise HTTPException(409, 'Die Integritätsprüfung des Skripts ist fehlgeschlagen.')
+    metadata = script.get('metadata', {})
+    if current['status'] in {'render_queued', 'rendering', 'video_review'} and metadata.get('approved_story_hash') == payload.expected_hash and metadata.get('approved_story_version') == payload.expected_version and current['render_script_hash'] == script['content_hash']:
+        return current
+    if current['video_type'] != 'stickman':
+        raise HTTPException(422, 'Dieser Ablauf ist für Strichmännchen-Videos vorgesehen.')
+    if current['script_version'] != payload.expected_version or script['content_hash'] != payload.expected_hash:
+        raise HTTPException(409, 'Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.')
+    if current['status'] in {'render_queued', 'rendering', 'publish_queued', 'publishing'}:
+        raise HTTPException(409, 'Der Auftrag wird bereits bearbeitet.')
+    if not _story_plan_slot.acquire(blocking=False):
+        raise HTTPException(429, 'Eine Geschichte wird bereits für die Produktion geplant. Bitte danach erneut versuchen.')
+    try:
+        require_active_production(current['production_config'])
+        request = JobCreate.model_validate({key: current[key] for key in ('topic', 'language', 'duration_seconds', 'aspect_ratio', 'production_config')})
+        plan = generate_storyboard(request, script)
+        if spoken_story(plan) != spoken_story(script):
+            raise ValueError('Die Bildplanung darf den freigegebenen Sprechertext nicht verändern.')
+        issues = render_plan_readiness(plan['scenes']) + visual_coverage_issues(plan['scenes'], current['topic'])
+        if issues:
+            raise ValueError(' '.join(issues))
+        planned = db.update_script(job_id, payload.expected_version, plan)
+        version, fingerprint = planned['script_version'], planned['script']['content_hash']
+        db.approve_script(job_id, version, fingerprint)
+        return queue_render(job_id, VersionAction(expected_version=version, expected_hash=fingerprint))
+    except ScriptProviderUnavailable as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(409 if str(exc) == 'version_conflict' else 502, str(exc)) from exc
+    finally:
+        _story_plan_slot.release()
 
 
 @app.get("/api/jobs/{job_id}/comparison-video/baseline")

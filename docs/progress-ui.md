@@ -1,6 +1,6 @@
 # Wartezeiten in der Strichmännchen-UI
 
-Hörproben, Stimmenvergleich, Skript samt Zeichenregie, KI-Überarbeitungen und
+Hörproben, Stimmenvergleich, Sprecher-Skript, KI-Überarbeitungen, Bildplanung und
 Videoproduktion zeigen einen Ladebalken und die vergangene Zeit. Nach dem Start
 wird die Anzeige automatisch in den sichtbaren Bereich gescrollt.
 
@@ -10,6 +10,7 @@ Die Startwerte berücksichtigen Anbieter, Textlänge beziehungsweise Videolänge
 Erfolgreiche Hörproben und Skripte passen die nächsten Schätzungen an die
 gemessene Laufzeit an. Dafür speichert der Browser ausschließlich Zahlen je
 Vorgangsart in `pipeline-process-times-v1`, keine Sprechertexte oder Prompts.
+Sprechertext und Bildplanung nach der Freigabe haben getrennte Zeitmessungen.
 Schnelle Cache-Antworten und fehlgeschlagene Aufrufe fließen nicht ein.
 
 100 % erscheint erst nach erfolgreicher Antwort. Bei Überschreitung der

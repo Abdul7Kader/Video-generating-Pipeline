@@ -1,11 +1,12 @@
 import React from 'react';
 
 export type Character = {
-  id?: string; x: number; y: number; scale?: number; pose?: string;
+  id?: string; species?: 'human' | 'cat' | 'dog'; x: number; y: number; scale?: number; pose?: string;
   expression?: string; outfit?: string; facing?: string; enter?: number; end_x?: number | null;
+  exit?: number | null;
   speed?: number; motion_cues?: MotionCue[];
 };
-export type MotionCue = {at: number; pose: string; expression?: string | null; target_prop?: number | null; move_to?: number | null; duration: number};
+export type MotionCue = {at: number; pose: string; expression?: string | null; target_prop?: number | null; target_character?: string | null; move_to?: number | null; duration: number};
 export type Prop = {kind: string; x: number; y: number; scale?: number; enter?: number; exit?: number | null; label?: string};
 export type Board = {
   setting?: string; framing?: string; camera_move?: string;
@@ -36,6 +37,7 @@ export function actorState(c: Character, time: number, duration: number) {
   let pose = c.pose ?? 'stand';
   let expression = c.expression ?? 'neutral';
   let target_prop: number | null = null;
+  let target_character: string | null = null;
   let facingFrom = c.facing === 'left' ? -1 : 1;
   let facingGoal = goal === from ? facingFrom : Math.sign(goal - from);
   let turnAt = at;
@@ -58,6 +60,7 @@ export function actorState(c: Character, time: number, duration: number) {
     pose = cue.pose;
     expression = cue.expression ?? expression;
     target_prop = cue.target_prop ?? null;
+    target_character = cue.target_character ?? null;
     if (['pick', 'carry', 'read'].includes(pose) && target_prop !== null && held_prop !== target_prop) {
       held_prop = target_prop;
       held_at = at;
@@ -70,7 +73,7 @@ export function actorState(c: Character, time: number, duration: number) {
   const facing = facingFrom + (facingGoal - facingFrom) * ease((time - turnAt) / .18);
   const action_pose = pose;
   if ((pose === 'walk' || pose === 'run') && goal !== from && progress === 1) pose = 'stand';
-  return {x, pose, action_pose, expression, target_prop, held_prop, held_at, held_duration, at, progress, facing, traveling: goal !== from};
+  return {x, pose, action_pose, expression, target_prop, target_character, held_prop, held_at, held_duration, at, progress, facing, traveling: goal !== from};
 }
 
 // Feet anchor at (0, 0). Actions start at spoken text anchors, with no frame randomness.
@@ -102,7 +105,30 @@ const Face: React.FC<{expression: string; frame: number; fps: number}> = ({expre
   </g>;
 };
 
-export const InkActor: React.FC<{character: Character; props?: Prop[]; frame: number; fps: number; duration: number; stageWidth: number; stageHeight: number}> = ({character: c, props = [], frame, fps, duration, stageWidth, stageHeight}) => {
+const InkAnimal: React.FC<{character: Character; frame: number; fps: number; duration: number; stageWidth: number; stageHeight: number}> = ({character: c, frame, fps, duration, stageWidth: w, stageHeight: h}) => {
+  const motion = actorMotion(c, frame, fps, duration), scale = (c.scale ?? 1) * h / 600;
+  const sitting = motion.pose === 'sit', sleeping = motion.pose === 'sleep', cat = c.species === 'cat';
+  const stride = motion.stride * .45, wag = Math.sin(frame / fps * 5) * (cat ? 5 : 13);
+  const headY = motion.pose === 'sniff' ? -33 : sitting ? -79 : -62;
+  return <g data-character={c.id} data-species={c.species} data-pose={motion.pose} opacity={entryProgress(frame,fps,duration,c.enter)*(c.exit==null?1:clamp((c.exit*duration-frame/fps)/.28))}
+    transform={`translate(${motion.x*w/100} ${c.y*h/100+motion.bob*.4}) scale(${scale*motion.facing} ${scale})`} {...pen}>
+    {sleeping ? <><path d="M-42 -8 Q-55 -48 -8 -42 Q42 -53 47 -15 Q12 8 -42 -8 Z" fill="#e7d2b5"/><path d="M-31 -12 Q-14 -32 15 -15 M15 -15 l-4 -12 16 8 M27 -19 l12 -10 2 17"/><path d="M8 -12 h8 M28 -12 h8" strokeWidth="2"/></> : <>
+      <path d={sitting?'M-23 -6 Q-39 -35 -16 -66 Q4 -71 15 -43 L36 -3 Z':'M-45 -28 Q-58 -66 -8 -59 L31 -53 Q49 -26 25 -19 L-45 -19 Z'} fill="#e7d2b5"/>
+      <path d={`M-42 -34 Q-71 ${-24+wag} -70 ${-66+wag}`} />
+      <path d={sitting?'M13 -37 L12 -3 h12 M29 -34 L31 -3 h12':`M-37 -26 l${stride} 23 h12 M-12 -25 l${-stride} 23 h12 M15 -28 l${-stride} 26 h12 M31 -28 l${stride} 26 h12`}/>
+      <g transform={`translate(33 ${headY})`}>
+        <path d="M-23 1 Q-28 -29 0 -30 Q30 -28 27 1 Q16 22 -7 15 Z" fill="#e7d2b5"/>
+        {cat?<path d="M-21 -15 L-23 -44 -4 -29 M8 -30 L25 -44 24 -14" fill="#e7d2b5"/>:<path d="M-22 -22 Q-41 -36 -32 1 Q-21 10 -18 -7 M20 -23 Q43 -29 37 3 Q23 12 22 -7" fill={brown}/>}
+        <circle cx="-7" cy="-5" r="2" fill={ink}/><circle cx="11" cy="-5" r="2" fill={ink}/>
+        <path d="M0 3 l5 0 -3 4 Z M2 7 q-5 7 -10 1 M2 7 q5 7 10 1" strokeWidth="2"/>
+        {cat&&<path d="M-9 4 l-26 -6 M-10 9 l-25 7 M15 4 l25 -6 M15 9 l25 7" strokeWidth="1.5"/>}
+      </g>
+    </>}
+  </g>;
+};
+
+export const InkActor: React.FC<{character: Character; characters?: Character[]; props?: Prop[]; frame: number; fps: number; duration: number; stageWidth: number; stageHeight: number}> = ({character: c, characters = [], props = [], frame, fps, duration, stageWidth, stageHeight}) => {
+  if (c.species && c.species !== 'human') return <InkAnimal character={c} frame={frame} fps={fps} duration={duration} stageWidth={stageWidth} stageHeight={stageHeight}/>;
   const motion = actorMotion(c, frame, fps, duration);
   const {pose, expression} = motion;
   const entry = entryProgress(frame, fps, duration, c.enter);
@@ -110,9 +136,13 @@ export const InkActor: React.FC<{character: Character; props?: Prop[]; frame: nu
   const seated = pose === 'sit' || pose === 'work' || (['sit','work'].includes(c.pose ?? '') && ['talk','read','point','think','pick','place'].includes(pose));
   const bent = pose === 'gather';
   const headTilt = expression === 'sad' || expression === 'tired' ? -8 : bent ? 12 : pose === 'read' ? 9 : 0;
-  const target = motion.target_prop == null ? undefined : props[motion.target_prop];
+  const other = characters.find(actor => actor.id === motion.target_character);
+  const otherMotion = other ? actorMotion(other,frame,fps,duration) : null;
+  const animal = other?.species && other.species !== 'human';
+  const target = other && otherMotion ? {...other, x:otherMotion.x + (animal?33*(other.scale??1)*stageHeight/600/stageWidth*100*otherMotion.facing:0), y:other.y-(animal?(otherMotion.pose==='sit'?49:32)*(other.scale??1)/600*100:0)} : motion.target_prop == null ? undefined : props[motion.target_prop];
   const flip = motion.facing < 0 ? -1 : 1;
-  const handX = target ? Math.max(-80, Math.min(80, (target.x - motion.x) * stageWidth / 100 / scale * flip)) : 45;
+  const reach = other ? 115 : 80;
+  const handX = target ? Math.max(-reach, Math.min(reach, (target.x - motion.x) * stageWidth / 100 / scale * flip)) : 45;
   const handY = target ? Math.max(-195, Math.min(-65, (target.y - c.y) * stageHeight / 100 / scale - 30)) : -95;
   const pointX = 29 + (handX - 29) * motion.progress;
   const pointY = -92 + ((target ? handY : -142 + motion.gesture) + 92) * motion.progress;
@@ -131,6 +161,8 @@ export const InkActor: React.FC<{character: Character; props?: Prop[]; frame: nu
     read: `M0 -127 Q-5 -105 8 -102 M0 -127 Q39 -116 48 ${-101 + motion.gesture * .15}`,
     celebrate: `M0 -127 Q-24 -154 -38 ${-180 + motion.gesture} M0 -127 Q22 -151 39 ${-178 - motion.gesture}`,
     talk: `M0 -127 Q-22 -112 -42 ${-127 + motion.gesture} M0 -127 Q20 -113 35 -89`,
+    pet: `M0 -127 Q${pointX/2} -95 ${pointX} ${pointY+motion.gesture*.3} M0 -127 Q-13 -103 -26 -88`,
+    feed: `M0 -127 Q${handX/2} -98 ${handX} ${handY+motion.gesture*.2} M0 -127 Q-13 -103 -26 -88`,
     walk: `M0 -127 L${-22 - motion.stride} -98 M0 -127 L${24 + motion.stride} -99`,
     run: `M0 -127 l${-22 - motion.stride} 26 -12 -21 M0 -127 l${24 + motion.stride} 17 10 -25`,
   };
@@ -141,7 +173,7 @@ export const InkActor: React.FC<{character: Character; props?: Prop[]; frame: nu
     if (pose === 'point') arms.point = `M0 -127 Q${pointX/2} -135 ${pointX} ${pointY} M0 -127 Q-5 -105 8 -102`;
     if (pose === 'think') arms.think = 'M0 -127 Q21 -101 22 -137 L12 -150 M0 -127 Q-5 -105 8 -102';
   }
-  return <g data-character={c.id} data-pose={pose} data-facing={flip < 0 ? 'left' : 'right'} data-target-prop={motion.target_prop ?? undefined} opacity={entry}
+  return <g data-character={c.id} data-pose={pose} data-facing={flip < 0 ? 'left' : 'right'} data-target-prop={motion.target_prop ?? undefined} opacity={entry*(c.exit==null?1:clamp((c.exit*duration-frame/fps)/.28))}
     transform={`translate(${motion.x * stageWidth / 100} ${c.y * stageHeight / 100 + motion.bob}) scale(${scale * motion.facing} ${scale})`}>
     <g {...pen} transform={pose === 'sleep' ? 'rotate(-75 0 -20)' : undefined}>
       <path d={seated ? 'M0 -66 L-33 -48 -32 0 M0 -66 L37 -45 42 0' : `M0 -66 Q${-14 - motion.stride / 2} -37 ${-24 - motion.stride} -2 l-9 0 M0 -66 Q${14 + motion.stride / 2} -34 ${23 + motion.stride} -2 l9 0`}/>
@@ -181,6 +213,12 @@ const PropArt: React.FC<{kind: string; time: number}> = ({kind, time}) => {
     case 'desk': return <><path d="M-85 -67 l170 0 0 13 -170 0 Z" fill={brown}/><path d="M-68 -54 v54 M67 -54 v54"/><path d="M-78 -60 h151" opacity=".35" strokeWidth="1.5"/></>;
     case 'chair': return <><path d="M-33 -88 h52 v50 h-52 Z" fill={brown}/><path d="M-33 -38 h66 v12 h-66 Z" fill={brown}/><path d="M-24 -26 v26 M24 -26 v26"/></>;
     case 'bed': return <><path d="M-83 -34 h164 v22 h-164 Z" fill={blue}/><path d="M-83 -71 v71 M81 -42 v42 M-74 -51 q20 -20 39 0 v14 h-39 Z" fill="#fffdf8"/></>;
+    case 'carrier': return <><path d="M-70 -5 v-69 q0 -17 19 -17 h94 q20 0 20 18 v68 Z" fill={blue}/><path d="M-43 -89 v-18 h45 v18 M-36 -72 h76 v61 h-76 Z"/><path d="M-23 -70 v57 M-8 -70 v57 M7 -70 v57 M22 -70 v57 M-34 -52 h70 M-34 -33 h70" strokeWidth="2"/></>;
+    case 'pet_bed': return <><ellipse cy="-15" rx="75" ry="22" fill={green}/><ellipse cy="-18" rx="54" ry="11" fill="#fffdf8"/></>;
+    case 'bowl': return <><path d="M-42 -28 h84 l-9 27 h-67 Z" fill={blue}/><ellipse cy="-28" rx="41" ry="8" fill={brown}/></>;
+    case 'litter_box': return <><path d="M-63 -26 l20 -21 h86 l19 21 -13 25 h-98 Z" fill={blue}/><path d="M-55 -26 h109 M-28 -36 h60" strokeWidth="2"/><path d="M-21 -31 h2 M0 -33 h2 M21 -29 h2" stroke={brown}/></>;
+    case 'cat_tree': return <><path d="M-63 -5 h126 M-20 -5 v-132 M29 -5 v-77" stroke={brown} strokeWidth="12"/><path d="M-55 -138 h70 v13 h-70 Z M5 -85 h65 v13 h-65 Z" fill={green}/><path d="M-24 -113 l10 -5 M-24 -90 l10 -5 M-24 -66 l10 -5" strokeWidth="2"/></>;
+    case 'document': return <><path d="M-38 -94 h58 l19 19 v72 h-77 Z" fill="#fffdf8"/><path d="M20 -93 v20 h19 M-25 -58 h49 M-25 -43 h49 M-25 -28 h29" strokeWidth="2"/></>;
     case 'phone': return <><rect x="-21" y="-75" width="42" height="74" rx="7" fill="#ddd"/><path d="M-15 -62 h30 v46 h-30 Z" fill={blue}/><circle cy="-9" r="2"/></>;
     case 'book': return <><path d="M0 -10 Q-28 -25 -48 -14 v-64 Q-23 -88 0 -70 Q24 -88 47 -78 v64 Q24 -25 0 -10 Z" fill="#fffdf8"/><path d="M0 -70 v60 M-37 -62 l24 6 M-37 -49 l24 6 M12 -56 l23 -6 M12 -43 l23 -6" strokeWidth="2"/></>;
     case 'tree': return <><path d="M-11 0 l4 -104 18 0 5 104" fill={brown}/><path d="M-7 -113 C-100 -72 -95 -180 -46 -173 C-61 -221 42 -237 43 -185 C109 -195 102 -107 35 -110 C10 -76 -15 -78 -7 -113 Z" fill={green}/><path d="M-33 -176 q-20 14 -16 29 M29 -182 q27 6 31 28" strokeWidth="2" opacity=".45"/></>;
@@ -249,9 +287,32 @@ export function directedProp(prop: Prop, index: number, board: Board, time: numb
   return prop;
 }
 
+// Petting needs actual contact even when the model stages the human too far away.
+export function interactionCharacters(board: Board, duration: number, w: number, h: number): Character[] {
+  return board.characters.map(character => {
+    if (character.species && character.species !== 'human') return character;
+    const directed = {...character, motion_cues: character.motion_cues?.map(cue => ({...cue}))};
+    for (const cue of directed.motion_cues ?? []) {
+      if (cue.pose !== 'pet') continue;
+      const animal = board.characters.find(other => other.id === cue.target_character && other.species && other.species !== 'human');
+      if (!animal) continue;
+      const time = cue.at + cue.duration;
+      const target = actorState(animal, time, duration);
+      const headX = target.x + 33 * (animal.scale ?? 1) * h / 600 / w * 100 * target.facing;
+      const position = actorState(directed, time, duration).x;
+      const unit = (character.scale ?? 1) * h / 600 / w * 100;
+      if (Math.abs(headX - position) > 100 * unit) {
+        cue.move_to = Math.max(8, Math.min(92, headX - Math.sign(headX - position) * 80 * unit));
+      }
+    }
+    return directed;
+  });
+}
+
 export const DrawingStage: React.FC<{board: Board; frame: number; fps: number; duration: number; portrait?: boolean}> = ({board, frame, fps, duration, portrait = false}) => {
   const w = portrait ? 600 : 1000;
   const h = portrait ? 900 : 600;
+  const characters = interactionCharacters(board, duration, w, h);
   const time = clamp(frame / fps / duration);
   const baseZoom = board.framing === 'closeup' ? 1.35 : board.framing === 'medium' ? 1.12 : 1;
   const zoom = baseZoom + (board.camera_move === 'push_in' ? time * .1 : 0);
@@ -261,13 +322,13 @@ export const DrawingStage: React.FC<{board: Board; frame: number; fps: number; d
   const focusX = (board.framing === 'closeup' || board.framing === 'medium') && subjects.length
     ? subjects.reduce((sum, subject) => sum + subject.x, 0) / subjects.length / 100 * w : w/2;
   const focusY = h * .51;
-  const props = board.props.map((prop, i) => directedProp(prop, i, board, frame / fps, duration, w, h));
+  const props = board.props.map((prop, i) => directedProp(prop, i, {...board, characters}, frame / fps, duration, w, h));
   return <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" style={{background:'#fffefa'}} aria-label="Gezeichnete Strichmenschen-Szene">
     <g transform={`translate(${w/2 + pan} ${h/2}) scale(${zoom}) translate(${-focusX} ${-focusY})`}>
       <Setting kind={board.setting ?? 'white'} w={w} h={h}/>
       {board.framing === 'split' && <path d={`M${w/2} ${h*.08} Q${w/2-3} ${h*.4} ${w/2} ${h*.83}`} stroke={ink} strokeWidth="2" strokeDasharray="9 9" fill="none"/>}
       {props.map((prop, i) => <InkProp key={i} prop={prop} frame={frame} fps={fps} duration={duration} stageWidth={w} stageHeight={h}/>)}
-      {board.characters.map((character, i) => <InkActor key={character.id ?? i} character={character} props={props} frame={frame} fps={fps} duration={duration} stageWidth={w} stageHeight={h}/>)}
+      {characters.map((character, i) => <InkActor key={character.id ?? i} character={character} characters={characters} props={props} frame={frame} fps={fps} duration={duration} stageWidth={w} stageHeight={h}/>)}
     </g>
   </svg>;
 };

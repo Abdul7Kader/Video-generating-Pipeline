@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import threading
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -76,6 +77,20 @@ def success_stream(output: dict) -> str:
 
 
 class AntigravityAdapterTests(unittest.TestCase):
+    def test_windows_cleanup_lock_cannot_discard_a_valid_generation(self):
+        original_temporary = tempfile.TemporaryDirectory
+        # Emulate Windows refusing to remove the CLI's still-open cwd.
+        def locked_directory(path, *, onexc, **kwargs):
+            onexc(os.rmdir, path, PermissionError('directory still in use'))
+        with original_temporary() as parent:
+            with patch('backend.antigravity.settings', adapter_settings()), \
+                 patch('backend.antigravity.shutil.which', return_value='agy'), \
+                 patch('backend.antigravity.subprocess.Popen', return_value=FakeProcess(success_stream({'answer': 'ok'}))), \
+                 patch('backend.antigravity.tempfile.TemporaryDirectory', side_effect=lambda **kwargs: original_temporary(dir=parent, **kwargs)), \
+                 patch('backend.antigravity.shutil.rmtree', side_effect=locked_directory):
+                result, _ = _invoke_cli('return JSON', SCHEMA)
+        self.assertEqual(result, {'answer': 'ok'})
+
     def test_status_requires_signed_in_account_and_selected_model(self):
         models = "gemini-3.8-flash-high\tGemini 3.8 Flash (High)\ngemini-3.1-pro-high\tGemini 3.1 Pro (High)\n"
         with patch("backend.antigravity.settings", adapter_settings()), \

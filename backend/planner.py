@@ -61,6 +61,15 @@ STYLE_DIRECTIONS = {
         "Use only the schema's poses, expressions, outfits, settings and prop kinds. "
         "Choose fitting props from that vocabulary; never promise an object the renderer cannot draw. "
         "Keep recurring character ids and outfits consistent. Give acting characters 2-4 cues per scene: "
+        "Characters have species=human, cat or dog. Animals are actual animated characters, never replaced "
+        "by a heart, bed or basket. Keep the same animal id and species throughout the story. "
+        "Show the animal in every shot narrating its presence or interaction. For petting use a human "
+        "pet cue with target_character set to the animal id; the animal can sit, walk, run, sniff or sleep. "
+        "Show literal pet equipment: carrier, pet_bed, bowl, litter_box and cat_tree, rather than human furniture. "
+        "Place a petting human within arm reach of the animal's head. For entering a carrier, "
+        "show the animal walking toward its opening, then use exit_on at a later spoken phrase "
+        "to put it inside. At home reveal the same animal and show it sniffing, exploring or resting. "
+        "Use document for an actual form or adoption contract. "
         "on must quote an exact consecutive phrase from that scene's narration, in spoken order. "
         "Use duration=0.35..0.9 seconds and speed=1.35..1.8 for lively actions, not slow motion. "
         "Walking cues use move_to near the destination object, then another cue performs the narrated action. "
@@ -113,7 +122,7 @@ def _response_schema() -> dict[str, Any]:
     scene_properties: dict[str, Any] = {
         "stickman": {"anyOf": [drawing_response_schema(), {"type": "null"}], "description": "Required executable drawing plan for stickman scenes; null for other media."},
         "scene_id": {"type": "string", "description": "Stable id such as scene-a1b2c3; preserve it when revising the same scene."},
-        "narration": {"type": "string", "minLength": 2, "maxLength": 400, "description": "Only the naturally spoken voice-over for this scene."},
+        "narration": {"type": "string", "minLength": 2, "maxLength": 1200, "description": "Exact consecutive excerpt of the approved continuous voice-over, split at a natural action boundary."},
         "visual": {"type": "string", "minLength": 10, "maxLength": 280, "description": "A natural-language description of what is visibly on screen, never a media-type enum."},
         "visual_type": {
             "type": "string",
@@ -242,9 +251,9 @@ def _prompt(request: JobCreate, previous: dict[str, Any] | None = None, instruct
         words_per_minute = estimated_words_per_minute(voice_id)
         target_words = round(request.duration_seconds * words_per_minute / 60)
     target_words = round(target_words * voice_speed)
-    beat_seconds = 6 if request.video_type == "stickman" else 12
+    beat_seconds = 15 if request.video_type == "stickman" else 12
     scene_count_min = max(3, min(30, round(request.duration_seconds / beat_seconds)))
-    scene_count_max = max(scene_count_min, min(30, round(request.duration_seconds / (4 if request.video_type == "stickman" else 6))))
+    scene_count_max = max(scene_count_min, min(30, round(request.duration_seconds / (8 if request.video_type == "stickman" else 6))))
     mode = (
         "Revise the existing draft below. Follow the requested changes precisely and preserve strong material that was not targeted."
         if previous
@@ -287,6 +296,7 @@ Editorial requirements
 - An analogy may clarify one aspect but must never pretend to reproduce the scientific mechanism. Explain where necessary what the analogy does and does not mean.
 - Narration must sound natural when spoken aloud; do not include headings, stage directions or citation markers in narration.
 - Write connected spoken prose, with one clear thought per sentence and a concrete example before abstract conclusions. Avoid repetitive sentence openings, empty rhetorical questions and a second introduction in each scene.
+- First compose one flowing spoken story from beginning to end. Shots are internal illustration units: group connected actions naturally, never split into equal five-second explanations. A continuous action may span multiple sentences.
 - For a drawn story, make cause and effect visible: introduce a character's problem, show their action and its consequence, then resolve it. Keep the same character ids, outfits and held objects across connected shots.
 - Every visual beat must explain the sentence being spoken. Revise narration and literal cue anchors together; check pickup, carrying and placement continuity across cuts. Do not add idle presenter gestures to fill time.
 - Do not add a commercial, political or donation call to action unless the brief explicitly asks for one.
@@ -306,7 +316,7 @@ Editorial requirements
 {revision_block}"""
 
 
-def _extract_json(text: str) -> dict[str, Any]:
+def _extract_json(text: str, draft_model=ScriptDraft) -> dict[str, Any]:
     match = re.search(r"\{.*\}", text, re.DOTALL)
     if not match:
         raise ValueError("Das Modell hat kein JSON-Objekt geliefert")
@@ -322,7 +332,7 @@ def _extract_json(text: str) -> dict[str, Any]:
                 scene["asset_query"] = ""
             elif not str(scene.get("asset_query", "")).strip():
                 raise ValueError("Stock-Szene enthält keinen konkreten Suchbegriff")
-        draft = ScriptDraft.model_validate(raw)
+        draft = draft_model.model_validate(raw)
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
         raise ValueError(f"Ungültiges strukturiertes Skript: {exc}") from exc
     return draft.model_dump()
@@ -423,14 +433,14 @@ def _post_ollama(payload: dict[str, Any], *, timeout: int | None = None) -> dict
         ) from exc
 
 
-def _generate_with_ollama(prompt: str, model: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def _generate_with_ollama(prompt: str, model: str, *, response_schema=None, draft_model=ScriptDraft) -> tuple[dict[str, Any], dict[str, Any]]:
     payload = {
         "model": model,
         "messages": [
             {"role": "system", "content": _system_prompt()},
             {"role": "user", "content": prompt},
         ],
-        "format": _response_schema(),
+        "format": response_schema if response_schema is not None else _response_schema(),
         "stream": False,
         "think": False,
         "keep_alive": settings.ollama_keep_alive,
@@ -472,7 +482,7 @@ def _generate_with_ollama(prompt: str, model: str) -> tuple[dict[str, Any], dict
         if data.get("done_reason") == "length":
             raise ValueError("Das lokale Modell erreichte sein Ausgabelimit. Für vollständige Zeichenregie OLLAMA_NUM_PREDICT erhöhen oder ein kürzeres Video planen.")
         try:
-            script = _extract_json(data["message"]["content"])
+            script = _extract_json(data["message"]["content"], draft_model)
         except (KeyError, TypeError) as exc:
             raise ValueError("Lokales Ollama lieferte keine verwertbare Skriptantwort.") from exc
         metrics = {
@@ -496,18 +506,18 @@ def _generate_with_ollama(prompt: str, model: str) -> tuple[dict[str, Any], dict
                 _OLLAMA_INFLIGHT.pop(request_key, None)
 
 
-def _generate_with_gemini(prompt: str, model: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def _generate_with_gemini(prompt: str, model: str, *, response_schema=None, draft_model=ScriptDraft) -> tuple[dict[str, Any], dict[str, Any]]:
     data = _post_gemini({
         "model": model,
         "input": f"{_system_prompt()}\n\n{prompt}",
         "response_format": {
             "type": "text",
             "mime_type": "application/json",
-            "schema": _response_schema(),
+            "schema": response_schema if response_schema is not None else _response_schema(),
         },
     })
     try:
-        return _extract_json(data["output_text"]), {}
+        return _extract_json(data["output_text"], draft_model), {}
     except (KeyError, TypeError) as exc:
         raise ValueError("Gemini lieferte keine verwertbare Skriptantwort.") from exc
 

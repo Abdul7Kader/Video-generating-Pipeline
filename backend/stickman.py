@@ -6,8 +6,8 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-RENDERER_VERSION = "ink-story-v3"
-Pose = Literal["stand", "walk", "run", "point", "think", "shrug", "sit", "sleep", "work", "gather", "carry", "celebrate", "talk", "pick", "place", "read"]
+RENDERER_VERSION = "ink-story-v4"
+Pose = Literal["stand", "walk", "run", "point", "think", "shrug", "sit", "sleep", "work", "gather", "carry", "celebrate", "talk", "pick", "place", "read", "pet", "feed", "sniff"]
 Expression = Literal["neutral", "happy", "sad", "worried", "angry", "surprised", "tired", "determined"]
 
 
@@ -20,12 +20,14 @@ class MotionCue(DrawingModel):
     pose: Pose
     expression: Expression | None = None
     target_prop: int | None = Field(default=None, ge=0, le=7, description="Zero-based prop index to point at, pick, carry, place or read.")
+    target_character: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9_-]{1,32}$", description="Existing character id for petting or interacting with an animal.")
     move_to: float | None = Field(default=None, ge=8, le=92)
     duration: float = Field(default=0.55, ge=0.15, le=2.5, description="Seconds to finish the movement, not the length of the scene.")
 
 
 class Character(DrawingModel):
     id: str = Field(default="lead", pattern=r"^[a-zA-Z0-9_-]{1,32}$")
+    species: Literal["human", "cat", "dog"] = "human"
     x: float = Field(default=40, ge=8, le=92, description="Horizontal position, percent of drawing stage.")
     y: float = Field(default=78, ge=40, le=84, description="Feet position, percent of drawing stage.")
     scale: float = Field(default=1, ge=0.4, le=1.6)
@@ -34,13 +36,22 @@ class Character(DrawingModel):
     outfit: Literal["plain", "prehistoric", "office", "scientist", "casual"] = "plain"
     facing: Literal["left", "right"] = "right"
     enter: float = Field(default=0, ge=0, le=0.9, description="Entry time as fraction of scene duration.")
+    exit: float | None = Field(default=None, ge=0.05, le=1)
+    enter_on: str | None = Field(default=None, min_length=2, max_length=100)
+    exit_on: str | None = Field(default=None, min_length=2, max_length=100, description="Exact spoken phrase to disappear, e.g. after entering a carrier.")
     end_x: float | None = Field(default=None, ge=8, le=92, description="Movement destination; null to stay in place.")
     speed: float = Field(default=1.35, ge=0.6, le=2.5)
     cues: list[MotionCue] = Field(default_factory=list, max_length=8)
 
+    def model_post_init(self, context):
+        if self.exit is not None and self.exit <= self.enter:
+            raise ValueError("Eine Figur muss nach ihrem Auftritt verschwinden.")
+        if self.species != "human" and any(pose not in {"stand", "walk", "run", "sit", "sleep", "sniff"} for pose in [self.pose, *(cue.pose for cue in self.cues)]):
+            raise ValueError("Tierfiguren brauchen eine unterstützte Tierbewegung.")
+
 
 class Prop(DrawingModel):
-    kind: Literal["clock", "laptop", "desk", "chair", "bed", "phone", "book", "tree", "bush", "fire", "spear", "basket", "rock", "sun", "moon", "cloud", "house", "food", "water", "gear", "lightbulb", "arrow", "question", "check", "cross", "heart", "chart"]
+    kind: Literal["clock", "laptop", "desk", "chair", "bed", "phone", "book", "tree", "bush", "fire", "spear", "basket", "rock", "sun", "moon", "cloud", "house", "food", "water", "gear", "lightbulb", "arrow", "question", "check", "cross", "heart", "chart", "carrier", "pet_bed", "bowl", "litter_box", "cat_tree", "document"]
     x: float = Field(default=65, ge=5, le=95)
     y: float = Field(default=76, ge=15, le=84)
     scale: float = Field(default=1, ge=0.3, le=2)
@@ -65,10 +76,15 @@ class StickmanBoard(DrawingModel):
     def model_post_init(self, context):
         if not self.characters and not self.props:
             raise ValueError("Ein Zeichenplan braucht mindestens eine Figur oder eine Requisite.")
+        ids = [character.id for character in self.characters]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Figuren brauchen eindeutige IDs.")
         for character in self.characters:
             for cue in character.cues:
                 if cue.target_prop is not None and cue.target_prop >= len(self.props):
                     raise ValueError("Ein Handlungsschritt verweist auf einen fehlenden Gegenstand.")
+                if cue.target_character is not None and (cue.target_character not in ids or cue.target_character == character.id):
+                    raise ValueError("Ein Handlungsschritt verweist auf eine fehlende oder dieselbe Figur.")
 
     def validate_narration(self, narration):
         from .speech import anchor_index
@@ -76,7 +92,7 @@ class StickmanBoard(DrawingModel):
             cursor = 0
             for cue in character.cues:
                 cursor = anchor_index(narration, cue.on, cursor)+len(cue.on.split())
-        for prop in self.props:
+        for prop in [*self.props, *self.characters]:
             enter = anchor_index(narration, prop.enter_on) if prop.enter_on else None
             exit = anchor_index(narration, prop.exit_on) if prop.exit_on else None
             if enter is not None and exit is not None and exit <= enter:

@@ -18,11 +18,11 @@ window.ProcessProgress = (() => {
   }
   function scriptOptions(provider, duration = 60, singleScene = false, revision = false) {
     return {
-      label: singleScene ? 'Sprechertext und Zeichnungen der Szene überarbeiten' : revision ? 'Skript und Zeichnungen überarbeiten' : 'Skript und Zeichnungen planen',
+      label: singleScene ? 'Sprechertext und Zeichnungen der Szene überarbeiten' : revision ? 'Sprecher-Skript überarbeiten' : 'Sprecher-Skript schreiben',
       key: `script:${provider}:${singleScene ? 'scene' : 'full'}`,
       baseline: (provider === 'qwen' ? 420 : 120) + Number(duration || 60) * (singleScene ? 0.5 : 2),
       minimumSample: 15,
-      detail: 'Die KI erstellt Sprechertext, Figuren, Bewegungen und Zeichenregie. Das Video entsteht nach deiner Freigabe.'
+      detail: 'Die KI schreibt einen durchgehenden Sprechertext und eine Bildidee. Zeichnungen und Video entstehen nach deiner Freigabe.'
     };
   }
   function voiceOptions(voice, text) {

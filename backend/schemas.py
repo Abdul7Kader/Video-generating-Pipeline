@@ -78,6 +78,7 @@ class JobCreate(BaseModel):
     target_platform: PlatformId = "download"
     target_platforms: list[PlatformId] = Field(default_factory=list, max_length=15)
     script_generator: Literal["qwen", "gemini_cli"] = "qwen"
+    script_mode: Literal["scenes", "story"] = "scenes"
     production_config: ProductionConfig | None = None
     generation_id: str | None = Field(
         default=None,
@@ -156,6 +157,7 @@ class ScriptRevision(BaseModel):
     expected_version: int = Field(ge=1)
     instructions: str = Field(min_length=3, max_length=4000)
     scene_id: str | None = Field(default=None, min_length=3, max_length=64, pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]+$")
+    story_mode: bool = False
 
     @field_validator("instructions")
     @classmethod

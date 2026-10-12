@@ -118,7 +118,7 @@ def direct_scene(scene: dict, words: list[dict], duration: float) -> dict:
             cursor = index+len(cue['on'].split())
             motions.append({**cue, 'at':words[index]['start']})
         character['motion_cues'] = motions
-    for prop in board.get('props', []):
+    for prop in [*board.get('props', []), *board.get('characters', [])]:
         for field, anchor in (('enter','enter_on'), ('exit','exit_on')):
             if prop.get(anchor):
                 prop[field] = words[anchor_index(scene['narration'], prop[anchor])]['start']/duration

@@ -80,7 +80,10 @@ def _metrics(result: dict[str, Any]) -> dict[str, Any]:
 
 def _invoke_cli(prompt: str, schema: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     executable = _executable()
-    with tempfile.TemporaryDirectory(prefix="video-pipeline-antigravity-") as temp_name:
+    # The CLI can leave a child holding its working directory briefly on Windows.
+    # Cleanup must not replace a valid response or the sanitized provider error.
+    # Only the bounded JSON schema is written here; prompts stay on stdin.
+    with tempfile.TemporaryDirectory(prefix="video-pipeline-antigravity-", ignore_cleanup_errors=True) as temp_name:
         workspace = Path(temp_name)
         schema_path = workspace / "response-schema.json"
         schema_path.write_text(json.dumps(schema, ensure_ascii=False), encoding="utf-8")
