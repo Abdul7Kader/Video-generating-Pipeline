@@ -79,6 +79,48 @@ class StoryTests(unittest.TestCase):
             plan = story.generate_storyboard(self.request, self.current['script'])
         self.assertEqual(story.spoken_story(plan), self.text)
 
+    def test_missing_narrated_interaction_is_repaired_or_blocks_approval(self):
+        missing = copy.deepcopy(self.plan)
+        missing['scenes'][1]['stickman']['characters'][0]['cues'] = []
+        with patch('backend.story.planner.generate_script', side_effect=[missing, copy.deepcopy(self.plan)]) as generate:
+            plan = story.generate_storyboard(self.request, self.current['script'])
+        self.assertEqual(generate.call_count, 2)
+        self.assertEqual(story.spoken_story(plan), self.text)
+        self.assertIn('pet', generate.call_args.kwargs['instructions'])
+        with patch('backend.main.db', self.db), patch('backend.main.require_active_production'), patch('backend.story.planner.generate_script', return_value=missing), self.assertRaises(HTTPException):
+            main.approve_story_and_render(self.id, self.action)
+        unchanged = self.db.get_job(self.id)
+        self.assertEqual(unchanged['status'], 'script_review')
+        self.assertEqual(unchanged['script_version'], 1)
+        self.assertEqual(unchanged['script']['content_hash'], self.action.expected_hash)
+
+    def test_known_unsupported_motif_stops_before_any_image_planning_request(self):
+        draft = copy.deepcopy(self.current['script'])
+        draft['scenes'][0]['narration'] = 'Mila besucht ein Pferd.'
+        with patch('backend.story.planner.generate_script') as generate, self.assertRaisesRegex(ValueError, 'Pferd'):
+            story.generate_storyboard(self.request, draft)
+        generate.assert_not_called()
+
+    def test_non_animal_storyboard_preserves_words_and_requires_reading_action(self):
+        draft = copy.deepcopy(self.current['script'])
+        text = 'Mila nimmt das Buch. Dann liest sie darin. Schließlich legt sie das Buch auf den Tisch.'
+        draft['scenes'][0]['narration'] = text
+        request = self.request.model_copy(update={'topic': 'Ein Buch lesen'})
+        board = {'characters': [{'id': 'mila', 'cues': [
+            {'on': 'nimmt', 'pose': 'pick', 'target_prop': 0},
+            {'on': 'liest', 'pose': 'read', 'target_prop': 0},
+            {'on': 'legt', 'pose': 'place', 'target_prop': 0, 'place_x': 60, 'place_y': 65}]}],
+            'props': [{'kind': 'book'}, {'kind': 'desk'}]}
+        plan = finalize_scene_plan({'title': 'Lesen', 'scenes': [{'narration': text, 'visual': 'Mila liest und legt das Buch ab.',
+            'visual_type': 'stickman', 'stickman': board}], 'metadata': {}}, 30)
+        missing = copy.deepcopy(plan)
+        missing['scenes'][0]['stickman']['characters'][0]['cues'].pop(1)
+        with patch('backend.story.planner.generate_script', side_effect=[missing, plan]) as generate:
+            result = story.generate_storyboard(request, draft)
+        self.assertEqual(story.spoken_story(result), text)
+        self.assertEqual(generate.call_count, 2)
+        self.assertIn('read', generate.call_args.kwargs['instructions'])
+
     def test_visual_revision_can_keep_the_spoken_words(self):
         revised = copy.deepcopy(self.draft)
         revised['metadata']['visual_summary'] += ' Die Katze betritt sichtbar die Transportbox.'

@@ -104,6 +104,33 @@ Bewertung: weitere Tiere und Gegenstände benötigen passende Katalogeinträge.
 
 ## Sicherheit und Prüfung
 
+Die begrenzte Bildprüfung umfasst nun auch Bücher, Telefone, Laptops, Dokumente
+und Futter. Erkannte Wörter für Lesen, Tippen, Greifen, Tragen, Ablegen und
+Streicheln brauchen eine entsprechende Aktion mit Textanker und passendem Ziel.
+Ein bloßes Zeigen oder Sprechen ersetzt sie nicht. Einfache Objektpronomen folgen
+dem zuletzt ausdrücklich genannten Motiv. Bekannte nicht unterstützte Motive
+(Pferd, Vogel, Fisch, Auto, Fahrrad, Flugzeug, Pfanne) werden bereits vor der
+Bild-KI benannt; der freigegebene Text wird deshalb nicht heimlich umgeschrieben.
+Andere Motive und freie Formulierungen sind keine allgemeine semantische Prüfung.
+
+Greifen, Tragen, Lesen und Ablegen benutzen einen gemeinsamen Hand-/Objektkontakt.
+`place_x` und `place_y` definieren gemeinsam eine neue dauerhafte Ablageposition.
+Alternativ referenziert `place_surface` einen vorhandenen `desk`; der Objektboden
+liegt dann auf der Tischplatte. Flächen und freie Koordinaten dürfen nicht zugleich
+angegeben werden. Pro Figur ist ein gehaltenes Objekt erlaubt; vor einem neuen
+Besitzer muss es abgelegt werden. Neue Ablagefelder und Zielindizes sind begrenzt.
+Die tatsächliche Sprachzeit begrenzt die Ablage vor dem nächsten Greifanker.
+Nach der Sprachzeitberechnung müssen Ziele während ihrer Aktion sichtbar bleiben,
+auch bei prozentualen Auftritts-/Abgangszeiten; andernfalls stoppt der Renderpfad.
+Diese Regeln gelten innerhalb eines Bildabschnitts; Kontinuität über Schnitte
+bleibt eine eigene Entwicklungsetappe.
+
+Die Renderbibliothek bindet temporäre HTTP-Server standardmäßig an alle
+Schnittstellen. Der prozesslokale Schutz in `renderer/loopback.mjs` beschränkt
+ihre Listener auf `127.0.0.1` und weist fremde Bind-Adressen ab. Er verändert keine
+Firewall, Systemkonfiguration oder installierten Abhängigkeiten. Ein echter
+HTTP-Test sowie lokale Standbildrenderings prüfen den Ausführungspfad.
+
 Die KI liefert ausschließlich begrenzte JSON-Zeichendaten. Fremdes SVG, Code,
 Dateipfade oder Werkzeugaufrufe werden nicht zugelassen. Der neue Textaufruf
 verwendet dieselbe Werkzeugbegrenzung wie die bisherige Skript-KI. Version und

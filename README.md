@@ -13,6 +13,11 @@ Skripte erhalten eine begrenzte Textprüfung vor dem Speichern; Details und Gren
 [Skript- und Freigabeablauf](docs/story-workflow.md). Während der Entwicklung werden
 keine routinemäßigen Testvideos in der UI erzeugt; die echte Videoabnahme folgt später.
 
+Bildpläne prüfen eine begrenzte Gruppe erzählter Tiere, Gegenstände und Handlungen.
+Hände und gehaltene Gegenstände teilen einen Kontaktpunkt; abgelegte Gegenstände
+bleiben am neuen Ort oder auf einer referenzierten Tischfläche. Temporäre
+Render-HTTP-Server lauschen ausschließlich auf Loopback.
+
 ## Einrichtung auf diesem Rechner
 
 **⚙ Einstellungen** bündelt die lokale Rechnerprüfung, passende Skriptmodelle,

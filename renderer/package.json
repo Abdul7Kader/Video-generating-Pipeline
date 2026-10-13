@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "render": "node render.mjs",
-    "test": "node --test browser.test.mjs ink.test.mjs"
+    "test": "node --test browser.test.mjs ink.test.mjs loopback.test.mjs"
   },
   "dependencies": {
     "@remotion/bundler": "^4.0.0",

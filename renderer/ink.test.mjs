@@ -134,6 +134,94 @@ test('a new shot can place an object held in the preceding shot', () => {
   assert.deepEqual(directedProp(prop,0,value,1.5,6,1000,600),prop);
 });
 
+test('the rendered hand touches the prop grip throughout pickup, carry and placement', () => {
+  for (const [w,h,portrait] of [[1000,600,false],[600,900,true]]) {
+    for (const facing of ['left','right']) {
+      const value = {characters:[{id:'holder',x:40,y:81,scale:1.2,facing,motion_cues:[
+        {at:0,pose:'pick',target_prop:0,duration:.5},
+        {at:1,pose:'carry',target_prop:0,duration:.4},
+        {at:2,pose:'place',target_prop:0,duration:.5},
+      ]}],props:[{kind:'book',x:44,y:70,scale:.7}]};
+      for (const time of [.1,.3,.6,1.2,2.1,2.3]) {
+        const prop = directedProp(value.props[0],0,value,time,6,w,h);
+        const svg = draw(value,time*30,portrait);
+        const hand = /data-hand-x="([^"]+)" data-hand-y="([^"]+)"/.exec(svg);
+        assert.ok(hand,'actual drawing must expose the shared hand contact');
+        assert.ok(Math.abs(Number(hand[1])-prop.x*w/100)<.001);
+        assert.ok(Math.abs(Number(hand[2])-(prop.y*h/100-30*.7*h/600))<.001);
+      }
+    }
+  }
+});
+
+test('changing posture while holding an object does not teleport it', () => {
+  const value={characters:[{id:'reader',x:40,y:80,motion_cues:[
+    {at:0,pose:'pick',target_prop:0,duration:.3},
+    {at:1,pose:'carry',target_prop:0,duration:.3},
+    {at:2,pose:'read',target_prop:0,duration:.3},
+  ]}],props:[{kind:'book',x:42,y:65}]};
+  for (const time of [1,2]) {
+    const before=directedProp(value.props[0],0,value,time-.00001,6,1000,600);
+    const after=directedProp(value.props[0],0,value,time+.00001,6,1000,600);
+    assert.ok(Math.abs(after.y-before.y)<.01,'held object must not jump vertically');
+  }
+});
+
+test('placement keeps its new destination and the next owner picks up there', () => {
+  const prop={kind:'phone',x:25,y:67};
+  const value={characters:[
+    {id:'a',x:20,y:80,motion_cues:[{at:0,pose:'pick',target_prop:0,duration:.3},
+      {at:1,pose:'place',target_prop:0,place_x:65,place_y:63,duration:.4},
+      {at:1.5,pose:'stand',duration:.3}]},
+    {id:'b',x:70,y:80,motion_cues:[{at:3,pose:'pick',target_prop:0,duration:.4}]},
+  ],props:[prop]};
+  for (const [w,h] of [[1000,600],[600,900]]) {
+    const placed=directedProp(prop,0,value,2,6,w,h);
+    assert.equal(placed.x,65); assert.equal(placed.y,63);
+    assert.deepEqual(directedProp(prop,0,value,3,6,w,h),placed);
+    assert.equal(directedProp(prop,0,value,3.5,6,w,h).x,70+32*h/600/w*100);
+    assert.deepEqual(value.props[0],prop);
+  }
+});
+
+test('placing on a desk aligns the drawn book bottom with the tabletop', () => {
+  const prop={kind:'book',x:30,y:65,scale:.7}, desk={kind:'desk',x:66,y:81,scale:1};
+  const value={characters:[{id:'lead',x:60,y:81,motion_cues:[{at:1,pose:'place',target_prop:0,place_surface:1,duration:.4}]}],props:[prop,desk]};
+  for (const [w,h] of [[1000,600],[600,900]]) {
+    const placed=directedProp(prop,0,value,2,6,w,h);
+    assert.equal(placed.x,desk.x);
+    assert.ok(Math.abs((placed.y*h/100-10*.7*h/600)-(desk.y*h/100-67*h/600))<.001);
+  }
+});
+
+test('distant pickup approaches the object and preserves the achieved position', () => {
+  const value={characters:[{id:'lead',x:15,y:81,motion_cues:[
+    {at:1,pose:'pick',target_prop:0,duration:.7},{at:2,pose:'carry',target_prop:0,duration:.3},
+  ]}],props:[{kind:'book',x:80,y:65}]};
+  for (const [w,h] of [[1000,600],[600,900]]) {
+    const [actor]=interactionCharacters(value,6,w,h);
+    const end=actorState(actor,1.7,6).x;
+    assert.ok((80-end)*w/100/(h/600)<=100);
+    assert.equal(actorState(actor,3,6).x,end);
+    assert.equal(actorState(actor,.5,6).x,15);
+    assert.equal(value.characters[0].motion_cues[0].move_to,undefined);
+  }
+});
+
+test('the petting hand rests on the actual animated animal head', () => {
+  for (const [w,h,portrait] of [[1000,600,false],[600,900,true]]) {
+    const cat={id:'cat',species:'cat',x:55,y:81,pose:'sit',scale:.8,facing:'left'};
+    const value={characters:[{id:'human',x:45,y:81,scale:1.1,motion_cues:[{at:0,pose:'pet',target_character:'cat',duration:.5}]},cat],props:[]};
+    for (const time of [.6,1,1.4]) {
+      const hand=/data-pet-hand-x="([^"]+)" data-pet-hand-y="([^"]+)"/.exec(draw(value,time*30,portrait));
+      const motion=actorMotion(cat,time*30,30,6), scale=.8*h/600;
+      assert.ok(hand);
+      assert.ok(Math.abs(Number(hand[1])-(55*w/100-33*scale))<3*h/600);
+      assert.ok(Math.abs(Number(hand[2])-(81*h/100+motion.bob*.4-105*scale))<.001);
+    }
+  }
+});
+
 test('walking eases in and out and overlapping cues preserve the current position', () => {
   const character = {x:20,motion_cues:[{at:1,pose:'walk',move_to:80,duration:1}]};
   assert.ok(actorState(character,1.1,6).x < 23);

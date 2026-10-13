@@ -12,7 +12,7 @@ from . import planner
 from .antigravity import AntigravityError, generate_structured
 from .config import settings
 from .plan import finalize_scene_plan
-from .visual_coverage import visual_coverage_issues
+from .visual_coverage import unsupported_motif_issues, visual_coverage_issues
 from .voices import estimated_words_per_minute
 
 
@@ -141,6 +141,9 @@ All audience-facing fields, including notes, must use the requested language.
 
 def generate_storyboard(request, approved_script):
     narration = spoken_story(approved_script)
+    unsupported = unsupported_motif_issues(request.topic+' '+narration)
+    if unsupported:
+        raise ValueError(' '.join(unsupported))
     instruction = f'''ILLUSTRATION ONLY. The complete narration below has been approved by the user.
 Preserve every word and punctuation mark, in order. Partition it at natural sentence/action boundaries;
 joining your scene narrations with spaces must give exactly the approved narration. Never rewrite,
@@ -150,6 +153,13 @@ Central subjects must actually be drawn. A cat is a character with species=cat, 
 When an animal is mentioned, show that same animal; show petting, approaching, sniffing and transport.
 Use carrier, pet_bed, bowl, litter_box and cat_tree for pet equipment, not similar human furniture.
 Follow the drawing schema strictly. Check all speech anchors and object/character references.
+Show literal books, phones, laptops and documents when narrated. Reading requires read targeting
+the book/document/phone, typing requires work targeting the laptop. Picking, carrying and placing
+require pick/carry/place cues anchored at the corresponding spoken action and targeting that object.
+Petting requires pet targeting the animal. No pointing or talking in place of the narrated action.
+Keep one owner per object; place before a different character picks it up. For placement at a new
+surface use place_x and place_y together; the object remains there until the next pickup.
+For placing on a desk, use place_surface with that desk's prop index to align the object to the table.
 APPROVED NARRATION: {narration}
 VISUAL INTENT (not spoken): {approved_script.get('metadata', {}).get('visual_summary', '')}
 USER CHANGE REQUEST (not spoken): {approved_script.get('metadata', {}).get('visual_requests', '')}

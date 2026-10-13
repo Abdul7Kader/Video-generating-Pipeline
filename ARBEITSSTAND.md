@@ -1,12 +1,16 @@
 # Prioritäten für die Strichmännchen-Pipeline
 
-Aktualisiert: 2026-10-13. Nutzerentscheidung: erst die eigene Version fertigstellen; die Familienversion kommt ganz am Ende.
+Aktualisiert: 2026-10-14. Nutzerentscheidung: erst die eigene Version fertigstellen; die Familienversion kommt ganz am Ende.
 
 Nummerierte Übersicht: [ENTWICKLUNGSPLAN.md](ENTWICKLUNGSPLAN.md).
 Detaillierter Plan: [tasks/plan.md](tasks/plan.md); Checkliste: [tasks/todo.md](tasks/todo.md).
 Schritte 1–10 schließen die Originalversion ab. Schritte 11–13 betreffen anschließend die Familienversion.
 
-Dokumentationsstand: Schritt 2 und 3 sind technisch abgeschlossen und automatisiert geprüft. Der Fließtextablauf bleibt auch nach Bildplanung/Renderfehlern erhalten; reine Änderungen an Bildidee/Hinweisen sind möglich. Skripte werden gegen Wortbudget, Format, Wiederholungen und Platzhalter geprüft, mit höchstens einem zusätzlichen Korrekturversuch. Frühere Bildidee und Hinweise fließen in KI-Überarbeitungen ein. 209 Backend-Tests ausgeführt, ein optionaler echter Rendertest ausgelassen. Redaktionelle und echte Videoabnahme bleiben offen.
+Dokumentationsstand: Schritte 2–5 technisch abgeschlossen. Schritt 4 prüft neben Tieren auch Bücher, Telefone, Laptops, Dokumente und Futter sowie ausdrücklich erkannte Lese-/Tipp-/Greif-/Trage-/Ablage-/Streichelaktionen mit passenden Textankern und Zielen. Bekannte nicht unterstützte Motive werden vor der Bild-KI benannt. Schritt 5 verbindet Hand und Gegenstand über einen gemeinsamen Kontaktpunkt, unterstützt dauerhafte Ablagekoordinaten oder Tischflächen und prüft Besitzwechsel. Sitzt die Katze, sind Kopf und Körper nun verbunden. Renderer-Version `ink-story-v5` verhindert alte Asset-Zuordnungen.
+
+Prüfstand: 224 Backend-Tests ausgeführt, einer regulär übersprungen; 28 Renderer-Tests, TypeScript, Backend-Syntax und Diff-Prüfung. Zehn lokale PNG-Standbilder in `data/contact-proof/` für Greifen, Lesen, Ablegen und Streicheln in 16:9/9:16 erzeugt und visuell kontrolliert. Kein Testvideo, kein Audio, keine echte KI-Anfrage und kein neuer Produktionsauftrag. Redaktionelle und echte Videoabnahme bleiben offen.
+
+Sicherheit: neue Ablagefelder sind begrenzt und serverseitig geprüft; ungültige, unsichtbare und doppelt gehaltene Ziele werden abgewiesen. Die temporären HTTP-Server der Renderbibliothek werden ausschließlich im Renderprozess auf Loopback begrenzt (`renderer/loopback.mjs`), mit echtem Listener-Test und Standbildrendering geprüft. Keine Firewall-, System- oder Kontoeinstellungen verändert.
 
 **Aktuelle Testregel:** Keine neuen Testvideos in der UI als Routine erzeugen.
 Der Nutzer testet Videos selbst bzw. am Ende. Nur bei zwingendem Prüfbedarf einer
@@ -20,9 +24,10 @@ Der Nutzer hat Gemini 3.8 Flash (High) bestätigt. Als Skriptmodell lokal gespei
 und per Einstellungs-API zurückgelesen: `gemini-3.8-flash-high` / Antigravity.
 Bestehende Stimmen- und Hardwareauswahl erhalten; keine Anbieter-Credit-Einstellungen
 oder Tarife geändert. Das Speichern führte keinen Generierungsauftrag aus.
-Nächste Entwicklungsetappe: Schritt 4, zentrale Figuren, Gegenstände und Handlungen
-im Bildplan sichtbar abdecken. Echter KI-/Videolauf wird für die
-spätere Nutzerabnahme vorgemerkt und blockieren die weitere Implementierung nicht.
+Nächste Entwicklungsetappe: Schritt 6, Bewegungen mit der Erzählung takten, danach
+Schritt 7, Kontinuität über Schnitte. Die Bildprüfung ist ein begrenzter deutscher/
+englischer Motivkatalog, keine allgemeine semantische Abnahme. Echter KI-/Videolauf
+bleibt für die spätere Nutzerabnahme vorgemerkt und blockiert die Implementierung nicht.
 
 ## Aktueller Schwerpunkt
 

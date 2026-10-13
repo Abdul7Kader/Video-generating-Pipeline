@@ -6,7 +6,8 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-RENDERER_VERSION = "ink-story-v4"
+RENDERER_VERSION = "ink-story-v5"
+PORTABLE_PROPS = {'phone', 'book', 'basket', 'rock', 'spear', 'food', 'water', 'bowl', 'carrier', 'document'}
 Pose = Literal["stand", "walk", "run", "point", "think", "shrug", "sit", "sleep", "work", "gather", "carry", "celebrate", "talk", "pick", "place", "read", "pet", "feed", "sniff"]
 Expression = Literal["neutral", "happy", "sad", "worried", "angry", "surprised", "tired", "determined"]
 
@@ -19,10 +20,21 @@ class MotionCue(DrawingModel):
     on: str = Field(min_length=2, max_length=100, description="Exact words from this scene's narration that trigger the action.")
     pose: Pose
     expression: Expression | None = None
-    target_prop: int | None = Field(default=None, ge=0, le=7, description="Zero-based prop index to point at, pick, carry, place or read.")
+    target_prop: int | None = Field(default=None, ge=0, le=7, strict=True, description="Zero-based prop index to point at, pick, carry, place or read.")
     target_character: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9_-]{1,32}$", description="Existing character id for petting or interacting with an animal.")
     move_to: float | None = Field(default=None, ge=8, le=92)
+    place_x: float | None = Field(default=None, ge=5, le=95, description='New prop base x after placement; use only with place, paired with place_y.')
+    place_y: float | None = Field(default=None, ge=15, le=84, description='New prop base y after placement; null to reuse its current surface.')
+    place_surface: int | None = Field(default=None, ge=0, le=7, strict=True, description='Optional prop index of a desk to place onto; renderer aligns the object bottom to its tabletop.')
     duration: float = Field(default=0.55, ge=0.15, le=2.5, description="Seconds to finish the movement, not the length of the scene.")
+
+    def model_post_init(self, context):
+        if (self.place_x is None) != (self.place_y is None) or (self.place_x is not None and self.pose != 'place'):
+            raise ValueError('Eine Ablageposition braucht x und y gemeinsam und eine place-Aktion.')
+        if self.place_surface is not None and self.pose != 'place':
+            raise ValueError('Eine Ablagefläche ist nur bei einer place-Aktion erlaubt.')
+        if self.place_surface is not None and self.place_x is not None:
+            raise ValueError('Entweder eine Tischfläche oder freie Ablagekoordinaten angeben.')
 
 
 class Character(DrawingModel):
@@ -85,18 +97,58 @@ class StickmanBoard(DrawingModel):
                     raise ValueError("Ein Handlungsschritt verweist auf einen fehlenden Gegenstand.")
                 if cue.target_character is not None and (cue.target_character not in ids or cue.target_character == character.id):
                     raise ValueError("Ein Handlungsschritt verweist auf eine fehlende oder dieselbe Figur.")
+                if cue.pose in {'pick', 'carry', 'place', 'read'}:
+                    if cue.target_prop is None or self.props[cue.target_prop].kind not in PORTABLE_PROPS:
+                        raise ValueError('Greifen, Tragen, Ablegen und Lesen brauchen einen tragbaren Zielgegenstand.')
+                if cue.pose == 'read' and self.props[cue.target_prop].kind not in {'book', 'document', 'phone'}:
+                    raise ValueError('Lesen braucht ein Buch, Dokument oder Telefon als Ziel.')
+                if cue.pose == 'pet' and not any(target.id == cue.target_character and target.species != 'human' for target in self.characters):
+                    raise ValueError('Streicheln braucht eine sichtbare Tierfigur als Ziel.')
+                if cue.place_surface is not None and (cue.place_surface >= len(self.props) or self.props[cue.place_surface].kind != 'desk'):
+                    raise ValueError('Die Ablagefläche muss auf einen vorhandenen Tisch verweisen.')
 
     def validate_narration(self, narration):
         from .speech import anchor_index
+        ownership = []
         for character in self.characters:
             cursor = 0
             for cue in character.cues:
-                cursor = anchor_index(narration, cue.on, cursor)+len(cue.on.split())
+                start = anchor_index(narration, cue.on, cursor)
+                cursor = start+len(cue.on.split())
+                target = self.props[cue.target_prop] if cue.target_prop is not None else next((actor for actor in self.characters if actor.id == cue.target_character), None)
+                if target:
+                    if (target.enter_on and anchor_index(narration, target.enter_on) > start) or (target.exit_on and anchor_index(narration, target.exit_on) <= start):
+                        raise ValueError('Das Interaktionsziel ist am gesprochenen Aktionsanker nicht sichtbar.')
+                if cue.place_surface is not None:
+                    desk = self.props[cue.place_surface]
+                    if (desk.enter_on and anchor_index(narration, desk.enter_on) > start) or (desk.exit_on and anchor_index(narration, desk.exit_on) <= start):
+                        raise ValueError('Die Ablagefläche ist am gesprochenen Aktionsanker nicht sichtbar.')
+                if cue.pose in {'pick', 'carry', 'read', 'place'}:
+                    ownership.append((start, character.id, cue))
         for prop in [*self.props, *self.characters]:
             enter = anchor_index(narration, prop.enter_on) if prop.enter_on else None
             exit = anchor_index(narration, prop.exit_on) if prop.exit_on else None
             if enter is not None and exit is not None and exit <= enter:
                 raise ValueError("Der Abgangs-Textanker muss nach dem Auftritt liegen.")
+        owners = {}
+        held = {}
+        beats = set()
+        for start, actor, cue in sorted(ownership, key=lambda event: event[0]):
+            index = cue.target_prop
+            if (start, index) in beats:
+                raise ValueError('Besitzwechsel desselben Gegenstands brauchen getrennte Textanker.')
+            beats.add((start, index))
+            if owners.get(index, actor) != actor:
+                raise ValueError('Ein Gegenstand kann nicht gleichzeitig von zwei Figuren gehalten werden.')
+            if cue.pose == 'place':
+                if actor in held and held[actor] != index:
+                    raise ValueError('Die Figur muss den tatsächlich gehaltenen Gegenstand ablegen.')
+                owners.pop(index, None)
+                held.pop(actor, None)
+            else:
+                if actor in held and held[actor] != index:
+                    raise ValueError('Vor einem neuen Gegenstand muss die Figur den bisherigen ablegen.')
+                owners[index], held[actor] = actor, index
 
 
 def drawing_response_schema() -> dict:

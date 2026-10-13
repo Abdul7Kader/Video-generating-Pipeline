@@ -1,6 +1,6 @@
 # Aktueller Auftrag: Strichmenschen-Videos
 
-Stand: 2026-10-13. Nummern, Abnahmebedingungen, Abhängigkeiten und Prüfungen in `tasks/plan.md`.
+Stand: 2026-10-14. Nummern, Abnahmebedingungen, Abhängigkeiten und Prüfungen in `tasks/plan.md`.
 Vorhandene Implementierung ist Ausgangspunkt; offen bedeutet hier noch zu prüfen/verbessern und abzunehmen.
 
 Nummerierte Übersicht: [ENTWICKLUNGSPLAN.md](../ENTWICKLUNGSPLAN.md).
@@ -11,6 +11,15 @@ bleibt nach Bildplanung/Renderfehlern beim Fließtext; Bildidee und sachliche Hi
 können separat überarbeitet werden. Schritt 3 prüft Stimme/Zeitbudget, Textformat,
 Wiederholungen und Platzhalter mit höchstens einem zusätzlichen Korrekturversuch.
 209 Backend-Tests ausgeführt, ein optionaler echter Rendertest ausgelassen.
+
+Stand 4–5: technisch implementiert und geprüft. Begrenzte Motiv-/Aktionsprüfung
+für Tieradoption, Lesen, Tippen und Telefonhandlungen; fehlende Ziele/Aktionen
+stoppen die Freigabe. Gemeinsame Hand-/Objektkontakte, dauerhafte Ablage auf Tisch
+oder Koordinaten, Besitzwechsel und Tierkopfkontakt. 224 Backend-Tests ausgeführt,
+ein regulärer Skip; 28 Renderer-Tests, TypeScript/Syntax und zehn echte PNG-
+Standbilder in 16:9/9:16 geprüft. Keine Video-/Audio-/KI-Erzeugung oder neuen
+Produktionsaufträge. Render-HTTP-Server auf Loopback begrenzt. Live-/Filmabnahme
+und allgemeine semantische Bildbewertung bleiben offen.
 
 Nutzervorgabe: keine routinemäßigen Testvideos in der UI. Echte KI-/Video- und
 redaktionelle Abnahme durch den Nutzer bzw. am Ende in Schritt 10; jetzt nur eine
@@ -27,9 +36,9 @@ Erledigung von 2–3 ist keine Behauptung einer bestandenen Live-/Qualitätsabna
 - [ ] 1. Tatsächlichen Skriptanbieterzugang prüfen und verständlich anzeigen
 - [x] 2. Fließtext-/Überarbeitungs-/Freigabeablauf technisch abschließen und automatisiert prüfen
 - [x] 3. Skriptqualität durch Kontext, Wortbudget und Textprüfungen verbessern; Themen-/Längenfixtures prüfen
-- [ ] 4. Zentrale erzählte Figuren, Motive und Handlungen sichtbar abdecken
-- [ ] Prüfpunkt 1–4: Bildabdeckung automatisch prüfen; echter Skript-/Bildplanlauf für die spätere Abnahme vorgemerkt
-- [ ] 5. Handkontakt und Gegenstandsinteraktion verbessern
+- [x] 4. Begrenzte Motivgruppe und zentrale erkannte Handlungen sichtbar abdecken, automatisiert prüfen
+- [x] Prüfpunkt 1–4 technisch: Text-/Bildplanverträge einschließlich Thema ohne Katze prüfen; echter Lauf bleibt später vorgemerkt
+- [x] 5. Handkontakt, dauerhafte Ablage und Gegenstandsbesitz verbessern; Tests und Standbilder prüfen
 - [ ] 6. Bewegungstempo mit Erzählung synchronisieren
 - [ ] 7. Figuren- und Gegenstandskontinuität zwischen Bildabschnitten sichern
 - [ ] Prüfpunkt 5–7: Filmproben für Kontakt, Aktionstakte und Kontinuität

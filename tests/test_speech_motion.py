@@ -88,3 +88,23 @@ class SpeechMotionTests(unittest.TestCase):
         self.assertEqual([w['text'] for w in words], ['Eine','Figur','sammelt','Beeren.'])
         self.assertTrue(all(0 <= w['start'] < w['end'] <= 2.1 for w in words))
         self.assertTrue(all(left['end'] <= right['start'] for left,right in zip(words, words[1:])))
+
+    def test_object_release_finishes_before_next_owner_pickup_and_keeps_surface(self):
+        scene = {'narration': 'Mila legt ab und Jonas nimmt das Buch.', 'stickman': {
+            'characters': [{'id': 'mila', 'cues': [{'on': 'legt', 'pose': 'place', 'target_prop': 0, 'place_surface': 1, 'duration': 2}]},
+                           {'id': 'jonas', 'cues': [{'on': 'nimmt', 'pose': 'pick', 'target_prop': 0, 'duration': .5}]}],
+            'props': [{'kind': 'book'}, {'kind': 'desk'}]}}
+        words = [{'text': word, 'start': index*.2, 'end': (index+1)*.2} for index, word in enumerate(scene['narration'].split())]
+        result = direct_scene(scene, words, 2)
+        release = result['stickman']['characters'][0]['motion_cues'][0]
+        pickup = result['stickman']['characters'][1]['motion_cues'][0]
+        self.assertAlmostEqual(release['at']+release['duration'], pickup['at'])
+        self.assertEqual(release['place_surface'], 1)
+        self.assertEqual(scene['stickman']['characters'][0]['cues'][0]['duration'], 2)
+        scene['stickman']['props'][0]['enter'] = .9
+        with self.assertRaisesRegex(ValueError, 'nicht sichtbar'):
+            direct_scene(scene, words, 2)
+        scene['stickman']['props'][0]['enter'] = 0
+        scene['stickman']['props'][1]['exit'] = .2
+        with self.assertRaisesRegex(ValueError, 'nicht sichtbar'):
+            direct_scene(scene, words, 2)

@@ -1,6 +1,6 @@
 # Aktiver Entwicklungsplan: Strichmenschen-Videos
 
-Stand: 2026-10-13. Nummerierter Entwicklungsplan auf Nutzerwunsch.
+Stand: 2026-10-14. Nummerierter Entwicklungsplan auf Nutzerwunsch.
 Zuerst die Originalversion für den Nutzer fertigstellen, erst danach die Familienversion
 ohne Pro-Abos. Bereits vorhandene Funktionen gezielt prüfen und verbessern, nicht neu bauen.
 Die älteren Ausbaupläne darunter bleiben eingefrorener Verlauf. Aufgaben: `tasks/todo.md`.
@@ -46,6 +46,7 @@ Sprechertexte auf klare Handlung, gute Verständlichkeit, passende Länge und ü
 - Abhängigkeiten: 2. Umfang M; `backend/story.py`, `backend/planner.py`, `tests/test_story_workflow.py`, `tests/test_planner.py`.
 
 ### 4. Erzählte Handlung in sichtbare Bildaktionen übersetzen
+Technisch umgesetzt: zusätzlicher Motivkatalog für Bücher, Telefone, Laptops, Dokumente und Futter; Prüfung erkannter read/work/pick/carry/place/pet-Aktionen gegen Textanker und tatsächliche Ziele. Einfache Objektpronomen verfolgen das zuletzt ausdrücklich genannte Motiv, auch über Bildabschnitte. Bekannte nicht unterstützte Motive (Pferd, Vogel, Fisch, Auto, Fahrrad, Flugzeug, Pfanne) stoppen bereits vor der Bild-KI. Fehlende Aktionen dürfen einmal korrigiert werden, danach bleibt der ursprüngliche Entwurf ungequeued. Prüfung mit Tieradoption, Lesen, Tippen und englischen Telefonhandlungen; keine allgemeine semantische oder Faktenprüfung behauptet.
 Die vorhandene Bildabdeckung über Katze/Hund hinaus für eine begrenzte erste Motivgruppe ausbauen. Figuren, Tiere, wichtige Gegenstände und konkrete Handlungen im Plan mit den darstellbaren Zeichenbausteinen abgleichen.
 - Abnahme: Adoption zeigt das Tier und die relevante Interaktion; weitere Testthemen zeigen ihre zentralen Handlungen. Nicht unterstützte Motive werden vor einem irreführenden Erfolgsresultat benannt.
 - Prüfung: `python -m unittest tests.test_visual_coverage tests.test_story_workflow`; Vergleich Erzähltext/Bildplan bei unterschiedlichen Themen.
@@ -54,9 +55,10 @@ Die vorhandene Bildabdeckung über Katze/Hund hinaus für eine begrenzte erste M
 Prüfpunkt nach 1–4: Text-/Bildplanverträge automatisch prüfen, einschließlich Thema ohne Katze. Der echte Auftrag von Idee und Textänderung bis zum Bildplan bleibt Bestandteil der späteren Nutzerabnahme; keine routinemäßigen Testvideos während des Baus.
 
 ### 5. Handkontakt und Gegenstandsinteraktion verbessern
+Technisch umgesetzt und anhand echter PNG-Standbilder geprüft: Hand und gehaltenes Objekt verwenden denselben Griffpunkt, einschließlich Größe, Blickrichtung und Körperbewegung. Greifen und Ablegen nähern die Figur nötigenfalls an; erreichte Position bleibt erhalten. Ablage bleibt an neuen Koordinaten oder passt auf eine ausdrücklich referenzierte Tischfläche. Besitzwechsel dürfen nicht doppelt erfolgen; die Ablage endet vor dem nächsten gesprochenen Greifanker. Streicheln berührt den tatsächlichen Tierkopf; sitzende Katze/Hund haben einen verbundenen Hals. Renderer-Version erhöht. Temporäre Render-HTTP-Server sind im Renderprozess auf Loopback begrenzt und getestet. 224 Backend-Tests (ein regulärer Skip), 28 Renderer-Tests, TypeScript/Syntax sowie zehn Standbilder; Film-/Audioabnahme auf Nutzerwunsch später.
 Greifen, Tragen, Ablegen und Streicheln anhand bestehender Bewegungen verbessern; Kontaktpunkte zwischen Figuren und Objekten konsistent halten.
 - Abnahme: Hand und Gegenstand bleiben während der Aktion nachvollziehbar verbunden; Objektbesitz und Ablage wechseln zum vorgesehenen Zeitpunkt.
-- Prüfung: Renderer-/Stickman-Tests sowie kurze Filmproben mit Greifen/Tragen/Ablegen und Tierkontakt.
+- Prüfung: Renderer-/Stickman-/Sprachanker-Tests und PNG-Standbilder mit Greifen/Lesen/Ablegen/Tierkontakt; kurze Filmproben bei der späteren Nutzerabnahme.
 - Abhängigkeiten: 4. Umfang M; `renderer/src/ink.tsx`, `backend/stickman.py`, `tests/test_stickman.py`, `renderer/ink.test.mjs`.
 
 ### 6. Bewegung passend zur Erzählung takten

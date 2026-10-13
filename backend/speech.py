@@ -118,10 +118,33 @@ def direct_scene(scene: dict, words: list[dict], duration: float) -> dict:
             cursor = index+len(cue['on'].split())
             motions.append({**cue, 'at':words[index]['start']})
         character['motion_cues'] = motions
+    # Complete release before the next owner acquires the same object.
+    interactions = {}
+    for character in board.get('characters', []):
+        for cue in character.get('motion_cues', []):
+            if cue.get('target_prop') is not None and cue['pose'] in {'pick', 'read', 'carry', 'place'}:
+                interactions.setdefault(cue['target_prop'], []).append(cue)
+    for cues in interactions.values():
+        cues.sort(key=lambda cue: cue['at'])
+        for cue, following in zip(cues, cues[1:]):
+            if cue['pose'] == 'place':
+                cue['duration'] = min(cue['duration'], max(.001, following['at']-cue['at']))
     for prop in [*board.get('props', []), *board.get('characters', [])]:
         for field, anchor in (('enter','enter_on'), ('exit','exit_on')):
             if prop.get(anchor):
                 prop[field] = words[anchor_index(scene['narration'], prop[anchor])]['start']/duration
+    for character in board.get('characters', []):
+        for cue in character.get('motion_cues', []):
+            targets = []
+            if cue.get('target_prop') is not None:
+                targets.append(board['props'][cue['target_prop']])
+            if cue.get('place_surface') is not None:
+                targets.append(board['props'][cue['place_surface']])
+            if cue.get('target_character'):
+                targets.extend(actor for actor in board['characters'] if actor['id'] == cue['target_character'])
+            if any((target.get('enter') or 0)*duration > cue['at'] or
+                   target.get('exit') is not None and target['exit']*duration < cue['at']+cue['duration'] for target in targets):
+                raise ValueError('Ein Interaktionsziel ist während der gesprochenen Aktion nicht sichtbar. Bitte Auftritt und Abgang korrigieren.')
     result['words'] = words
     result['timing_method'] = TIMING_METHOD
     return result

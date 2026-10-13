@@ -1,6 +1,43 @@
 # Entwicklungsstatus – Video Pipeline V2
 
-Letzte Aktualisierung: 2026-10-13
+Letzte Aktualisierung: 2026-10-14
+
+## Aktuelle Etappe vom 2026-10-14: Schritt 4 und 5
+
+Implementiert: Bildabdeckung über Katze/Hund hinaus für Bücher, Telefone, Laptops,
+Dokumente und Futter. Erkannte Lese-, Tipp-, Greif-, Trage-, Ablage- und Streichel-
+aktionen benötigen passende Textanker und tatsächliche Objekt-/Tierziele.
+Einfache Objektpronomen verwenden das zuletzt genannte Motiv. Bekannte nicht
+darstellbare Motive stoppen vor einer Bild-KI-Anfrage. Fehlende Aktionen erlauben
+einen Korrekturversuch; danach bleibt der bisherige Text ohne Renderauftrag erhalten.
+
+Implementiert: ein Griffpunkt für Hand und Objekt während Greifen/Tragen/Ablegen,
+einschließlich Größen, Blickrichtung und Körperbewegung. Figuren nähern sich
+fernen Kontaktzielen; Objekte bleiben nach Ablage an neuen Koordinaten oder auf
+einer referenzierten Tischplatte. Besitzwechsel sind geprüft; eine Ablage endet
+vor dem nächsten sprachverankerten Greifen. Streicheln berührt den animierten
+Tierkopf; die sitzende Tierzeichnung hat einen verbundenen Hals.
+Renderer-Version `ink-story-v5` bindet die neuen Asset-Manifeste.
+
+Implementiert/geprüft für den Hostschutz: neue Felder begrenzt, Zielindizes und
+sichtbare Ziele serverseitig validiert. Ungültige Tischflächen und doppelter Besitz
+werden abgewiesen. Die installierte Renderbibliothek erzeugt intern Wildcard-
+Listener; `renderer/loopback.mjs` begrenzt sie im Renderprozess auf Loopback.
+Keine Firewall- oder Betriebssystemeinstellungen verändert, keine neuen Pakete.
+
+Getestet: 224 Backend-Tests ausgeführt, ein optionaler echter Videorendertest
+regulär übersprungen; 28 Renderer-Tests, TypeScript, Backend-Syntax und Diff-Prüfung.
+Negative Fälle umfassen fehlende Aktionen/falsche Ziele, nicht unterstützte Motive,
+ungültige Ablageflächen, unsichtbare Ziele, Konkurrenz um ein Objekt und öffentliche
+Listener. Ein tatsächlicher HTTP-Test bestätigt die Loopback-Bindung.
+Zehn echte PNG-Standbilder für Greifen/Lesen/Ablegen/Streicheln in 16:9/9:16 wurden
+lokal erzeugt und visuell kontrolliert (`data/contact-proof/`, nicht versioniert).
+Kein Testvideo, Audio, echter KI-Aufruf oder neuer Produktionsauftrag.
+
+Offen: der Katalog und die Sprachmuster sind begrenzt; keine allgemeine semantische
+Bildabdeckung. Film-/Sprachabnahme bleibt beim Nutzer bzw. Schritt 10. Bewegungstakt
+und Kontinuität über Schnitte sind Schritte 6–7. Ein echter Skriptaufruf aus Schritt 1
+und der frühere externe npm-Audit-Blocker bleiben offen.
 
 ## Maßgeblicher Arbeitsstand vom 2026-10-13
 
