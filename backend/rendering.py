@@ -114,6 +114,7 @@ def synthesize(text: str, output: Path, language: str, *, provider: str | None =
         return _synthesize_gemini(text, output, language)
     if selected_provider != "piper":
         raise RuntimeError(f"Unbekannter Stimmenanbieter: {selected_provider}")
+    voice_id = voice_id or ('thorsten' if language=='de' else 'ljspeech')
     validate_voice_language({"voice_id": voice_id, "voice_provider": selected_provider}, language)
     if not 0.85 <= speed <= 1.25:
         raise ValueError("Unzulässiges Sprechtempo.")
@@ -213,6 +214,9 @@ def prepare_scene_audio(
                 options.update(voice_id=voice_id, speed=speed)
             mode, duration = synthesize(str(scene["narration"]), destination, language, **options)
             reused_from = None
+        expected_mode = 'gemini' if (provider or settings.tts_provider) in {'gemini','gemini_tts'} else (provider or settings.tts_provider)
+        if mode != expected_mode and not (expected_mode=='gemini' and mode.startswith('gemini:')):
+            raise RuntimeError('Die erzeugte Stimme entspricht nicht dem ausgewählten Anbieter. Es wird keine Ersatzstimme übernommen.')
         speech = {}
         if continuous:
             if not cached:
@@ -404,11 +408,13 @@ def render_job(job: dict[str, Any], *, job_dir_override: Path | None = None) -> 
 
 
 def dependency_status() -> dict[str, Any]:
+    from .setup import browser_available
     moneyprinter = moneyprinter_status(settings)
     return {
         "ffmpeg": bool(find_ffmpeg()),
         "ffprobe": bool(find_ffprobe()),
         "node": bool(shutil.which("node")),
+        "browser": browser_available(),
         "piper_voice": _voice_model().exists(),
         "tts_provider": settings.tts_provider,
         "cloud_tts_allowed": settings.allow_cloud_tts,

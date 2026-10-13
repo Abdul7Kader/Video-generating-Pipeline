@@ -113,7 +113,9 @@ class StudioTests(unittest.TestCase):
         with patch("backend.main.settings", self.settings), patch("backend.main.synthesize", side_effect=synthesize) as synth:
             request = VoicePreview(voice_id="kerstin", text="Mila liest ein Buch.", speed=1.1)
             first = main.create_voice_preview(request)
-            self.assertEqual(main.create_voice_preview(request), first)
+            second=main.create_voice_preview(request)
+            self.assertEqual(second['url'], first['url'])
+            self.assertTrue(second['cached'])
             self.assertEqual(synth.call_count, 1)
             media = main.get_voice_preview(first["url"].split('/')[-1])
             self.assertEqual(media.media_type, "audio/wav")

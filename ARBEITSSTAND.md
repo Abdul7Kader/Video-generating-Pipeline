@@ -6,7 +6,7 @@ Nummerierte Übersicht: [ENTWICKLUNGSPLAN.md](ENTWICKLUNGSPLAN.md).
 Detaillierter Plan: [tasks/plan.md](tasks/plan.md); Checkliste: [tasks/todo.md](tasks/todo.md).
 Schritte 1–10 schließen die Originalversion ab. Schritte 11–13 betreffen anschließend die Familienversion.
 
-Dokumentationsstand: Schritte 2–7 technisch abgeschlossen. Schritt 6 begrenzt Aktionen auf verfügbare Sprachfenster und lässt Gesten auslaufen; Laufwege mit altem `end_x` bekommen einen erkannten gesprochenen Bewegungsanker. Schritt 7 prüft wiederkehrende Figuren-/Objektmerkmale, übergibt Besitz über stabile Gegenstands-IDs bzw. eindeutige Typen und erhält Ablage- und Ruhe-/Schlafzustände. Der Renderer übernimmt tatsächliche Endpositionen im selben Schauplatz einschließlich Haltegriff und Bewegungsphase. Renderer-Version `ink-story-v6` verhindert alte Asset-Zuordnungen.
+Dokumentationsstand: Schritte 2–9 technisch umgesetzt; echte Hör-/Filmabnahme bleibt Schritt 10. Schritt 6 begrenzt Aktionen auf verfügbare Sprachfenster und lässt Gesten auslaufen; Laufwege mit altem `end_x` bekommen einen erkannten gesprochenen Bewegungsanker. Schritt 7 prüft wiederkehrende Figuren-/Objektmerkmale, übergibt Besitz über stabile Gegenstands-IDs bzw. eindeutige Typen und erhält Ablage- und Ruhe-/Schlafzustände. Der Renderer übernimmt tatsächliche Endpositionen im selben Schauplatz einschließlich Haltegriff und Bewegungsphase. Renderer-Version `ink-story-v6` verhindert alte Asset-Zuordnungen.
 
 Prüfstand 6–7: 234 Backend-Tests ausgeführt, einer regulär übersprungen; 31 Renderer-Tests, TypeScript, Backend-Syntax und Diff-Prüfung. Acht PNG-Standbilder vor/nach Schnitten aus vier Abschnitten in `data/continuity-proof/` (16:9/9:16) visuell kontrolliert. Früherer Stand 4–5: 224 Backend-/28 Renderer-Tests und zehn PNGs unter `data/contact-proof/`. Kein Testvideo, kein echtes Audio, keine KI-Inferenz und kein neuer Produktionsauftrag. Redaktionelle und echte Videoabnahme bleiben offen.
 
@@ -16,8 +16,8 @@ Sicherheit: neue Ablagefelder sind begrenzt und serverseitig geprüft; ungültig
 
 **Aktuelle Testregel:** Keine neuen Testvideos in der UI als Routine erzeugen.
 Der Nutzer testet Videos selbst bzw. am Ende. Nur bei zwingendem Prüfbedarf einer
-konkreten Änderung ein Video erzeugen. In dieser Etappe keine Video-/Audioerzeugung,
-keine echten KI-Anfragen und keine neuen Aufträge in der Produktionsdatenbank.
+konkreten Änderung ein Video erzeugen. In Schritt 8–9 nur zwei kurze lokale Hörproben; keine Videos,
+keine Skript-KI-Inferenz und keine neuen Aufträge in der Produktionsdatenbank.
 
 Echte Zugangskontrolle: installierte Antigravity-CLI 1.3.4, Anmeldung bestätigt;
 `gemini-3.1-pro-high` fehlt im aktuellen Modellangebot. Angeboten werden
@@ -26,10 +26,18 @@ Der Nutzer hat Gemini 3.8 Flash (High) bestätigt. Als Skriptmodell lokal gespei
 und per Einstellungs-API zurückgelesen: `gemini-3.8-flash-high` / Antigravity.
 Bestehende Stimmen- und Hardwareauswahl erhalten; keine Anbieter-Credit-Einstellungen
 oder Tarife geändert. Das Speichern führte keinen Generierungsauftrag aus.
-Nächste Entwicklungsetappe: Schritt 8, Stimme und Sprachfluss, danach Schritt 9,
-UI und Einrichtung. Die Bildprüfung ist ein begrenzter deutscher/
+Nächste Entwicklungsetappe: Schritt 10, gemeinsame Hör-/Filmabnahme mit dem Nutzer. Die Bildprüfung ist ein begrenzter deutscher/
 englischer Motivkatalog, keine allgemeine semantische Abnahme. Echter KI-/Videolauf
 bleibt für die spätere Nutzerabnahme vorgemerkt und blockiert die Implementierung nicht.
+
+Prüfstand 8–9: 238 Backend-Tests (1 übersprungen), 16 JS-Tests, JS-Syntax und
+Browser normal/390 px geprüft. Zwei lokale Proben: Piper 15,44 s Erzeugung/3,153 s
+Audio, Qwen 211,50 s/3,67 s. Keine übersteuerten Samples, längste innere Pausen
+0,08/0,10 s. Messdaten `data/voice-quality-proof.json`, UI-Bilder
+`data/ui-quality-proof/`; lokale Artefakte werden nicht eingecheckt. Keine subjektive
+Hörabnahme oder universelle Ausspracheprüfung behauptet. Gewählte globale Konfiguration
+weiter Antigravity `gemini-3.8-flash-high` / Piper. Host-Listener bleibt 127.0.0.1:8080;
+keine Installationen, Firewalländerungen oder neuen Zugangsdaten.
 
 ## Aktueller Schwerpunkt
 

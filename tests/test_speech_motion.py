@@ -6,7 +6,7 @@ import unittest
 import wave
 from unittest.mock import patch
 
-from backend.speech import compact_speech, speech_scene_durations, estimate_word_timings, direct_scene
+from backend.speech import compact_speech, speech_metrics, speech_scene_durations, estimate_word_timings, direct_scene
 
 
 def tone(seconds, rate=16000):
@@ -22,6 +22,30 @@ def write_audio(path, samples, rate=16000):
 
 
 class SpeechMotionTests(unittest.TestCase):
+    def test_production_rejects_audio_from_an_unselected_provider(self):
+        from backend.rendering import prepare_scene_audio
+        with tempfile.TemporaryDirectory() as root, patch('backend.rendering._voice_fingerprint',return_value='fixed'), patch('backend.rendering.synthesize',return_value=('piper',1)), patch('backend.rendering.compact_speech') as compact:
+            with self.assertRaisesRegex(RuntimeError,'ausgewählten Anbieter'):
+                prepare_scene_audio(Path(root),[{'scene_id':'scene-one','narration':'Mila liest.'}],'de',provider='qwen_tts',voice_id='qwen_narrator',continuous=True)
+            compact.assert_not_called()
+
+    def test_audio_metrics_reject_silence_and_truncation_and_preserve_both_gap_edges(self):
+        with tempfile.TemporaryDirectory() as root:
+            path=Path(root)/'voice.wav'
+            samples=tone(.3)+array('h',[10]*8000+[20]*8000)+tone(.3)
+            write_audio(path,samples)
+            compact_speech(path)
+            with wave.open(str(path),'rb') as wav:
+                kept=array('h',wav.readframes(wav.getnframes()))
+            self.assertIn(10,kept);self.assertIn(20,kept)
+            report=speech_metrics(path)
+            self.assertLessEqual(report['longest_internal_pause_seconds'],.11)
+            self.assertEqual(report['clipped_ratio'],0)
+            self.assertLess(report['peak_dbfs'],0)
+            path.write_bytes(path.read_bytes()[:-100])
+            with self.assertRaises(ValueError):speech_metrics(path)
+            write_audio(path,array('h',[0]*16000))
+            with self.assertRaises(ValueError):speech_metrics(path)
     def test_compacted_voice_invalidates_old_cache_then_reuses_word_timings(self):
         from backend.rendering import prepare_scene_audio
         scenes = [{'scene_id':'scene-one', 'narration':'Eine kurze Geschichte.'}]

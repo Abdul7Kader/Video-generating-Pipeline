@@ -26,10 +26,10 @@ from .plan import file_sha256, finalize_scene_plan, script_hash
 from .planner import ScriptProviderUnavailable, generate_script, script_provider_status, unload_script_model
 from .production import build_production_catalog, normalize_production_config, production_plan_readiness, require_active_production
 from .publishing import configured_automatic_platforms, platform_catalog, publish_to_target
-from .rendering import dependency_status, render_job, synthesize
+from .rendering import dependency_status, render_job, synthesize, normalize_narration_audio
 from .schemas import JobCreate, ProductionConfig, ProductionConfigUpdate, Scene, SceneUpdate, ScriptRevision, ScriptUpdate, VersionAction, VideoApproval, VoicePreview
 from .voices import VOICE_CHOICES, voice_choice, validate_voice_language, estimated_words_per_minute
-from .speech import compact_speech, VOICE_POLICY
+from .speech import compact_speech, speech_metrics, VOICE_POLICY
 from .story import generate_story, generate_storyboard, spoken_story
 from .visual_coverage import visual_coverage_issues
 from . import qwen_tts
@@ -263,6 +263,10 @@ def voice_catalog():
         if item.get("provider") == "qwen_tts":
             status = qwen_tts.voice_status()
             installed, available, reason = status["ready"], status["ready"], status["message"]
+            if installed:
+                from .device import device_info, recommendation
+                if not recommendation(device_info())['qwen_suitable']:
+                    available, reason = False, 'Für Qwen fehlt aktuell freier Arbeitsspeicher. Große Programme schließen oder ausdrücklich Piper wählen.'
         else:
             model = settings.voices_dir / f"{item['model']}.onnx"
             installed = model.is_file() and model.with_suffix(".onnx.json").is_file() and not (item['id']=='thorsten' and (settings.voices_dir / '.piper-setup-pending').exists())
@@ -286,19 +290,32 @@ def create_voice_preview(payload: VoicePreview):
         root = settings.data_dir / "voice-previews"
         root.mkdir(parents=True, exist_ok=True)
         destination = root / f"{key}.wav"
-        if not destination.is_file():
+        cached = destination.is_file()
+        if cached:
+            try:
+                report = speech_metrics(destination)
+            except (ValueError, OSError):
+                destination.unlink(missing_ok=True)
+                cached = False
+        if not cached:
             if sum(path.stat().st_size for path in root.glob("*.wav")) > 128 * 1024 * 1024:
                 raise HTTPException(429, "Der Hörproben-Cache ist voll. Vor weiteren Proben lokal bereinigen.")
             temporary = root / f"{key}.tmp.wav"
             try:
                 if choice.get("provider") == "qwen_tts":
                     unload_script_model()
-                synthesize(payload.text, temporary, choice["language"], provider=choice.get("provider", "piper"), voice_id=payload.voice_id, speed=payload.speed)
+                mode, _ = synthesize(payload.text, temporary, choice["language"], provider=choice.get("provider", "piper"), voice_id=payload.voice_id, speed=payload.speed)
+                if mode != choice.get('provider','piper'):
+                    raise ValueError('Die erzeugte Stimme entspricht nicht der Auswahl.')
                 compact_speech(temporary)
+                normalize_narration_audio(temporary)
+                report = speech_metrics(temporary)
                 temporary.replace(destination)
             finally:
                 temporary.unlink(missing_ok=True)
-        return {"voice_id": payload.voice_id, "url": f"/api/voice-previews/{key}", "speed": payload.speed}
+        return {"voice_id": payload.voice_id, "voice_provider":choice.get('provider','piper'),
+                "url": f"/api/voice-previews/{key}", "speed": payload.speed, 'cached':cached,
+                'speech':report, 'policy':VOICE_POLICY}
     except (RuntimeError, ValueError, OSError) as exc:
         raise HTTPException(503, "Hörprobe konnte nicht erzeugt werden. Lokale Stimme und ihre Laufzeit prüfen.") from exc
     finally:

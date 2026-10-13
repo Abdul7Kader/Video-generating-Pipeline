@@ -73,6 +73,12 @@ test('cloud access check lists alternatives without switching or saving the mode
   const source=app.document.getElementById('settings-content').innerHTML;
   assert.match(source,/Aktiv für neue Skripte:<\/strong> Antigravity/);
   assert.match(source,/value="antigravity" selected/);
+  assert.match(source,/Lokale Skript-KI · optionale Alternative, für Antigravity nicht nötig/);
+  assert.match(source,/<details id="settings-local-tools" ><summary>/);
+  assert.match(source,/Deine aktive Herstellung/);
+  app.document.getElementById('settings-script').value='local';
+  app.document.getElementById('settings-script').onchange();
+  assert.equal(app.document.getElementById('settings-local-tools').open,true);
   const provider=app.document.getElementById('settings-script'),model=app.document.getElementById('settings-cloud-model');
   provider.value='antigravity';model.value='gemini-3.1-pro-high';provider.onchange();
   await app.document.getElementById('settings-accounts-check').onclick();

@@ -168,3 +168,19 @@ Tiermotive und die tatsächlichen SVG-Zeichnungen. Die kurze Zeichenprobe liegt
 in `examples/cat-adoption-demo.json`; sie lässt sich mit
 `scripts/render_stickman_demo.py` rendern. Für schnelle Bildprüfungen kann Piper
 verwendet werden, während die Nutzerkonfiguration die Qwen-Stimme behält.
+
+## Stimmqualität und Hörvergleich (Schritt 8–9)
+
+Die Auswahl bestimmt den tatsächlich verwendeten Stimmenanbieter; ein abweichender
+Anbieter wird als Fehler abgewiesen. Hörproben und Produktion nutzen dieselbe
+Pausenpolitik `continuous-v2` und FFmpeg-Lautheitsregel (-16 LUFS, True-Peak-Ziel
+-1,5 dBTP). Lange stille Lücken werden in der Mitte gekürzt; beide Sprachgrenzen
+bleiben erhalten. Die einzelnen Abschnitte werden weiterhin getrennt synthetisiert.
+Eine Hörprobe wird einzeln normalisiert, die Produktion nach dem Zusammensetzen.
+
+Hörproben liefern Dauer, Sample-Spitze, Anteil übersteuerter Samples und längste
+energetisch erkannte innere Pause. Ungültige, abgeschnittene oder stille WAVs werden
+abgewiesen; beschädigte abgeleitete Cache-Dateien werden neu erzeugt. Diese Messung
+prüft keine Aussprache und ersetzt keine Hörabnahme. Keine neue Aussprache-Engine
+oder ASR integriert. Für die abschließende Abnahme von Schritt 10 bleiben echte
+Hör-/Filmproben mit verschiedenen Texten erforderlich.

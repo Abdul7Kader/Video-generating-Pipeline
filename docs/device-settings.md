@@ -1,5 +1,24 @@
 # Rechner einrichten und die Pipeline selbst bedienen
 
+## Dein aktiver Weg und optionale Alternativen
+
+Oben stehen der tatsächlich aktive Skriptanbieter, das Modell und die Standardstimme.
+Für den Antigravity-Weg ist die lokale Ollama-Einrichtung eingeklappt und optional.
+Qwen ist bei gewähltem Piper ebenfalls eine optionale Alternative. Beim Wechsel auf
+den lokalen Skriptweg öffnet sich dessen Einrichtung; wirksam wird er erst beim Speichern.
+Die Bereitschaftsanzeige prüft Skriptzugang, Stimme, Node, Renderer, Browser, FFmpeg
+und FFprobe. Ein vorhandener Cloudzugang allein bedeutet noch nicht Produktionsbereitschaft.
+
+## Fortschritt und Zeitangaben
+
+Skript, Hörprobe und Zeichnungs-/Videoerzeugung zeigen laufende Arbeit und vergangene
+Zeit. Ohne messbaren Fortschritt bleibt der Balken unbestimmt. Eine ungefähre Restzeit
+gibt es erst nach mindestens drei konsistenten lokalen Messungen (letzte fünf Läufe,
+Spannweite höchstens 50 % des Medians). Modell, Stimme und Tempo trennen Erfahrungswerte;
+schnelle Cache-Antworten und Fehler lernen keine Generierungsdauer. Dauert es länger,
+wird dies angezeigt. Prozentwerte erscheinen bei tatsächlichen Downloadangaben oder
+nach Abschluss. Gespeichert werden Zeitwerte, keine Sprechertexte.
+
 ## Skriptzugang prüfen und das Modell ausdrücklich wählen
 
 Unter **3 · Skript-KI und Zugang** steht der tatsächlich aktive Anbieter mit

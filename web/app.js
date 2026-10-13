@@ -39,6 +39,20 @@ const helpCopy=[
   ['#approve-video','Zweite Freigabe: Erlaubt die Veröffentlichung bei den gewählten, eingerichteten Zielen.'],
 ];
 function addContextHelp(){for(const [selector,description] of helpCopy){document.querySelectorAll(selector).forEach(el=>{el.title=description;el.setAttribute('aria-description',description);const label=el.closest('label');if(label){label.classList.add('help-field');if(!label.dataset.help)label.dataset.help=description}else if(el.matches('button,a,summary')){el.classList.add('has-help');el.dataset.help=description}})}document.querySelectorAll('.scene [data-key="visual_type"]').forEach(el=>el.setAttribute('aria-label','Bildart dieser Szene'))}
+function showHealth(data){
+  const d=data.dependencies||{}, s=data.script_generation||{};
+  window.PipelineScriptModel=s.model||'unconfirmed';
+  const voice=productionOptions.default_voice_id||(d.tts_provider==='qwen_tts'?'qwen_narrator':'thorsten');
+  const missing=[];
+  if(!s.ready)missing.push('Skript-KI');
+  if(!VoiceEditor.available(voice)||(d.tts_provider==='piper'&&!d.piper_voice))missing.push('Stimme');
+  if(!['node','renderer','browser','ffmpeg','ffprobe'].every(key=>d[key]))missing.push('Schnittwerkzeuge');
+  const host=$('#health');
+  host.textContent=missing.length?`Einrichtung nötig: ${missing.join(', ')} · ⚙ Einstellungen`:'Bereit: Skript, Stimme und Schnitt';
+  host.className='health '+(missing.length?'warn':'ok');
+  host.title=`Skript: ${s.provider||'nicht bereit'} · ${s.model||''}. Stimme: ${voice}.`;
+  host.setAttribute('role','status');
+}
 function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2600)}
 async function api(path,options={}){const r=await fetch(path,{headers:{'Content-Type':'application/json'},...options});if(!r.ok){let m='Unbekannter Fehler';try{m=(await r.json()).detail;if(Array.isArray(m))m=m.map(error=>`${(error.loc||[]).slice(1).join('.')}: ${error.msg}`).join('; ')}catch{}throw new Error(m)}return r.json()}
 async function refreshList(){jobs=(await api('/api/jobs')).filter(job=>job.video_type==='stickman');$('#jobs').innerHTML=jobs.map(j=>`<button class="job ${j.id===selected?'active':''}" data-id="${j.id}"><strong>${esc(j.topic)}</strong><small><span class="status-dot">● ${labels[j.status]||j.status}</span><span>${esc((j.aspect_ratios||[j.aspect_ratio]).join(' · '))}</span></small></button>`).join('')||'<div class="notice">Noch keine Aufträge. Beginne mit „Neues Video“.</div>';document.querySelectorAll('.job').forEach(x=>x.onclick=()=>openJob(x.dataset.id));addContextHelp()}
@@ -180,11 +194,11 @@ $('#create-form').onsubmit=async event=>{
   finally{actionPending=false;controls.forEach((control,index)=>control.disabled=disabled[index]);submit.textContent='Sprecher-Skript erstellen'}
 };
 
-(async()=>{try{const [h,production]=await Promise.all([api('/api/health'),api('/api/production-options'),VoiceEditor.load()]);productionOptions=focusProduction(production);initializeNewProductionChoices();const s=h.script_generation;$('#health').textContent=s.ready?`System bereit · ${s.provider} / ${s.model}`:'System bereit · KI-Zugang fehlt';$('#health').classList.add(s.ready?'ok':'warn')}catch{$('#health').textContent='System nicht erreichbar'}await refreshList()})();
+(async()=>{try{const [h,production]=await Promise.all([api('/api/health'),api('/api/production-options'),VoiceEditor.load()]);productionOptions=focusProduction(production);initializeNewProductionChoices();showHealth(h)}catch{$('#health').textContent='System nicht erreichbar · Pipeline neu starten'}await refreshList()})();
 
 function renderNewVoices(){const language=document.querySelector('[name="language"]').value;const voice=language==='de'?productionOptions.default_voice_id:null;$('#new-voices').innerHTML=VoiceEditor.render('new',voice?{voice_id:voice}:{},language);VoiceEditor.bind($('#new-voices'))}
 document.querySelector('[name="language"]').addEventListener('change',renderNewVoices);
-window.addEventListener('machine-settings-saved',async()=>{await VoiceEditor.load();await loadProductionOptions();const result=await api('/api/health');const status=result.script_generation;$('#health').textContent=status.ready?'Bereit für neue Videos':'Einrichtung prüfen · ⚙ Einstellungen';$('#health').className='health '+(status.ready?'ok':'warn');if(selected&&!dirtyScript&&!dirtyProduction&&!dirtyFeedback&&!actionPending)await openJob(selected)});
+window.addEventListener('machine-settings-saved',async()=>{await VoiceEditor.load();await loadProductionOptions();showHealth(await api('/api/health'));if(selected&&!dirtyScript&&!dirtyProduction&&!dirtyFeedback&&!actionPending)await openJob(selected)});
 let editorBaseline=null,productionBaseline=null;
 function editorSnapshot(){return $('#scenes')?{title:$('#title').value,description:$('#description').value,scenes:collectScenes()}:null}
 function otherSceneEdits(element){const current=editorSnapshot();if(!current||!editorBaseline)return false;return current.title!==editorBaseline.title||current.description!==editorBaseline.description||current.scenes.some((scene,index)=>scene.scene_id!==element.dataset.sceneId&&JSON.stringify(scene)!==JSON.stringify(editorBaseline.scenes[index]))}

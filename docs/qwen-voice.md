@@ -8,13 +8,13 @@ Hugging-Face-Demo hat Warteschlangen und ist kein Produktionsdienst der Pipeline
 
 ## In der Oberfläche
 
-Nach Einrichtung und Neustart: **Neues Video → Stimmenstudio · lokal →
-Qwen · tiefer Erzähler**. Diese Stimme wird bei neuen deutschen Aufträgen
-vorausgewählt, sobald ihre Installation verfügbar ist. Zum Prüfen **Stimmen hören
+Nach Einrichtung und Neustart: **Neues Video → Stimme und Herstellung ändern · optional →
+Qwen · tiefer Erzähler**. Die gespeicherte Standardstimme bleibt erhalten; ein installiertes Qwen wird
+nur durch deine ausdrückliche Auswahl übernommen. Zum Prüfen **Stimmen hören
 und vergleichen → Ausgewählte Stimme anhören** verwenden; auf einer CPU dauert
 eine neue Hörprobe deutlich länger als mit Piper. Identische Proben werden
-zwischengespeichert. **Alle verfügbaren Stimmen vergleichen** erstellt auch die
-Piper-Proben.
+zwischengespeichert. **Qwen und Piper vergleichen** erzeugt denselben Text mit den beiden installierten
+Stimmen. Der Vergleich startet keine Modell-Downloads. Weitere Stimmen wählst du einzeln.
 
 Bei bestehenden Aufträgen die Stimme auswählen, **Produktionskonfiguration
 speichern**, Sprechertext und Zeichenregie prüfen, **Skript freigeben**, dann

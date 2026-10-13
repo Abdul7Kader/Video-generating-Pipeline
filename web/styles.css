@@ -41,6 +41,10 @@ label.help-field{position:relative;padding-right:22px}label.help-field:not(.targ
 :where([hidden]){display:none!important}
 .voice-editor{margin:18px 0;padding:18px;border:1px solid var(--line);border-radius:12px}
 .voice-editor h3{margin-top:0}.voice-editor details{margin-top:14px}.voice-editor summary{cursor:pointer;margin-bottom:12px}
+.process-progress progress[hidden]{display:none}
+#settings-content details{margin:12px 0;padding:8px 12px;border:1px solid var(--line);border-radius:10px}
+#settings-content summary{font-weight:650;line-height:1.5}
+@media(max-width:650px){header{height:auto;min-height:76px;flex-wrap:wrap;gap:12px;padding:14px 16px}.header-tools{width:100%;flex-wrap:wrap}.header-tools .header-status{display:block;flex:1 0 100%}.health{white-space:normal;overflow-wrap:anywhere}}
 .voice-samples{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px}
 .voice-sample{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--line);border-radius:10px}
 .voice-sample audio{width:100%;max-width:100%}.editor-status{display:flex;flex-wrap:wrap;gap:12px;margin:18px 0;padding:12px;background:var(--surface-soft);border-radius:8px}

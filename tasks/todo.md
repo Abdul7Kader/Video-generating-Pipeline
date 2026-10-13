@@ -49,8 +49,8 @@ Erledigung von 2–7 ist keine Behauptung einer bestandenen Live-/Qualitätsabna
 - [x] 6. Aktionen auf Sprachfenster begrenzen, Gesten beruhigen und Bewegungsanker prüfen
 - [x] 7. Figuren-/Gegenstandsidentität, Besitz, Ablage und Ruheposen über Schnitte sichern
 - [x] Prüfpunkt 5–7 technisch: Kontakt, Aktionstakte und Schnittzustände testen; Film-/Audioabnahme bleibt später
-- [ ] 8. Stimmqualität und Sprachfluss fertigstellen
-- [ ] 9. Verständliche UI, Einrichtung und ehrliche Fortschrittsanzeige abschließen
+- [x] 8. Stimmqualität und Sprachfluss technisch verbessern; zwei kurze echte Hörproben, Aussprache-/Geschmacksabnahme in 10
+- [x] 9. Verständliche UI, aktive Einrichtung und ehrliche Fortschrittsanzeige; Browser normal/390 px geprüft
 - [ ] 10. Originalversion mit mehreren Videos abnehmen, dokumentieren, prüfen und sichern/pushen
 - [ ] Prüfpunkt 8–10: Originalversion abgeschlossen; Grenzen und Prüfergebnisse dokumentiert
 

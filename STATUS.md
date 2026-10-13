@@ -2,7 +2,48 @@
 
 Letzte Aktualisierung: 2026-10-14
 
-## Aktuelle Etappe vom 2026-10-14: Schritt 6 und 7
+## Aktuelle Etappe vom 2026-10-14: Schritt 8 und 9
+
+Implementiert: Sprachpolitik `continuous-v2` kürzt lange Stille in deren Mitte und
+bewahrt beide Sprachgrenzen. Hörproben nutzen dieselbe Lautheitsregel wie die
+Produktion (-16 LUFS / TP -1,5 / LRA 11), prüfen Anbieterübereinstimmung und PCM-
+Vollständigkeit und melden Dauer, Spitze, Clipping und längste innere Pause.
+Defekte abgeleitete Hörproben-Caches werden repariert; Stimme/Anbieter werden
+nicht still ersetzt. Tatsächlicher freier RAM begrenzt die Qwen-Verfügbarkeit.
+Die globale Piper-Auswahl bleibt erhalten; Vergleich verwendet ausschließlich
+bereits installierte, verfügbare Qwen-/Piper-Stimmen.
+
+UI: aktive Skript-KI, Modell und Stimme stehen oben in Einstellungen. Für
+Antigravity optionale lokale Skriptwerkzeuge und die optionale Qwen-Stimme werden
+eingeklappt. Bereitschaft erfordert auch Stimme, Browser und Schnittwerkzeuge.
+Laufende Prozesse bleiben ohne echte Prozentmessung unbestimmt, zeigen vergangene
+Zeit und lernen lokale Zeitwerte. Eine ETA verlangt mindestens drei konsistente
+Messungen der letzten fünf Läufe (Spannweite/Median ≤ 0,5), getrennt nach Modell,
+Stimme, Tempo und Sprachpolitik. Fehler und kurze Cache-Antworten lernen keine Dauer.
+
+Getestet: 238 Backend-Tests ausgeführt (1 regulär übersprungen), 16 JS-Tests,
+JS-Syntax; echter Browser normal und 390 px, gespeicherte Stimme und UI-Wechsel.
+Zwei echte kurze lokale Hörproben mit identischem Text: Piper 15,44 s Erzeugung,
+3,153 s Audio, Peak -1,86 dBFS, längste innere Pause 0,08 s; Qwen 211,50 s,
+3,67 s Audio, Peak -1,50 dBFS, Pause 0,10 s. Clipping-Anteil jeweils null.
+Nachweise lokal/ignoriert: `data/voice-quality-proof.json`, `data/voice-previews/`,
+`data/ui-quality-proof/`. Kein Video, kein neuer Auftrag, kein Modelldownload,
+keine Skript-KI-Inferenz. Lokaler Server auf 127.0.0.1:8080 neu geladen.
+
+Sicherheit: Stimmen-IDs und Audio-URLs bleiben fest begrenzt, WAV-Größe/-Format
+serverseitig geprüft; Tests für falschen Anbieter, defekten Cache, RAM-Mangel,
+ungültige gespeicherte Zeitwerte und escaped Fehlermeldungen. Bestehende Origin-/
+Host-/Setup-Token-Sperren erhalten. Keine Systemschutz-, Konto- oder Tarifänderung.
+Neue UI-Texte enthalten keine Zugangstokens; Zeitdaten enthalten keine Skripttexte.
+
+Offen: menschliche Hörabnahme von Aussprache/Natürlichkeit und gemeinsame Bild-/
+Tonabnahme in Schritt 10. PCM-Energie misst weder Wortkorrektheit noch Semantik.
+Abschnitte werden weiterhin getrennt synthetisiert; Normalisierung einer einzelnen
+Probe und des zusammengesetzten Films kann im Detail unterschiedlich wirken.
+Diese Etappe wurde auf Windows geprüft, nicht auf beliebiger Hardware. Schritt
+11–13 bleibt zurückgestellt. Bereits dokumentierte externe Audit-Blocker bleiben bestehen.
+
+## Vorherige Etappe vom 2026-10-14: Schritt 6 und 7
 
 Implementiert: Aktionen werden auf das verfügbare Sprachfenster, den nächsten
 Anker und das Abschnittsende begrenzt. Gesten laufen aus, richtungsloses Marschieren

@@ -7,7 +7,7 @@ import re
 import sys
 import wave
 
-VOICE_POLICY = "continuous-v1"
+VOICE_POLICY = "continuous-v2"
 TIMING_METHOD = "speech-energy-word-estimate"
 
 
@@ -17,6 +17,8 @@ def _read_pcm(path):
         if params.sampwidth != 2 or params.nchannels not in (1, 2) or not 8000 <= params.framerate <= 96000 or params.nframes > params.framerate * 300:
             raise ValueError("Sprachdatei braucht begrenztes 16-Bit-PCM-Audio.")
         samples = array('h', audio.readframes(params.nframes))
+        if len(samples) != params.nframes*params.nchannels:
+            raise ValueError('Die Sprachdatei ist unvollständig.')
     if sys.byteorder != 'little':
         samples.byteswap()
     return params, samples
@@ -48,7 +50,13 @@ def compact_speech(path: Path) -> dict:
             limit = .02 if index == 0 else .04 if index == len(regions)-1 else .10
             if index in (0, len(regions)-1) or length / params.framerate > .24:
                 length = min(length, round(limit * params.framerate))
-        result.extend(samples[start*params.nchannels:(start+length)*params.nchannels])
+        if not voiced and length < end-start and index not in (0,len(regions)-1):
+            # Keep both original speech boundaries; remove only the middle of a long gap.
+            head = length//2
+            result.extend(samples[start*params.nchannels:(start+head)*params.nchannels])
+            result.extend(samples[(end-(length-head))*params.nchannels:end*params.nchannels])
+        else:
+            result.extend(samples[start*params.nchannels:(start+length)*params.nchannels])
     if sys.byteorder != 'little':
         result.byteswap()
     processed = path.with_suffix('.compact.wav')
@@ -61,6 +69,21 @@ def compact_speech(path: Path) -> dict:
         processed.unlink(missing_ok=True)
     duration = len(result) / params.nchannels / params.framerate
     return {'policy':VOICE_POLICY, 'duration':duration, 'removed_seconds':params.nframes/params.framerate-duration}
+
+
+def speech_metrics(path: Path) -> dict:
+    try:
+        params, samples = _read_pcm(path)
+    except (wave.Error, EOFError) as exc:
+        raise ValueError('Ungültige Sprachdatei.') from exc
+    regions = _regions(params,samples)
+    if not any(voiced for _,_,voiced in regions):
+        raise ValueError('Die Audiodatei enthält keine hörbare Sprache.')
+    peak = max(abs(value) for value in samples)
+    return {'duration_seconds':params.nframes/params.framerate,
+            'peak_dbfs':round(20*math.log10(peak/32768),2),
+            'clipped_ratio':sum(abs(value)>=32760 for value in samples)/len(samples),
+            'longest_internal_pause_seconds':max(( (end-start)/params.framerate for start,end,voiced in regions[1:-1] if not voiced),default=0)}
 
 
 def estimate_word_timings(text: str, path: Path) -> list[dict]:

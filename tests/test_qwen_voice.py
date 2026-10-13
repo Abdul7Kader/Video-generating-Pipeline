@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import unittest
 import wave
+from fastapi import HTTPException
 from dataclasses import replace
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -122,12 +123,41 @@ class QwenVoiceTests(unittest.TestCase):
         def synthesize(text, path, language, **options):
             self.assertEqual(options["provider"], "qwen_tts")
             self.write_audio(path)
+            return 'qwen_tts', 1
         with patch("backend.main.settings", self.settings), patch("backend.main.synthesize", side_effect=synthesize) as synth, patch("backend.main.unload_script_model") as unload:
             request = VoicePreview(voice_id="qwen_narrator", text="Mila liest ein Buch.")
             first = main.create_voice_preview(request)
-            self.assertEqual(first, main.create_voice_preview(request))
+            second=main.create_voice_preview(request)
+            self.assertEqual(first['url'],second['url'])
+            self.assertFalse(first['cached'])
+            self.assertTrue(second['cached'])
+            self.assertEqual(second['voice_provider'],'qwen_tts')
             self.assertEqual(synth.call_count, 1)
             self.assertEqual(unload.call_count, 1)
+
+    def test_preview_rejects_an_unselected_provider_and_regenerates_a_broken_cache(self):
+        def generated(text,path,language,**options):
+            self.write_audio(path)
+            return 'piper',1
+        with patch('backend.main.settings',self.settings),patch('backend.main.synthesize',side_effect=generated) as synth,patch('backend.main.normalize_narration_audio',return_value=1) as normalize,patch('backend.main.unload_script_model'):
+            payload=VoicePreview(voice_id='thorsten',text='Mila öffnet ein Buch.')
+            first=main.create_voice_preview(payload)
+            destination=self.settings.data_dir/'voice-previews'/(first['url'].split('/')[-1]+'.wav')
+            destination.write_bytes(b'broken')
+            repaired=main.create_voice_preview(payload)
+            self.assertFalse(repaired['cached'])
+            self.assertEqual(synth.call_count,2)
+            self.assertEqual(normalize.call_count,2)
+            with self.assertRaises(HTTPException) as mismatch:
+                main.create_voice_preview(VoicePreview(voice_id='qwen_narrator',text=payload.text))
+            self.assertEqual(mismatch.exception.status_code,503)
+
+    def test_installed_qwen_is_unavailable_when_current_free_memory_is_insufficient(self):
+        with patch('backend.qwen_tts.voice_status',return_value={'ready':True,'message':''}),patch('backend.device.device_info',return_value={}),patch('backend.device.recommendation',return_value={'qwen_suitable':False}):
+            voice=next(item for item in main.voice_catalog() if item['id']=='qwen_narrator')
+        self.assertTrue(voice['installed'])
+        self.assertFalse(voice['available'])
+        self.assertIn('Arbeitsspeicher',voice['reason'])
 
 
 if __name__ == "__main__":

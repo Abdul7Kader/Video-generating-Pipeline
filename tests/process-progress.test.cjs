@@ -8,7 +8,7 @@ const source = fs.readFileSync(path.join(__dirname, '../web/progress.js'), 'utf8
 function setup(saved = null, unavailableStorage = false) {
   let now = 0, nextTimer = 0;
   const timers = new Map(), storage = new Map();
-  if (saved !== null) storage.set('pipeline-process-times-v1', saved);
+  if (saved !== null) storage.set('pipeline-process-times-v2', saved);
   class Element {
     constructor() {
       this.children = []; this.attributes = {}; this.isConnected = true;
@@ -31,26 +31,27 @@ function setup(saved = null, unavailableStorage = false) {
   vm.runInNewContext(source, context);
   const host = new Element();
   return {
-    progress: context.window.ProcessProgress, host, storage, timers,
+    progress: context.window.ProcessProgress, host, storage, timers, context,
     tick(seconds) { now += seconds * 1000; [...timers.values()].forEach(callback => callback()); },
     parts() { return host.children[0].children; }
   };
 }
 
 test('counts elapsed time, estimates remaining time, and never completes before the response', () => {
-  const ui = setup();
-  const run = ui.progress.start(ui.host, {label: 'Skript und Zeichnungen', baseline: 60});
+  const ui = setup('{"flow":[1,1,1]}');
+  const run = ui.progress.start(ui.host, {label: 'Skript und Zeichnungen', key:'flow', baseline: 60});
   assert.equal(ui.progress.busy, true);
   ui.tick(30);
-  assert.equal(ui.parts()[1].value, 45);
-  assert.match(ui.parts()[2].textContent, /Vergangen: 30 Sek.*Noch ca. 30 Sek/);
+  assert.equal(ui.parts()[1].value, undefined);
+  assert.match(ui.parts()[2].textContent, /Vergangen: 30 Sek.*noch ca. 30 Sek/);
   ui.tick(30);
   assert.match(ui.parts()[3].textContent, /Vorgang läuft weiter/);
   assert.doesNotMatch(ui.parts()[2].textContent, /Noch ca. 0/);
   ui.tick(3600);
-  assert.ok(ui.parts()[1].value < 100);
+  assert.equal(ui.parts()[1].value, undefined);
   run.finish();
   assert.equal(ui.parts()[1].value, 100);
+  assert.match(ui.parts()[1].attributes['aria-label'],/abgeschlossen/);
   assert.equal(ui.host.children[0].attributes['aria-busy'], 'false');
   assert.equal(ui.progress.busy, false);
   assert.equal(ui.timers.size, 0);
@@ -67,11 +68,12 @@ test('failure stops the clock, keeps progress below 100, and renders errors as t
   ui.tick(30);
   assert.equal(ui.parts()[2].textContent, timing);
   assert.equal(ui.parts()[3].textContent, '<img src=x onerror=alert(1)>');
-  assert.equal(ui.parts()[1].value, 18);
+  assert.equal(ui.parts()[1].value, undefined);
+  assert.equal(ui.parts()[1].hidden, true);
   assert.equal(ui.storage.size, 0);
   assert.equal(ui.progress.busy, false);
   run.finish();
-  assert.equal(ui.parts()[1].value, 18);
+  assert.equal(ui.parts()[1].value, undefined);
 });
 
 test('removing a progress panel releases its timer and busy state', () => {
@@ -91,18 +93,21 @@ test('learns completed runtime without storing text and ignores fast cache respo
   assert.equal(ui.storage.size, 0);
   const generation = ui.progress.start(ui.host, options);
   ui.tick(options.baseline * 2); generation.finish();
-  const saved = ui.storage.get('pipeline-process-times-v1');
-  assert.deepEqual(JSON.parse(saved), {'voice:qwen_narrator': 1.5});
+  const saved = ui.storage.get('pipeline-process-times-v2');
+  assert.deepEqual(JSON.parse(saved), {[options.key]: [2]});
   assert.doesNotMatch(saved, /kurzer Text|Erzähler/);
+  ui.progress.start(ui.host, options).dispose();
+  assert.match(ui.parts()[3].textContent, /noch nicht messbar/);
+  for(let i=0;i<2;i++){const run=ui.progress.start(ui.host,options);ui.tick(options.baseline*2);run.finish()}
   ui.progress.start(ui.host, options);
-  assert.match(ui.parts()[3].textContent, /ca. 2 Min/);
+  assert.match(ui.parts()[3].textContent, /Erfahrungswert aus 3.*ca. 2 Min/);
 });
 
 test('invalid or unavailable local storage does not break generation', () => {
   for (const saved of ['null', '[]', '{bad json', '{"voice:qwen_narrator":999}', '{"voice:qwen_narrator":"2"}']) {
     const ui = setup(saved);
     const run = ui.progress.start(ui.host, {label: 'Stimme', key: 'voice:qwen_narrator', baseline: 120});
-    assert.match(ui.parts()[3].textContent, /ca. 2 Min. 0 Sek/);
+    assert.match(ui.parts()[3].textContent, /noch nicht messbar/);
     run.finish();
     assert.equal(ui.progress.busy, false);
   }
@@ -122,6 +127,10 @@ test('script estimates account for provider and duration; scene revisions are id
   assert.match(scene.label, /Szene überarbeiten/);
   assert.notEqual(scene.key, full.key);
   assert.match(ui.progress.scriptOptions('antigravity', 60, false, true).label, /überarbeiten/);
+  ui.context.window.PipelineScriptModel='other-model';
+  assert.notEqual(ui.progress.scriptOptions('antigravity',60).key,full.key);
+  const voice={id:'thorsten',provider:'piper',installed:true};
+  assert.notEqual(ui.progress.voiceOptions(voice,'Ein Test',1).key,ui.progress.voiceOptions(voice,'Ein Test',1.2).key);
 });
 
 test('render polling preserves elapsed time without blocking navigation; queues have no invented ETA', () => {
@@ -138,6 +147,17 @@ test('render polling preserves elapsed time without blocking navigation; queues 
   ui.progress.start(ui.host, {label: 'Warteschlange', baseline: 120, waiting: true, blocking: false});
   ui.tick(10);
   assert.match(ui.parts()[2].textContent, /Wartezeit bisher: 10 Sek/);
-  assert.match(ui.parts()[3].textContent, /nach Produktionsstart/);
+  assert.match(ui.parts()[3].textContent, /noch nicht messbar/);
   assert.doesNotMatch(ui.parts()[3].textContent, /ca\./);
+});
+
+test('inconsistent measurements never create a confident ETA or a fake percentage',()=>{
+  const ui=setup('{"slow":[1,2,4]}');
+  const run=ui.progress.start(ui.host,{label:'Skript',key:'slow',baseline:60});
+  ui.tick(60);
+  assert.equal(ui.parts()[1].value,undefined);
+  assert.match(ui.parts()[2].textContent,/Restzeit noch nicht messbar/);
+  assert.doesNotMatch(ui.parts()[2].textContent,/noch ca\./);
+  run.finish();
+  assert.equal(ui.parts()[1].value,100);
 });

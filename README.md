@@ -43,16 +43,17 @@ Seit 2026-10-11 blendet die Oberfläche auch andere Produktionsprofile, Stockfel
 externe Videoimporte, Renderer-Vergleiche und Veröffentlichung aus. Die Auftragsliste
 zeigt Strichmenschen; bestehende andere Aufträge und Backend-Adapter werden nicht gelöscht.
 
-**Stimmen ausprobieren:** Unter **Stimmenstudio · lokal → Stimmen hören und vergleichen**
-einen kurzen Testtext eingeben und **Alle verfügbaren Stimmen vergleichen** wählen.
+**Stimmen ausprobieren:** Unter **Stimme und Herstellung ändern · optional → Stimmen hören und vergleichen**
+einen kurzen Testtext eingeben und **Qwen und Piper vergleichen** wählen.
 Deutsch bietet Qwen · tiefer Erzähler, Thorsten · klar, Thorsten · lebhaft und Kerstin; Englisch LJ.
 Die Player verwenden denselben Text und dasselbe gewählte Tempo (0,85–1,25×).
 **Diese Stimme wählen** übernimmt die Auswahl. Bei bestehenden Aufträgen anschließend
 **Produktionskonfiguration speichern** und das Skript erneut freigeben.
 Die ausgewählte Qwen-Stimme läuft kostenlos lokal in einer separaten Laufzeit;
 Einrichtung und kurze UI-Anleitung stehen in [docs/qwen-voice.md](docs/qwen-voice.md).
-**Ausgewählte Stimme anhören** erzeugt eine einzelne Probe. Bei neuen deutschen
-Aufträgen wird Qwen vorausgewählt, sobald es eingerichtet ist. Die übrigen
+**Ausgewählte Stimme anhören** erzeugt eine einzelne Probe. Neue Aufträge behalten
+die gespeicherte Standardstimme; ein installiertes Qwen ersetzt Piper nicht automatisch.
+Der Vergleich verwendet nur bereits installierte, verfügbare Qwen-/Piper-Stimmen. Die übrigen
 Stimmen werden lokal mit Piper erzeugt; fehlende feste Modelle werden bei
 aktiviertem `PIPER_AUTO_DOWNLOAD` einmalig heruntergeladen. Es wird kein Cloud-TTS aktiviert.
 Kerstins Modell ist als niedrige Qualität gekennzeichnet; eine andere Stimme ist nicht

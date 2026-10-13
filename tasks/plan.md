@@ -77,17 +77,29 @@ Figurenidentität, Tiermerkmale, gehaltene Gegenstände und erzählte Zustände 
 
 Prüfpunkt nach 5–7: technische Prüfungen und Schnitt-Standbilder bestanden; Filmproben für Bild-/Tonabnahme auf Nutzerwunsch später.
 
-### 8. Erzählerqualität und Sprachfluss fertigstellen
+### 8. Erzählerqualität und Sprachfluss fertigstellen — technisch umgesetzt (2026-10-14)
 Qwen als vorhandene natürliche Stimmoption und Piper als ausdrücklich wählbare schnelle Alternative vergleichen; Aussprache, Lautheit und unnötige Pausen verbessern.
 - Abnahme: ausgewählte Stimme ist die tatsächlich verwendete; unnötige lange Pausen werden reduziert, Satzgrenzen bleiben verständlich. Fehlendes Audio ist ein Fehler; Zeit-/Ressourcenbedarf wird ehrlich angezeigt.
 - Prüfung: `python -m unittest tests.test_qwen_voice tests.test_quality`; dieselben kurzen Texte mit beiden Stimmen anhören, Wellenform und Audiozeit prüfen.
 - Abhängigkeiten: 2; für gemeinsamen Bild-/Tonvergleich 6. Umfang M; `backend/speech.py`, `backend/qwen_tts.py`, `web/voices.js`, `tests/test_qwen_voice.py`, `tests/test_quality.py`.
 
-### 9. UI und Einrichtung für die Originalversion abschließen
+### 9. UI und Einrichtung für die Originalversion abschließen — umgesetzt (2026-10-14)
 Nur relevante Produktionswege im Hauptablauf zeigen; notwendige Einrichtung von optionalen Alternativen unterscheiden. Fortschritt, Fehler und nächster Bedienungsschritt sind verständlich.
 - Abnahme: ein neuer Nutzer findet Einrichtung, Prompt, Änderungswunsch, Freigabe und Download ohne Szenenwissen. Laufende Prozesse zeigen Fortschritt/vergangene Zeit und nur eine tatsächlich belastbare Restzeitschätzung.
 - Prüfung: echter Browser-Smoke-Test in schmaler und normaler Ansicht; `node --test tests/settings-ui.test.cjs tests/process-progress.test.cjs` und UI-Guidance-Tests.
 - Abhängigkeiten: 1, 2, 8. Umfang M; `web/app.js`, `web/settings.js`, `web/styles.css`, `tests/test_ui_guidance.py`, `tests/settings-ui.test.cjs`.
+
+Umsetzungsnachweis 8–9: `continuous-v2` erhält beide Ränder gekürzter stiller Lücken;
+Hörproben nutzen die Produktions-Lautheitsregel und liefern begrenzte WAV-Messwerte.
+Gewählte Anbieter müssen übereinstimmen; stille/abgeschnittene Cache-Dateien werden
+nicht wiederverwendet. Installation allein aktiviert Qwen nicht. Tatsächliche
+freie RAM-Werte begrenzen dessen Verfügbarkeit. Vergleich: Piper 15,44 s Rechenzeit
+für 3,153 s Audio; Qwen 211,50 s für 3,67 s. Keine übersteuerten Samples; längste
+innere Pause 0,08/0,10 s. Menschliche Hör-/Ausspracheabnahme bleibt Schritt 10.
+Die UI zeigt den aktiven Weg und klappt dessen Alternativen ein. Modell-/Stimmen-/
+Tempo-Erfahrungswerte benötigen drei konsistente Messungen, liefern keine erfundenen
+Prozentwerte. 238 Backend-Tests (1 übersprungen), 16 JS-Tests, JS-Syntax und
+Browser normal/390 px geprüft. Kein Video und kein neuer Produktionsauftrag.
 
 ### 10. Originalversion mit mehreren Videos abnehmen und sichern
 Repräsentative Beispiele statt eines Einzelfixes verwenden: Tieradoption, Lernen, Gegenstandshandlung und eine einfache soziale Geschichte. Einrichtungs- und Produktionsfehler ebenfalls prüfen.
