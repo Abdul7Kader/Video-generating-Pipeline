@@ -16,8 +16,13 @@ class StoryTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.db = Database(Path(self.temp.name) / 'test.sqlite3')
         self.db.initialize()
-        self.request = JobCreate(topic='Katze adoptieren', production_config=ProductionConfig(script_provider='antigravity'), script_mode='story')
-        self.text = 'Mila besucht das Tierheim. Sie streichelt die Katze. Die Katze geht nach Hause.'
+        self.request = JobCreate(topic='Katze adoptieren', duration_seconds=30, production_config=ProductionConfig(script_provider='antigravity'), script_mode='story')
+        self.parts = [
+            'Mila besucht das Tierheim. Sie setzt sich ruhig auf den Boden und hält ihre Hand still. So kann sie beobachten, was neben ihr geschieht, ohne jemanden zu bedrängen.',
+            'Sie streichelt die Katze. Das Tier hat sich ihr von selbst genähert und bleibt entspannt neben ihr sitzen. Mila bewegt ihre Hand langsam und lässt der Katze genügend Platz.',
+            'Die Katze geht nach Hause. In einer sicheren Transportbox begleitet Mila sie ins vorbereitete Zimmer. Dort öffnet sie die Tür und wartet, bis das Tier selbst herauskommen möchte.'
+        ]
+        self.text = ' '.join(self.parts)
         response = {'title': 'Eine Katze adoptieren', 'description': 'Mila lernt die Katze kennen.', 'narration': self.text,
                     'visual_summary': 'Mila begrüßt die Katze im Tierheim, streichelt sie und begleitet sie nach Hause.', 'fact_check_notes': []}
         with patch('backend.story.generate_structured', return_value=(response, {})):
@@ -26,10 +31,10 @@ class StoryTests(unittest.TestCase):
         self.current = self.db.get_job(self.id)
         self.action = VersionAction(expected_version=1, expected_hash=self.current['script']['content_hash'])
         self.plan = finalize_scene_plan({'title': self.draft['title'], 'description': self.draft['description'], 'scenes': [
-            {'scene_id': 'visit', 'narration': 'Mila besucht das Tierheim.', 'visual': 'Mila betritt das Tierheim.', 'visual_type': 'stickman', 'duration_seconds': 4, 'stickman': {'characters': [{'id': 'mila'}]}},
-            {'scene_id': 'pet-cat', 'narration': 'Sie streichelt die Katze.', 'visual': 'Mila streichelt die Katze.', 'visual_type': 'stickman', 'duration_seconds': 6, 'stickman': {'characters': [{'id': 'mila', 'cues': [{'on': 'streichelt', 'pose': 'pet', 'target_character': 'luna'}]}, {'id': 'luna', 'species': 'cat', 'pose': 'sit'}]}},
-            {'scene_id': 'go-home', 'narration': 'Die Katze geht nach Hause.', 'visual': 'Die Katze geht durch die Tür.', 'visual_type': 'stickman', 'duration_seconds': 8, 'stickman': {'characters': [{'id': 'luna', 'species': 'cat', 'pose': 'walk', 'end_x': 65}]}}
-        ], 'metadata': {}}, 60)
+            {'scene_id': 'visit', 'narration': self.parts[0], 'visual': 'Mila betritt das Tierheim.', 'visual_type': 'stickman', 'duration_seconds': 4, 'stickman': {'characters': [{'id': 'mila'}]}},
+            {'scene_id': 'pet-cat', 'narration': self.parts[1], 'visual': 'Mila streichelt die Katze.', 'visual_type': 'stickman', 'duration_seconds': 6, 'stickman': {'characters': [{'id': 'mila', 'cues': [{'on': 'streichelt', 'pose': 'pet', 'target_character': 'luna'}]}, {'id': 'luna', 'species': 'cat', 'pose': 'sit'}]}},
+            {'scene_id': 'go-home', 'narration': self.parts[2], 'visual': 'Die Katze geht durch die Tür.', 'visual_type': 'stickman', 'duration_seconds': 8, 'stickman': {'characters': [{'id': 'luna', 'species': 'cat', 'pose': 'walk', 'end_x': 65}], 'props': [{'kind': 'carrier', 'x': 55, 'y': 82}]}}
+        ], 'metadata': {}}, self.request.duration_seconds)
 
     def tearDown(self):
         self.temp.cleanup()
@@ -51,6 +56,7 @@ class StoryTests(unittest.TestCase):
         self.assertEqual(story.spoken_story(plan), self.text)
         self.assertIn('cat', generate.call_args.kwargs['instructions'])
         self.assertEqual(plan['metadata']['approved_story_hash'], self.action.expected_hash)
+        self.assertEqual(plan['metadata']['story_quality'], self.draft['metadata']['story_quality'])
         wrong = copy.deepcopy(self.plan)
         wrong['scenes'][0]['narration'] = 'Ein unfreigegebener anderer Text.'
         with patch('backend.story.planner.generate_script', return_value=wrong), self.assertRaises(ValueError):
@@ -81,6 +87,15 @@ class StoryTests(unittest.TestCase):
         self.assertEqual(result['script_version'], 2)
         self.assertEqual(story.spoken_story(result['script']), self.text)
         self.assertIn('Transportbox', result['script']['metadata']['visual_summary'])
+
+    def test_fact_note_revision_can_keep_the_spoken_words(self):
+        revised = copy.deepcopy(self.draft)
+        revised['metadata']['fact_check_notes'] = ['Der Ablauf hängt vom jeweiligen Tierheim ab.']
+        with patch('backend.main.db', self.db), patch('backend.main.generate_story', return_value=revised):
+            result = main.revise_script(self.id, ScriptRevision(expected_version=1, instructions='Sachliche Hinweise ergänzen', story_mode=True))
+        self.assertEqual(result['script_version'], 2)
+        self.assertEqual(story.spoken_story(result['script']), self.text)
+        self.assertEqual(result['script']['metadata']['fact_check_notes'], revised['metadata']['fact_check_notes'])
 
     def test_stale_approval_and_changed_words_are_blocked_before_render(self):
         wrong = copy.deepcopy(self.plan)
@@ -162,3 +177,25 @@ class StoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'job_busy'):
             self.db.update_script(self.id, queued['script_version'], self.draft)
         self.assertEqual(self.db.get_job(self.id)['render_script_hash'], queued['script']['content_hash'])
+
+    def test_revision_of_storyboard_infers_text_workflow_without_client_flag(self):
+        queued = self.db.queue_story_render(self.id, 1, self.action.expected_hash, self.plan)
+        self.db.fail_render(self.id, 'test-only status; no renderer started')
+        revised = copy.deepcopy(self.draft)
+        revised['scenes'][0]['narration'] += ' Mila lächelt.'
+        with patch('backend.main.db', self.db), patch('backend.main.generate_story', return_value=revised) as text, patch('backend.main.generate_script') as scenes:
+            job = main.revise_script(self.id, ScriptRevision(expected_version=queued['script_version'], instructions='Natürlich erzählen'))
+        text.assert_called_once()
+        scenes.assert_not_called()
+        self.assertEqual(job['script']['metadata']['workflow'], 'story_draft')
+        self.assertEqual(job['status'], 'script_review')
+        self.assertIsNone(job['approved_script_hash'])
+
+    def test_failed_revision_keeps_original_text_and_approval_state(self):
+        with patch('backend.main.db', self.db), patch('backend.main.generate_story', side_effect=ValueError('Der Entwurf braucht eine Überarbeitung.')), self.assertRaises(HTTPException) as failure:
+            main.revise_script(self.id, ScriptRevision(expected_version=1, instructions='Mehr Handlung', story_mode=True))
+        self.assertEqual(failure.exception.status_code, 502)
+        job = self.db.get_job(self.id)
+        self.assertEqual(job['script_version'], 1)
+        self.assertEqual(job['script']['content_hash'], self.action.expected_hash)
+        self.assertEqual(job['status'], 'script_review')

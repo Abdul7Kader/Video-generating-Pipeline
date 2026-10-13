@@ -6,15 +6,23 @@ Nummerierte Übersicht: [ENTWICKLUNGSPLAN.md](ENTWICKLUNGSPLAN.md).
 Detaillierter Plan: [tasks/plan.md](tasks/plan.md); Checkliste: [tasks/todo.md](tasks/todo.md).
 Schritte 1–10 schließen die Originalversion ab. Schritte 11–13 betreffen anschließend die Familienversion.
 
-Dokumentationsstand: Übersicht, Detailplan, Checkliste, README und STATUS sind auf diese Reihenfolge abgestimmt. Bearbeitung von 1 und 2 begonnen: Zugangsanzeige und ausdrücklich bestätigte Modellauswahl sowie abgesicherter Text-/Freigabeablauf sind implementiert und getestet. Noch keine vollständige Abnahme: Der neue KI-/Videolauf wartet auf die Modellwahl. Die übrigen Schritte bleiben geplant.
+Dokumentationsstand: Schritt 2 und 3 sind technisch abgeschlossen und automatisiert geprüft. Der Fließtextablauf bleibt auch nach Bildplanung/Renderfehlern erhalten; reine Änderungen an Bildidee/Hinweisen sind möglich. Skripte werden gegen Wortbudget, Format, Wiederholungen und Platzhalter geprüft, mit höchstens einem zusätzlichen Korrekturversuch. Frühere Bildidee und Hinweise fließen in KI-Überarbeitungen ein. 209 Backend-Tests ausgeführt, ein optionaler echter Rendertest ausgelassen. Redaktionelle und echte Videoabnahme bleiben offen.
+
+**Aktuelle Testregel:** Keine neuen Testvideos in der UI als Routine erzeugen.
+Der Nutzer testet Videos selbst bzw. am Ende. Nur bei zwingendem Prüfbedarf einer
+konkreten Änderung ein Video erzeugen. In dieser Etappe keine Video-/Audioerzeugung,
+keine echten KI-Anfragen und keine neuen Aufträge in der Produktionsdatenbank.
 
 Echte Zugangskontrolle: installierte Antigravity-CLI 1.3.4, Anmeldung bestätigt;
 `gemini-3.1-pro-high` fehlt im aktuellen Modellangebot. Angeboten werden
 `gemini-3.8-flash-high`, `gemini-3.8-flash-medium` und `gemini-3.8-flash-low`.
-Die Frage nach Gemini 3.8 Flash (High) als Testmodell ist noch offen. Keine
-gespeicherten Geräteeinstellungen oder Anbieter-Credit-Einstellungen geändert.
-Nächster Schritt: ausdrücklich gewähltes Modell verwenden und einen echten
-Fließtext-/Überarbeitungs-/Freigabe-/Videoablauf prüfen.
+Der Nutzer hat Gemini 3.8 Flash (High) bestätigt. Als Skriptmodell lokal gespeichert
+und per Einstellungs-API zurückgelesen: `gemini-3.8-flash-high` / Antigravity.
+Bestehende Stimmen- und Hardwareauswahl erhalten; keine Anbieter-Credit-Einstellungen
+oder Tarife geändert. Das Speichern führte keinen Generierungsauftrag aus.
+Nächste Entwicklungsetappe: Schritt 4, zentrale Figuren, Gegenstände und Handlungen
+im Bildplan sichtbar abdecken. Echter KI-/Videolauf wird für die
+spätere Nutzerabnahme vorgemerkt und blockieren die weitere Implementierung nicht.
 
 ## Aktueller Schwerpunkt
 

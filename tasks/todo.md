@@ -6,23 +6,29 @@ Vorhandene Implementierung ist Ausgangspunkt; offen bedeutet hier noch zu prüfe
 Nummerierte Übersicht: [ENTWICKLUNGSPLAN.md](../ENTWICKLUNGSPLAN.md).
 Die Familienetappe startet erst nach Abnahme der Originalversion in Schritt 10.
 
-Zwischenstand 1–2: Zugangsanzeige/Modellauswahl und abgesicherter Fließtextablauf
-sind implementiert und automatisch getestet. Die echte CLI-/Browserprüfung
-bestätigt Anmeldung und fehlendes bisheriges Pro-Modell. Der komplette neue
-KI-/Videolauf bleibt bis zur ausdrücklichen Modellwahl offen; Schritte 1 und 2
-werden deshalb noch nicht als vollständig abgenommen markiert.
+Stand 2–3: Implementierung und automatisierte Prüfung abgeschlossen. Schritt 2
+bleibt nach Bildplanung/Renderfehlern beim Fließtext; Bildidee und sachliche Hinweise
+können separat überarbeitet werden. Schritt 3 prüft Stimme/Zeitbudget, Textformat,
+Wiederholungen und Platzhalter mit höchstens einem zusätzlichen Korrekturversuch.
+209 Backend-Tests ausgeführt, ein optionaler echter Rendertest ausgelassen.
+
+Nutzervorgabe: keine routinemäßigen Testvideos in der UI. Echte KI-/Video- und
+redaktionelle Abnahme durch den Nutzer bzw. am Ende in Schritt 10; jetzt nur eine
+Videoprobe, wenn eine konkrete Änderung sie zwingend braucht. Die technische
+Erledigung von 2–3 ist keine Behauptung einer bestandenen Live-/Qualitätsabnahme.
 
 - [x] Installation, Anmeldung, Modellangebot und Verbindungsfehler getrennt anzeigen
 - [x] Modell nur ausdrücklich speichern; kein automatischer Anbieterersatz
+- [x] Bestätigtes Gemini 3.8 Flash (High) lokal als aktives Skriptmodell speichern und zurücklesen
 - [x] Änderungswünsche vor versehentlicher Freigabe schützen
 - [x] Bildplan, Freigabe und Renderauftrag atomar speichern; Render-Wiederholung ohne neue KI-Planung
 - [ ] Vollständiger Echtlauf mit ausdrücklich gewähltem verfügbarem Skriptmodell
 
 - [ ] 1. Tatsächlichen Skriptanbieterzugang prüfen und verständlich anzeigen
-- [ ] 2. Prompt → Fließtext → KI-Überarbeitung → Skriptfreigabe → Produktion abschließen
-- [ ] 3. Skriptqualität über unterschiedliche Themen verbessern
+- [x] 2. Fließtext-/Überarbeitungs-/Freigabeablauf technisch abschließen und automatisiert prüfen
+- [x] 3. Skriptqualität durch Kontext, Wortbudget und Textprüfungen verbessern; Themen-/Längenfixtures prüfen
 - [ ] 4. Zentrale erzählte Figuren, Motive und Handlungen sichtbar abdecken
-- [ ] Prüfpunkt 1–4: echter Skriptablauf und Bildplan, einschließlich Thema ohne Katze
+- [ ] Prüfpunkt 1–4: Bildabdeckung automatisch prüfen; echter Skript-/Bildplanlauf für die spätere Abnahme vorgemerkt
 - [ ] 5. Handkontakt und Gegenstandsinteraktion verbessern
 - [ ] 6. Bewegungstempo mit Erzählung synchronisieren
 - [ ] 7. Figuren- und Gegenstandskontinuität zwischen Bildabschnitten sichern

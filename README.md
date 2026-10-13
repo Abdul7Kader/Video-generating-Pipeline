@@ -8,6 +8,11 @@ ohne Pro-Abos (Schritte 11–13). [Arbeitsstand](ARBEITSSTAND.md),
 [Abnahmebedingungen](tasks/plan.md) und [Aufgabencheckliste](tasks/todo.md)
 halten Prioritäten und Bearbeitungsstatus fest.
 
+Kurze Werkzeugübersicht mit Anmeldung/Abo: [Technologiestech.md](Technologiestech.md).
+Skripte erhalten eine begrenzte Textprüfung vor dem Speichern; Details und Grenzen:
+[Skript- und Freigabeablauf](docs/story-workflow.md). Während der Entwicklung werden
+keine routinemäßigen Testvideos in der UI erzeugt; die echte Videoabnahme folgt später.
+
 ## Einrichtung auf diesem Rechner
 
 **⚙ Einstellungen** bündelt die lokale Rechnerprüfung, passende Skriptmodelle,

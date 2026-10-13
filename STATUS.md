@@ -4,7 +4,46 @@ Letzte Aktualisierung: 2026-10-13
 
 ## Maßgeblicher Arbeitsstand vom 2026-10-13
 
-### Umsetzung von Schritt 1 und 2
+### Aktuelle Etappe: Schritt 2 und 3, ohne Testvideoerstellung
+
+Implementiert: serverseitige Textprüfung vor Speicherung und bei KI-Überarbeitung.
+Das Wortbudget folgt Länge, ausgewählter Stimme und Tempo. Szenenmarker, Listen,
+Zeitstempel, Markdown, Regieanweisungen, wortgleiche längere Satzwiederholungen und
+Platzhalter in Sprechertext, Bildidee und Hinweisen werden erkannt. Schema und
+Hinweislängen sind begrenzt. Ein ungültiger Entwurf bekommt höchstens einen
+zusätzlichen Korrekturversuch; danach Fehler statt Speicherung. Rohe Modellausgaben
+werden nicht in Validierungsfehlern ausgegeben. Prüfversion, Wortbudget,
+Sprechzeitschätzung und Versuchszahl werden mitgeführt; Fakten sind nicht verifiziert.
+
+Implementiert: der Überarbeitungskontext enthält bisherigen Titel, Beschreibung,
+Sprechertext, Bildidee und sachliche Hinweise als JSON-Inhalt. Storyboards werden
+auch ohne Clientflag im Fließtextablauf überarbeitet. Änderungen ausschließlich
+an sachlichen Hinweisen werden akzeptiert; fehlgeschlagene Überarbeitungen lassen
+die bisherige Version und deren Freigabezustand erhalten. Bestehende Freigabe-/
+Rollback-/Idempotenzprüfungen bleiben bestehen.
+
+Getestet: 209 Backend-Tests ausgeführt, einer regulär übersprungen. Der optionale
+echte Renderlauf war gemäß Nutzervorgabe deaktiviert (`RUN_RENDER_INTEGRATION=0`).
+Textfixtures: Tieradoption, Informatiklernen, Kochen; Deutsch/Englisch und
+30/60/90 Sekunden. Negative Fälle: zu kurzer/langer Text, Format-/Szenenmarker,
+Wiederholungen, Platzhalter, überlange Hinweise, begrenzte Wiederholung ohne
+Ausgabe-Leaks und Erhalt der alten Version nach Fehlern. Antigravity, Ollama und
+Gemini-API-Antworten wurden simuliert. Backend-Syntax und Diff-Prüfung bestanden.
+Keine UI-Testvideos, keine TTS-/Videoerzeugung, keine echten KI-Anfragen und keine
+neuen Produktionsaufträge. Die bestehende UI war unverändert; keine erneute
+Browser-/Node-Prüfung ohne geänderte Grundlage.
+
+Modellwahl nach nachgereichter Nutzerbestätigung: Gemini 3.8 Flash (High) als
+aktives Antigravity-Skriptmodell gespeichert und über die Einstellungs-API bestätigt.
+Stimmen- und Hardwareauswahl erhalten; keine Anbieter-Credit-Einstellungen oder
+Tarife geändert. Kein Generierungsauftrag durch das Speichern.
+
+Offen: tatsächliche Sprach-/Fakten-/Bildqualität beim späteren Nutzer-Echtlauf,
+echte Skriptanfrage aus Schritt 1 und Bildabdeckung in Schritt 4. Die Checkliste
+markiert 2 und 3 als technisch erledigt, nicht als bestandene Live-Abnahme.
+Die Familienetappe und der frühere externe npm-Audit-Blocker bleiben unverändert.
+
+### Vorherige Etappe: Umsetzung von Schritt 1 und 2
 
 Implementiert: getrennte Zugangszustände mit konkreten nächsten Schritten,
 ausdrückliche Auswahl tatsächlich angebotener Gemini-Modelle und erneute Prüfung
@@ -35,9 +74,11 @@ ausdrücklicher Auswahl korrekt an. Fließtext und Sperre bei noch nicht angewen
 Änderungswünschen wurden in der realen UI geprüft. Screenshots:
 `data/provider-access-ui.png`, `data/story-approval-ui.png` (lokal, nicht versioniert).
 
-Offen: vollständiger neuer KI-/Videolauf nach ausdrücklicher Modellwahl; die Frage
-nach Gemini 3.8 Flash (High) als Testmodell ist noch offen. Schritte 1 und 2 bleiben
-bis zu diesem Echtlauf in der Checkliste offen. Keine gespeicherten Präferenzen,
+Damals offen: vollständiger neuer KI-/Videolauf nach ausdrücklicher Modellwahl;
+Gemini 3.8 Flash (High) war noch nicht bestätigt. Schritte 1 und 2 blieben
+bis zu diesem Echtlauf in der damaligen Checkliste offen. Die neuere Nutzervorgabe
+verschiebt Videotests und erlaubt den technischen Abschluss von 2–3; siehe oben.
+In der vorherigen Etappe keine gespeicherten Präferenzen,
 Anbieter-Credit-Einstellungen, Tarife oder vorhandenen Aufträge verändert.
 Der frühere Blocker für eine neue externe npm-Audit-Abfrage bleibt unverändert.
 

@@ -1,5 +1,37 @@
 # Ein Sprecher-Skript, danach automatisch Bildplanung und Video
 
+## Textprüfung vor dem Speichern
+
+Skripterstellung und KI-Überarbeitung verwenden dieselben Prüfungen für alle
+unterstützten Skriptanbieter. Das Wortbudget berücksichtigt gewünschte Länge,
+ausgewählte Stimme und Sprechtempo. Akzeptiert werden 65–110 % des geschätzten
+Zielwortbudgets; der Prompt zielt auf die volle gewünschte Länge. Das ist eine
+Sprechzeitschätzung, keine Garantie für die spätere Audiodauer.
+
+Szenenüberschriften, Aufzählungen, Zeitstempel, Markdown, Regieanweisungen,
+wortgleiche längere Satzwiederholungen und Platzhalter werden erkannt. Die Prüfung
+erfasst auch Platzhalter in der Bildidee und den sachlichen Hinweisen. Für einen
+ungültigen Entwurf gibt es höchstens einen zusätzlichen Korrekturversuch. Bleibt
+er ungültig, wird er nicht gespeichert; ein vorhandener Text bleibt erhalten.
+Schemafehler geben keine unbearbeiteten Modellausgaben in Fehlermeldungen zurück.
+
+Überarbeitungen erhalten den bisherigen Titel, die Beschreibung, den gesamten
+Sprechertext, die Bildidee und die sachlichen Hinweise als Kontext. Die KI soll
+nur gewünschte Änderungen vornehmen und frühere Verbesserungen erhalten. Reine
+Änderungen der Bildidee oder sachlicher Hinweise lassen sich ebenfalls speichern.
+Auch nach einer Bildplanung oder einem Renderfehler bleibt die Überarbeitung
+beim Text-zuerst-Ablauf, ohne Einzelszenensteuerung.
+
+Prüfversion, Wortbudget, geschätzte Sprechzeit und Anzahl der Versuche werden mit
+dem Skript gespeichert. Die Prüfung bestätigt keine Fakten und garantiert weder
+sprachliche Qualität noch semantische Bildabdeckung; diese redaktionellen Punkte
+gehören weiterhin zur späteren Nutzerabnahme.
+
+Aktuelle Entwicklungsregel des Nutzers: keine neuen Testvideos in der UI als
+Routine erzeugen. Zuerst automatisierte Text-, Schema- und Workflowtests verwenden.
+Eine echte Videoprobe nur dann, wenn eine konkrete Änderung sie zwingend benötigt;
+ansonsten übernimmt der Nutzer die Videotests später.
+
 ## Verlässliche Freigabe und Wiederholung
 
 Eingegebene Änderungswünsche müssen zuerst über **KI verbessert das Skript**

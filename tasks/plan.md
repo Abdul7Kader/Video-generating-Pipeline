@@ -17,11 +17,12 @@ Bearbeitungsstand: [ARBEITSSTAND.md](../ARBEITSSTAND.md) und [STATUS.md](../STAT
 - Schutzbedarf: Skripte, Videos, Kontozugänge und Host-Ressourcen. Browser-/Modellausgaben sind untrusted. Serverseitige Schema-, Pfad-, Herkunfts- und Ressourcenprüfungen; keine Shellbefehle aus Modellausgaben.
 - UI und eigene Dienste nur auf Loopback; keine Firewallfreigaben, Tunnel oder globalen Schutzänderungen. Zugangsdaten nur im offiziellen Anmeldedialog bzw. geschütztem lokalen Speicher, nicht in Logs oder Git.
 - Aktuelle Schwachstellenabfrage per `npm audit` wurde durch automatische Freigabeprüfung wegen externer Metadatenübermittlung blockiert. Vor erneuter Abfrage explizite Nutzerfreigabe einholen; kein positiver aktueller Auditnachweis behaupten.
+- Neue ausdrückliche Nutzervorgabe: keine routinemäßigen Testvideos über die UI. Echte Videoproben nur bei zwingendem Prüfbedarf einer konkreten Änderung; ansonsten spätere Nutzerabnahme bzw. Schritt 10. Automatisierte Tests zuerst; keine Live-Abnahme vortäuschen.
 
 ## Originalversion: Schritte 1–10
 
 ### 1. Verlässlichen Produktionszugang prüfen
-Zwischenstand: implementiert; automatisierte Tests und echte Anmeldung-/Modelllistenprüfung bestanden. Gemini 3.1 Pro wird vom vorhandenen Konto derzeit nicht angeboten; Gemini 3.8 Flash wird angeboten. Eine reale Skriptanfrage wartet auf die ausdrücklich gewählte Alternative. Keine Kontoeinstellungen oder Tarife geändert.
+Zwischenstand: implementiert; automatisierte Tests und echte Anmeldung-/Modelllistenprüfung bestanden. Gemini 3.1 Pro wird vom vorhandenen Konto derzeit nicht angeboten. Der Nutzer hat Gemini 3.8 Flash (High) bestätigt; `gemini-3.8-flash-high` ist lokal als aktives Skriptmodell gespeichert. Stimmen- und Hardwareauswahl erhalten; keine Anbieter-Credit-Einstellungen oder Tarife geändert. Eine reale Skriptanfrage bleibt für die spätere Nutzerabnahme vorgemerkt.
 
 Den aktuell verwendeten Skriptanbieter mit tatsächlichem Modellstatus in der Oberfläche erklären; Installation, Anmeldung, Modellzugang und ausgeschöpftes Kontingent getrennt darstellen.
 - Abnahme: vorhandener Zugang ermöglicht eine echte Skriptanfrage; fehlender Zugang liefert eine verständliche Ursache und passenden nächsten Schritt. Keine automatische Kostenaktivierung oder stille Anbieterumschaltung.
@@ -29,17 +30,19 @@ Den aktuell verwendeten Skriptanbieter mit tatsächlichem Modellstatus in der Ob
 - Abhängigkeiten: keine. Umfang M; `backend/antigravity.py`, `backend/setup.py`, `web/settings.js`, `tests/test_antigravity.py`, `tests/test_settings_api.py`.
 
 ### 2. Einfachen Skript-Freigabeablauf abschließen
-Zwischenstand: Text-/Bildidee, Schutz nicht angewendeter Änderungswünsche, atomare Freigabe/Render-Einreihung und Fortsetzung nach Renderfehlern implementiert und getestet. Vollständiger neuer KI-/Videolauf nach der Modellwahl in Schritt 1 noch offen.
+Technisch abgeschlossen und automatisiert geprüft: Text-/Bildidee, Schutz nicht angewendeter Änderungswünsche, atomare Freigabe/Render-Einreihung und Fortsetzung nach Renderfehlern. Überarbeitung von Storyboards wird serverseitig als Fließtextablauf erkannt, auch ohne Clientflag. Änderungen ausschließlich an sachlichen Hinweisen werden als neue Version akzeptiert. Live-/Videoabnahme auf ausdrücklichen Nutzerwunsch bis zum Ende verschoben.
 
 Den bestehenden Fließtextablauf vom Prompt bis zur Produktion durchgängig prüfen und verbleibende Szenenpflichten aus dem Bedienweg nehmen.
 - Abnahme: KI-Änderungswünsche erzeugen eine neue Skriptversion; genau der freigegebene Sprechertext wird produziert. Doppelaufrufe und veraltete Freigaben erzeugen keinen falschen Render.
-- Prüfung: `python -m unittest tests.test_story_workflow tests.test_workflow`; echter Browserablauf einschließlich Änderung und Freigabe.
+- Prüfung: `python -m unittest tests.test_story_workflow tests.test_workflow`; echter Browser-/Videoablauf bei der späteren Nutzerabnahme, jetzt keine Testvideoerstellung.
 - Abhängigkeiten: 1. Umfang M; `backend/story.py`, `backend/main.py`, `web/app.js`, `tests/test_story_workflow.py`, `tests/test_workflow.py`.
 
 ### 3. Skriptqualität über verschiedene Themen verbessern
+Technisch abgeschlossen und mit Textfixtures für Tieradoption, Informatik und Kochen, Deutsch/Englisch sowie 30/60/90 Sekunden geprüft. Stimme und Tempo beeinflussen das Wortbudget. Höchstens ein Korrekturversuch, danach Fehler statt ungültiger Speicherung. Vorherige Bildidee und Hinweise werden in den Überarbeitungskontext aufgenommen. Faktische/semantische und redaktionelle Qualität werden damit nicht als verifiziert ausgegeben.
+
 Sprechertexte auf klare Handlung, gute Verständlichkeit, passende Länge und überprüfbare Aussagen ausrichten; Änderungswünsche ohne Verlust vorheriger Vorgaben umsetzen.
 - Abnahme: mehrere unterschiedliche Themen liefern verständliche Texte innerhalb des gewählten Zeitbudgets; Änderungen erhalten zentrale Figuren und Handlung. Unsichere Fakten werden nicht als geprüft ausgegeben.
-- Prüfung: gezielte Story-/Planner-Tests und Vergleich realer Entwürfe anhand einer festen Bewertungsrubrik.
+- Prüfung: gezielte Story-/Planner-Tests und Textfixtures ohne echte KI-Anfragen; Vergleich realer Entwürfe durch den Nutzer bzw. in Schritt 10.
 - Abhängigkeiten: 2. Umfang M; `backend/story.py`, `backend/planner.py`, `tests/test_story_workflow.py`, `tests/test_planner.py`.
 
 ### 4. Erzählte Handlung in sichtbare Bildaktionen übersetzen
@@ -48,7 +51,7 @@ Die vorhandene Bildabdeckung über Katze/Hund hinaus für eine begrenzte erste M
 - Prüfung: `python -m unittest tests.test_visual_coverage tests.test_story_workflow`; Vergleich Erzähltext/Bildplan bei unterschiedlichen Themen.
 - Abhängigkeiten: 3. Umfang M; `backend/visual_coverage.py`, `backend/story.py`, `backend/stickman.py`, `tests/test_visual_coverage.py`, `tests/test_story_workflow.py`.
 
-Prüfpunkt nach 1–4: Ein echter Auftrag läuft von Idee und Textänderung bis zum freigegebenen, überprüften Bildplan; mindestens ein Thema ohne Katze wird geprüft.
+Prüfpunkt nach 1–4: Text-/Bildplanverträge automatisch prüfen, einschließlich Thema ohne Katze. Der echte Auftrag von Idee und Textänderung bis zum Bildplan bleibt Bestandteil der späteren Nutzerabnahme; keine routinemäßigen Testvideos während des Baus.
 
 ### 5. Handkontakt und Gegenstandsinteraktion verbessern
 Greifen, Tragen, Ablegen und Streicheln anhand bestehender Bewegungen verbessern; Kontaktpunkte zwischen Figuren und Objekten konsistent halten.

@@ -449,7 +449,7 @@ def revise_script(job_id: str, payload: ScriptRevision):
     current = require_job(job_id)
     if current["script_version"] != payload.expected_version:
         raise HTTPException(409, "Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.")
-    if payload.story_mode or current['script'].get('metadata', {}).get('workflow') == 'story_draft':
+    if payload.story_mode or current['script'].get('metadata', {}).get('workflow') in {'story_draft', 'storyboard'}:
         if current['video_type'] != 'stickman':
             raise HTTPException(422, 'Dieser Ablauf ist für Strichmännchen-Videos vorgesehen.')
         if payload.scene_id:
@@ -459,8 +459,8 @@ def revise_script(job_id: str, payload: ScriptRevision):
         request = JobCreate.model_validate({**{key: current[key] for key in ('topic', 'language', 'duration_seconds', 'aspect_ratio', 'production_config')}, 'script_mode': 'story'})
         try:
             revised = generate_story(request, previous=current['script'], instructions=payload.instructions)
-            if script_hash(revised) == current['script']['content_hash'] and revised.get('metadata', {}).get('visual_summary') == current['script'].get('metadata', {}).get('visual_summary'):
-                raise ValueError('Die KI hat weder Text noch Bildidee verändert.')
+            if script_hash(revised) == current['script']['content_hash'] and all(revised.get('metadata', {}).get(key) == current['script'].get('metadata', {}).get(key) for key in ('visual_summary', 'fact_check_notes')):
+                raise ValueError('Die KI hat weder Text noch Bildidee oder sachliche Hinweise verändert.')
             return db.update_script(job_id, payload.expected_version, revised)
         except ScriptProviderUnavailable as exc:
             raise HTTPException(503, str(exc)) from exc
