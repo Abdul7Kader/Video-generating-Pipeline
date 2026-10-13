@@ -351,11 +351,13 @@ class Database:
         now = utcnow()
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
-            row = conn.execute("SELECT script_version FROM jobs WHERE id=?", (job_id,)).fetchone()
+            row = conn.execute("SELECT script_version,status FROM jobs WHERE id=?", (job_id,)).fetchone()
             if not row:
                 raise KeyError(job_id)
             if row["script_version"] != expected:
                 raise ValueError("version_conflict")
+            if row['status'] in {'render_queued', 'rendering', 'publish_queued', 'publishing'}:
+                raise ValueError('job_busy')
             version = expected + 1
             self._insert_script(conn, job_id, version, script, now)
             provider, model, fallback = self._script_provenance(script.get("metadata") or {})
@@ -377,11 +379,47 @@ class Database:
             conn.commit()
         return self.get_job(job_id)  # type: ignore[return-value]
 
+    def queue_story_render(self, job_id: str, expected: int, expected_hash: str, plan: dict[str, Any]) -> dict[str, Any]:
+        """Save the illustrations, approval and render claim in one transaction."""
+        now = utcnow()
+        with self._write_lock, self.connect() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            row = conn.execute('SELECT * FROM jobs WHERE id=?', (job_id,)).fetchone()
+            if not row:
+                raise KeyError(job_id)
+            if row['script_version'] != expected:
+                raise ValueError('version_conflict')
+            if row['status'] in {'render_queued', 'rendering', 'publish_queued', 'publishing'}:
+                raise ValueError('job_busy')
+            if self._verified_script_hash(conn, job_id, expected) != expected_hash:
+                raise ValueError('hash_conflict')
+            version = expected + 1
+            plan = {**plan, 'metadata': {**plan.get('metadata', {}), 'workflow': 'storyboard',
+                                       'approved_story_hash': expected_hash, 'approved_story_version': expected}}
+            fingerprint = self._insert_script(conn, job_id, version, plan, now)
+            provider, model, fallback = self._script_provenance(plan['metadata'])
+            conn.execute(
+                """UPDATE jobs SET updated_at=?,status='render_queued',script_version=?,
+                actual_script_provider=?,actual_script_model=?,script_fallback_json=?,
+                approved_script_version=?,approved_script_hash=?,render_version=?,render_script_hash=?,
+                approved_render_version=NULL,output_path=NULL,output_sha256=NULL,output_variants_json='{}',
+                approved_output_sha256=NULL,error=NULL,youtube_video_id=NULL,publish_key=NULL WHERE id=?""",
+                (now, version, provider, model, json.dumps(fallback, ensure_ascii=False),
+                 version, fingerprint, version, fingerprint, job_id))
+            conn.execute(
+                """UPDATE publication_targets SET status='planned',approved_output_sha256=NULL,
+                idempotency_key=NULL,remote_id=NULL,remote_url=NULL,error=NULL,updated_at=? WHERE job_id=?""", (now, job_id))
+            self._event(conn, job_id, 'script_updated', f'Bildplanversion {version} zum freigegebenen Sprechertext gespeichert.')
+            self._event(conn, job_id, 'script_approved', f'Skriptversion {version} freigegeben.', {'script_hash': fingerprint, 'approved_story_hash': expected_hash})
+            self._event(conn, job_id, 'render_queued', f'Video für Skriptversion {version} eingereiht.', {'script_hash': fingerprint})
+            conn.commit()
+        return self.get_job(job_id)  # type: ignore[return-value]
+
     def approve_script(self, job_id: str, expected: int, expected_hash: str) -> dict[str, Any]:
         now = utcnow()
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
-            row = conn.execute("SELECT script_version,status FROM jobs WHERE id=?", (job_id,)).fetchone()
+            row = conn.execute("SELECT script_version,status,approved_script_hash FROM jobs WHERE id=?", (job_id,)).fetchone()
             if not row:
                 raise KeyError(job_id)
             if row["script_version"] != expected:
@@ -389,6 +427,11 @@ class Database:
             actual_hash = self._verified_script_hash(conn, job_id, expected)
             if actual_hash != expected_hash:
                 raise ValueError("hash_conflict")
+            if row['status'] in {'render_queued', 'rendering', 'publish_queued', 'publishing'}:
+                if row['approved_script_hash'] != actual_hash:
+                    raise ValueError('job_busy')
+                conn.rollback()
+                return self.get_job(job_id)  # type: ignore[return-value]
             conn.execute(
                 """UPDATE jobs SET approved_script_version=?,approved_script_hash=?,status='script_approved',
                 updated_at=?,error=NULL WHERE id=?""",

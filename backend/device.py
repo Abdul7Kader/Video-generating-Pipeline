@@ -34,6 +34,7 @@ class MachinePreferences(BaseModel):
     model: ModelName
     voice: Literal['piper', 'qwen_tts'] = 'piper'
     script: Literal['local', 'antigravity'] = 'local'
+    antigravity_model: str | None = Field(default=None, max_length=87, pattern=r'^gemini-[a-z0-9][a-z0-9.-]{0,79}$')
     hardware: ManualHardware | None = None
 
 
@@ -119,6 +120,10 @@ def apply_preferences(settings, preferences, *, adapt=False):
               'ollama_model': preferences.model, 'tts_provider': preferences.voice,
               'render_concurrency': 1 if cores < 8 else 2, 'qwen_tts_threads': max(1, min(8, cores // 2)),
               'ollama_num_ctx': 8192, 'ollama_num_predict': 4096}
+    if preferences.script == 'antigravity':
+        values['antigravity_fallback_to_qwen'] = False
+        if preferences.antigravity_model:
+            values['antigravity_model'] = preferences.antigravity_model
     if adapt:
         # A copied configuration must not treat old manual device values as a
         # fresh measurement. Unknown hardware needs confirmation in settings.

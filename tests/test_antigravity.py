@@ -77,6 +77,34 @@ def success_stream(output: dict) -> str:
 
 
 class AntigravityAdapterTests(unittest.TestCase):
+    def test_status_distinguishes_login_connection_quota_and_timeout_without_leaking_diagnostics(self):
+        for diagnostic, code, authenticated in [('unauthenticated private-token', 'auth_required', False),
+                                                ('connection refused private-token', 'unavailable', None),
+                                                ('quota exhausted private-token', 'quota_or_capacity', None)]:
+            response = SimpleNamespace(returncode=1, stdout='', stderr=diagnostic)
+            with self.subTest(code=code), patch('backend.antigravity.settings', adapter_settings()), patch('backend.antigravity._STATUS_CACHE', None), patch('backend.antigravity.shutil.which', return_value='agy'), patch('backend.antigravity.subprocess.run', return_value=response):
+                status = antigravity_status()
+            self.assertEqual(status['code'], code)
+            self.assertIs(status['authenticated'], authenticated)
+            self.assertNotIn('private-token', json.dumps(status))
+            self.assertTrue(status['next_step'])
+            self.assertEqual(status['quota'], 'not_checked')
+            self.assertEqual(status['billing'], 'not_checked')
+        with patch('backend.antigravity.settings', adapter_settings()), patch('backend.antigravity._STATUS_CACHE', None), patch('backend.antigravity.shutil.which', return_value='agy'), patch('backend.antigravity.subprocess.run', side_effect=subprocess.TimeoutExpired('agy', 20)):
+            self.assertEqual(antigravity_status()['code'], 'timeout')
+
+    def test_missing_model_preserves_login_and_lists_only_valid_gemini_choices(self):
+        response = SimpleNamespace(returncode=0, stdout='gemini-3.8-flash-high\tGemini Flash\nclaude-sonnet-4-6\tClaude\n<script>bad</script>\n', stderr='')
+        with patch('backend.antigravity.settings', adapter_settings()), patch('backend.antigravity._STATUS_CACHE', None), patch('backend.antigravity.shutil.which', return_value='agy'), patch('backend.antigravity.subprocess.run', return_value=response) as run:
+            status = antigravity_status()
+            self.assertEqual(status['code'], 'model_unavailable')
+            self.assertTrue(status['authenticated'])
+            self.assertEqual(status['available_models'], ['gemini-3.8-flash-high'])
+            status['available_models'].clear()
+            self.assertEqual(antigravity_status()['available_models'], ['gemini-3.8-flash-high'])
+            self.assertTrue(antigravity_status(model='gemini-3.8-flash-high', refresh=True)['ready'])
+            self.assertEqual(run.call_count, 2)
+
     def test_windows_cleanup_lock_cannot_discard_a_valid_generation(self):
         original_temporary = tempfile.TemporaryDirectory
         # Emulate Windows refusing to remove the CLI's still-open cwd.

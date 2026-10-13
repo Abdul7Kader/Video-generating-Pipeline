@@ -32,6 +32,7 @@ function ui(){
       if(url==='/api/settings/actions'){const input=JSON.parse(options.body);assert.equal(input.action,'script_model');downloaded=true;fixture.task={status:'running',message:'download',started_at:Date.now()/1000,percent:20};value=fixture.task}
       else if(url==='/api/settings/task'){fixture.task={status:'completed',message:'done',percent:100};fixture.installed_models=['qwen3.5:4b'];value=fixture.task}
       else if(url==='/api/settings/preferences'){saved=true;fixture.preferences=JSON.parse(options.body);value={saved:true,message:'saved'}}
+      else if(url.startsWith('/api/settings/accounts'))value={antigravity:{ready:false,code:'model_unavailable',message:'Angemeldet, Modell fehlt.',next_step:'Anderes Modell wählen.',available_models:['gemini-3.8-flash-high','<script>unsafe</script>']}};
       else value=fixture;
       return {ok:true,async json(){return structuredClone(value)}};
     }};
@@ -64,4 +65,24 @@ test('the chosen fixed model downloads only after a click and progress completes
   await app.document.getElementById('settings-save').onclick();
   assert.equal(app.saved,true);
   assert.deepEqual(app.fixture.preferences,{model:'qwen3.5:4b',voice:'piper',script:'local'});
+});
+
+test('cloud access check lists alternatives without switching or saving the model',async()=>{
+  const app=ui();app.fixture.effective.script='antigravity';app.fixture.effective.antigravity_model='gemini-3.1-pro-high';
+  await app.context.window.PipelineSettings.open();
+  const source=app.document.getElementById('settings-content').innerHTML;
+  assert.match(source,/Aktiv für neue Skripte:<\/strong> Antigravity/);
+  assert.match(source,/value="antigravity" selected/);
+  const provider=app.document.getElementById('settings-script'),model=app.document.getElementById('settings-cloud-model');
+  provider.value='antigravity';model.value='gemini-3.1-pro-high';provider.onchange();
+  await app.document.getElementById('settings-accounts-check').onclick();
+  assert.match(app.document.getElementById('settings-account-status').innerHTML,/Angemeldet · anderes Modell wählen/);
+  assert.equal(model.value,'gemini-3.1-pro-high');
+  assert.match(model.innerHTML,/gemini-3.8-flash-high/);
+  assert.doesNotMatch(model.innerHTML,/<script>/);
+  assert.equal(app.saved,false);
+  assert.equal(app.requests.filter(request=>request.method==='PUT').length,0);
+  model.value='gemini-3.8-flash-high';
+  await app.document.getElementById('settings-save').onclick();
+  assert.equal(app.fixture.preferences.antigravity_model,'gemini-3.8-flash-high');
 });

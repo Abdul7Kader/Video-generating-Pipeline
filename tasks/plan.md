@@ -1,15 +1,130 @@
 # Aktiver Entwicklungsplan: Strichmenschen-Videos
 
-Stand: 2026-10-11. Der aktuelle Nutzerauftrag ist die Weiterentwicklung der
-Strichmenschenproduktion. Die älteren Ausbaupläne darunter sind eingefrorener Verlauf.
+Stand: 2026-10-13. Nummerierter Entwicklungsplan auf Nutzerwunsch.
+Zuerst die Originalversion für den Nutzer fertigstellen, erst danach die Familienversion
+ohne Pro-Abos. Bereits vorhandene Funktionen gezielt prüfen und verbessern, nicht neu bauen.
+Die älteren Ausbaupläne darunter bleiben eingefrorener Verlauf. Aufgaben: `tasks/todo.md`.
 
-1. [x] Stimmenstudio und gezielte Szenenüberarbeitung (vorherige Etappe).
+Lesbare nummerierte Übersicht: [ENTWICKLUNGSPLAN.md](../ENTWICKLUNGSPLAN.md).
+Bearbeitungsstand: [ARBEITSSTAND.md](../ARBEITSSTAND.md) und [STATUS.md](../STATUS.md).
+
+## Entscheidungen und Grenzen
+
+- Ein Prompt → durchgehender Sprechertext → KI-Änderungswünsche → eine Skriptfreigabe → automatische Bildplanung und Produktion → Video prüfen und herunterladen. Keine verpflichtende Einzelszenenfreigabe. Bestehende Veröffentlichungsfreigaben bleiben bestehen.
+- Das letzte Katzenadoptionsvideo nutzte Antigravity / `gemini-3.1-pro-high`, lokale Qwen-TTS und SVG / Remotion / FFmpeg. Anbieter und Modell künftig immer tatsächlich ausweisen; der Modellnachweis beweist keinen Abrechnungstarif.
+- Fokus ausschließlich Strichmännchen; andere Videoarten bleiben ausgeblendet, bestehende Daten und historische Aufgaben erhalten.
+- Ausführung durch die Anwendung ohne Codex oder einen steuernden Coding-Agenten. Für die Originalversion vorhandenen Anbieterzugang prüfen; keine unangekündigten Modellwechsel oder kostenpflichtigen Aktivierungen.
+- Schutzbedarf: Skripte, Videos, Kontozugänge und Host-Ressourcen. Browser-/Modellausgaben sind untrusted. Serverseitige Schema-, Pfad-, Herkunfts- und Ressourcenprüfungen; keine Shellbefehle aus Modellausgaben.
+- UI und eigene Dienste nur auf Loopback; keine Firewallfreigaben, Tunnel oder globalen Schutzänderungen. Zugangsdaten nur im offiziellen Anmeldedialog bzw. geschütztem lokalen Speicher, nicht in Logs oder Git.
+- Aktuelle Schwachstellenabfrage per `npm audit` wurde durch automatische Freigabeprüfung wegen externer Metadatenübermittlung blockiert. Vor erneuter Abfrage explizite Nutzerfreigabe einholen; kein positiver aktueller Auditnachweis behaupten.
+
+## Originalversion: Schritte 1–10
+
+### 1. Verlässlichen Produktionszugang prüfen
+Zwischenstand: implementiert; automatisierte Tests und echte Anmeldung-/Modelllistenprüfung bestanden. Gemini 3.1 Pro wird vom vorhandenen Konto derzeit nicht angeboten; Gemini 3.8 Flash wird angeboten. Eine reale Skriptanfrage wartet auf die ausdrücklich gewählte Alternative. Keine Kontoeinstellungen oder Tarife geändert.
+
+Den aktuell verwendeten Skriptanbieter mit tatsächlichem Modellstatus in der Oberfläche erklären; Installation, Anmeldung, Modellzugang und ausgeschöpftes Kontingent getrennt darstellen.
+- Abnahme: vorhandener Zugang ermöglicht eine echte Skriptanfrage; fehlender Zugang liefert eine verständliche Ursache und passenden nächsten Schritt. Keine automatische Kostenaktivierung oder stille Anbieterumschaltung.
+- Prüfung: gezielte Provider-/Einstellungstests plus reale Anfrage nur bei verfügbarem, ausdrücklich gewähltem Zugang.
+- Abhängigkeiten: keine. Umfang M; `backend/antigravity.py`, `backend/setup.py`, `web/settings.js`, `tests/test_antigravity.py`, `tests/test_settings_api.py`.
+
+### 2. Einfachen Skript-Freigabeablauf abschließen
+Zwischenstand: Text-/Bildidee, Schutz nicht angewendeter Änderungswünsche, atomare Freigabe/Render-Einreihung und Fortsetzung nach Renderfehlern implementiert und getestet. Vollständiger neuer KI-/Videolauf nach der Modellwahl in Schritt 1 noch offen.
+
+Den bestehenden Fließtextablauf vom Prompt bis zur Produktion durchgängig prüfen und verbleibende Szenenpflichten aus dem Bedienweg nehmen.
+- Abnahme: KI-Änderungswünsche erzeugen eine neue Skriptversion; genau der freigegebene Sprechertext wird produziert. Doppelaufrufe und veraltete Freigaben erzeugen keinen falschen Render.
+- Prüfung: `python -m unittest tests.test_story_workflow tests.test_workflow`; echter Browserablauf einschließlich Änderung und Freigabe.
+- Abhängigkeiten: 1. Umfang M; `backend/story.py`, `backend/main.py`, `web/app.js`, `tests/test_story_workflow.py`, `tests/test_workflow.py`.
+
+### 3. Skriptqualität über verschiedene Themen verbessern
+Sprechertexte auf klare Handlung, gute Verständlichkeit, passende Länge und überprüfbare Aussagen ausrichten; Änderungswünsche ohne Verlust vorheriger Vorgaben umsetzen.
+- Abnahme: mehrere unterschiedliche Themen liefern verständliche Texte innerhalb des gewählten Zeitbudgets; Änderungen erhalten zentrale Figuren und Handlung. Unsichere Fakten werden nicht als geprüft ausgegeben.
+- Prüfung: gezielte Story-/Planner-Tests und Vergleich realer Entwürfe anhand einer festen Bewertungsrubrik.
+- Abhängigkeiten: 2. Umfang M; `backend/story.py`, `backend/planner.py`, `tests/test_story_workflow.py`, `tests/test_planner.py`.
+
+### 4. Erzählte Handlung in sichtbare Bildaktionen übersetzen
+Die vorhandene Bildabdeckung über Katze/Hund hinaus für eine begrenzte erste Motivgruppe ausbauen. Figuren, Tiere, wichtige Gegenstände und konkrete Handlungen im Plan mit den darstellbaren Zeichenbausteinen abgleichen.
+- Abnahme: Adoption zeigt das Tier und die relevante Interaktion; weitere Testthemen zeigen ihre zentralen Handlungen. Nicht unterstützte Motive werden vor einem irreführenden Erfolgsresultat benannt.
+- Prüfung: `python -m unittest tests.test_visual_coverage tests.test_story_workflow`; Vergleich Erzähltext/Bildplan bei unterschiedlichen Themen.
+- Abhängigkeiten: 3. Umfang M; `backend/visual_coverage.py`, `backend/story.py`, `backend/stickman.py`, `tests/test_visual_coverage.py`, `tests/test_story_workflow.py`.
+
+Prüfpunkt nach 1–4: Ein echter Auftrag läuft von Idee und Textänderung bis zum freigegebenen, überprüften Bildplan; mindestens ein Thema ohne Katze wird geprüft.
+
+### 5. Handkontakt und Gegenstandsinteraktion verbessern
+Greifen, Tragen, Ablegen und Streicheln anhand bestehender Bewegungen verbessern; Kontaktpunkte zwischen Figuren und Objekten konsistent halten.
+- Abnahme: Hand und Gegenstand bleiben während der Aktion nachvollziehbar verbunden; Objektbesitz und Ablage wechseln zum vorgesehenen Zeitpunkt.
+- Prüfung: Renderer-/Stickman-Tests sowie kurze Filmproben mit Greifen/Tragen/Ablegen und Tierkontakt.
+- Abhängigkeiten: 4. Umfang M; `renderer/src/ink.tsx`, `backend/stickman.py`, `tests/test_stickman.py`, `renderer/ink.test.mjs`.
+
+### 6. Bewegung passend zur Erzählung takten
+Die vorhandenen Sprachanker für Aktionsbeginn, Tempo und Abschluss nutzen; unnötig lange Leerlaufbewegungen vermeiden, kurze Aktionen lesbar halten.
+- Abnahme: die Hauptaktion erscheint während der entsprechenden Erzählstelle; Laufwege und Gesten sind zügig, flüssig und verständlich statt beliebig beschleunigt.
+- Prüfung: `python -m unittest tests.test_speech_motion`; Renderer-Tests und Filmvergleich mit zugehörigem Audio.
+- Abhängigkeiten: 5. Umfang M; `backend/speech.py`, `backend/rendering.py`, `renderer/src/ink.tsx`, `tests/test_speech_motion.py`.
+
+### 7. Kontinuität zwischen Bildabschnitten sichern
+Figurenidentität, Tiermerkmale, gehaltene Gegenstände und erzählte Zustände über Schnitte hinweg erhalten.
+- Abnahme: dieselbe Figur/dasselbe Tier bleibt erkennbar; wichtige Gegenstände und Zustandsänderungen verschwinden oder wechseln nicht ohne erzählte Ursache.
+- Prüfung: mehrteilige Filmprobe und gezielte Tests für Figuren-/Objektzustände; Bildabschnitte vor und nach Schnitten vergleichen.
+- Abhängigkeiten: 6. Umfang M; `backend/story.py`, `backend/visual_coverage.py`, `renderer/src/ink.tsx`, `tests/test_visual_coverage.py`, `tests/test_stickman_studio.py`.
+
+Prüfpunkt nach 5–7: Filmproben zeigen korrekten Kontakt, passende Aktionstakte und Kontinuität; Bewertung umfasst Bild und Ton.
+
+### 8. Erzählerqualität und Sprachfluss fertigstellen
+Qwen als vorhandene natürliche Stimmoption und Piper als ausdrücklich wählbare schnelle Alternative vergleichen; Aussprache, Lautheit und unnötige Pausen verbessern.
+- Abnahme: ausgewählte Stimme ist die tatsächlich verwendete; unnötige lange Pausen werden reduziert, Satzgrenzen bleiben verständlich. Fehlendes Audio ist ein Fehler; Zeit-/Ressourcenbedarf wird ehrlich angezeigt.
+- Prüfung: `python -m unittest tests.test_qwen_voice tests.test_quality`; dieselben kurzen Texte mit beiden Stimmen anhören, Wellenform und Audiozeit prüfen.
+- Abhängigkeiten: 2; für gemeinsamen Bild-/Tonvergleich 6. Umfang M; `backend/speech.py`, `backend/qwen_tts.py`, `web/voices.js`, `tests/test_qwen_voice.py`, `tests/test_quality.py`.
+
+### 9. UI und Einrichtung für die Originalversion abschließen
+Nur relevante Produktionswege im Hauptablauf zeigen; notwendige Einrichtung von optionalen Alternativen unterscheiden. Fortschritt, Fehler und nächster Bedienungsschritt sind verständlich.
+- Abnahme: ein neuer Nutzer findet Einrichtung, Prompt, Änderungswunsch, Freigabe und Download ohne Szenenwissen. Laufende Prozesse zeigen Fortschritt/vergangene Zeit und nur eine tatsächlich belastbare Restzeitschätzung.
+- Prüfung: echter Browser-Smoke-Test in schmaler und normaler Ansicht; `node --test tests/settings-ui.test.cjs tests/process-progress.test.cjs` und UI-Guidance-Tests.
+- Abhängigkeiten: 1, 2, 8. Umfang M; `web/app.js`, `web/settings.js`, `web/styles.css`, `tests/test_ui_guidance.py`, `tests/settings-ui.test.cjs`.
+
+### 10. Originalversion mit mehreren Videos abnehmen und sichern
+Repräsentative Beispiele statt eines Einzelfixes verwenden: Tieradoption, Lernen, Gegenstandshandlung und eine einfache soziale Geschichte. Einrichtungs- und Produktionsfehler ebenfalls prüfen.
+- Abnahme: alle Beispiele zeigen wesentliche erzählte Akteure und Handlungen; Skriptfreigaben, Stimme, Audiofluss und Download stimmen. Grenzen und offene Risiken sind dokumentiert; Originalversion ist vor Start der Familienetappe abgeschlossen.
+- Prüfung: Backend-/Renderer-Tests, TypeScript-Prüfung, Browserablauf, reale Film-/Hörsichtung und Sicherheits-Negativfälle. Nur bei neuer Grundlage weitere Tests wiederholen.
+- Abhängigkeiten: 3–9. Umfang M; bestehende Testläufe und Filmproben, `docs/story-workflow.md`, `docs/device-settings.md`, `STATUS.md`. Commit/Push nur unter verifizierter Identität Abdul7Kader; bestehende Push-Autorisierung beachten.
+
+Prüfpunkt nach 8–10: Originalversion erfüllt alle Abnahmen; Testergebnisse und offene Einschränkungen sind dokumentiert und Änderungen geprüft/gesichert.
+
+## Familienversion: erst danach, Schritte 11–13
+
+### 11. Konten und kostenlose Anmeldewege erklären
+Die zu diesem Zeitpunkt offiziell unterstützten kostenlosen Gemini-/Antigravity-Zugänge prüfen und unter Einstellungen klar darstellen: normales Konto, optionales Abo, Modellzugang und Limits.
+- Abnahme: kostenlose Konten werden nicht pauschal wegen eines fehlenden Pro-Abos ausgeschlossen; Herstelleranmeldung und Verbindungsprüfung sind verständlich. Keine Zugangsdaten in Logs, Browser-URLs oder Git.
+- Prüfung: offizielle Dokumentation, gezielte Einstellungs-/Provider-Tests und regulärer Anmeldetest durch den Kontoinhaber.
+- Abhängigkeiten: 10. Umfang M; `backend/setup.py`, `web/settings.js`, `tests/test_settings_api.py`, `tests/settings-ui.test.cjs`, `docs/device-settings.md`.
+
+### 12. Kostenlosen automatischen Skriptweg ergänzen
+Nach Verfügbarkeits- und Konditionenprüfung einen offiziell unterstützten Free-Tier-API- oder CLI-Weg auswählen. Jeder nutzt den eigenen Zugang; Stimme und Renderer bleiben Teil der bestehenden Pipeline.
+- Abnahme: kostenloser Zugang erzeugt und überarbeitet Skripte ohne steuernden Coding-Agenten; Limit-/Anmeldefehler behalten den Auftrag. Keine automatische Tarif-/Credit-Aktivierung und keine unangekündigte Anbieterumschaltung.
+- Prüfung: Provider-Vertrags- und Negativtests für fehlenden Zugang, Kontingent und ungültige Antworten; echter Familien-End-to-End-Test mit dem gewählten Zugang.
+- Abhängigkeiten: 11. Umfang M; `backend/planner.py`, `backend/setup.py`, `web/settings.js`, `tests/test_planner.py`, `tests/test_settings_api.py`.
+
+### 13. Webversion als Alternative prüfen und integrieren
+Zunächst einen verständlichen Prompt-/Ergebnisimport vorsehen. Automatische Browserbedienung nur bei offiziell erlaubtem und nachgewiesen zuverlässigem Zugang als gesonderte Erweiterung bewerten.
+- Abnahme: kopierter Webtext lässt sich validieren, bearbeiten und freigeben; Modellausgaben erhalten keine Systemrechte. Anmeldungen, Captchas und Limits werden nicht durch Fenster-/Kontowechsel umgangen; ein manueller Import wird nicht als vollautomatisch beworben.
+- Prüfung: Import-Schema- und Negativtests, Browser-Smoke-Test sowie kompletter Videoablauf aus einem importierten Text; Geräteprüfung auf einem schwächeren Rechner.
+- Abhängigkeiten: 12. Umfang M; `backend/schemas.py`, `backend/story.py`, `web/app.js`, `tests/test_story_workflow.py`, `docs/story-workflow.md`. Neue Browserautomation ggf. separat planen, um diese Scheibe klein zu halten.
+
+Abschlussprüfpunkt nach 11–13: Familienablauf mit eigenem Zugang, unveränderten Freigabegates und ohne versteckte Kosten nachgewiesen; Dokumentation, Review und autorisierter Push abschließen.
+
+## Risiken und überprüfbare Grenzen
+
+- Allgemeine perfekte Bildabdeckung ist mit endlichen SVG-Bausteinen nicht zugesichert: Motive schrittweise ausbauen und nicht darstellbare Handlungen melden.
+- Geräteempfehlungen belegen keine garantierte Render-/TTS-Geschwindigkeit: reale Laufzeiten messen; keine erfundenen Restzeiten.
+- Anbieterzugänge und Gratislimits können wechseln: aktuelle offizielle Konditionen vor der Familienetappe verifizieren; Webseite ist kein automatischer API-Ersatz.
+- Echte Qualitätsabnahme umfasst Film- und Hörproben; reine Schema-/Unit-Tests reichen dafür nicht.
+
+## Erhaltene Etappe vom 2026-10-11
+
+1. [x] Stimmenstudio und gezielte Szenenüberarbeitung.
 2. [x] Weiche Laufwege, kontinuierliche Richtungswechsel und mitgeführte Requisiten.
-3. [x] Neue Bewegungsprobe mit Piper rendern, Sichtprüfung und Qualitätsgate dokumentieren.
-4. [x] Abschließende Diff-Prüfung und unter verifizierter Identität lokal sichern.
-
-Nächste mögliche Qualitätsarbeit: Hand-/Gegenstandsinteraktion und Kontinuität über
-Szenenschnitte anhand echter Filmproben verbessern; keine weiteren Videoarten aktivieren.
+3. [x] Bewegungsprobe mit Piper, Sichtprüfung und Qualitätsgate.
+4. [x] Diff-Prüfung und Sicherung unter verifizierter Identität.
 
 ---
 

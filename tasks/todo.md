@@ -1,9 +1,49 @@
 # Aktueller Auftrag: Strichmenschen-Videos
 
-- [x] Stimmenstudio und gezielte Szenenüberarbeitung (vorherige Etappe)
+Stand: 2026-10-13. Nummern, Abnahmebedingungen, Abhängigkeiten und Prüfungen in `tasks/plan.md`.
+Vorhandene Implementierung ist Ausgangspunkt; offen bedeutet hier noch zu prüfen/verbessern und abzunehmen.
+
+Nummerierte Übersicht: [ENTWICKLUNGSPLAN.md](../ENTWICKLUNGSPLAN.md).
+Die Familienetappe startet erst nach Abnahme der Originalversion in Schritt 10.
+
+Zwischenstand 1–2: Zugangsanzeige/Modellauswahl und abgesicherter Fließtextablauf
+sind implementiert und automatisch getestet. Die echte CLI-/Browserprüfung
+bestätigt Anmeldung und fehlendes bisheriges Pro-Modell. Der komplette neue
+KI-/Videolauf bleibt bis zur ausdrücklichen Modellwahl offen; Schritte 1 und 2
+werden deshalb noch nicht als vollständig abgenommen markiert.
+
+- [x] Installation, Anmeldung, Modellangebot und Verbindungsfehler getrennt anzeigen
+- [x] Modell nur ausdrücklich speichern; kein automatischer Anbieterersatz
+- [x] Änderungswünsche vor versehentlicher Freigabe schützen
+- [x] Bildplan, Freigabe und Renderauftrag atomar speichern; Render-Wiederholung ohne neue KI-Planung
+- [ ] Vollständiger Echtlauf mit ausdrücklich gewähltem verfügbarem Skriptmodell
+
+- [ ] 1. Tatsächlichen Skriptanbieterzugang prüfen und verständlich anzeigen
+- [ ] 2. Prompt → Fließtext → KI-Überarbeitung → Skriptfreigabe → Produktion abschließen
+- [ ] 3. Skriptqualität über unterschiedliche Themen verbessern
+- [ ] 4. Zentrale erzählte Figuren, Motive und Handlungen sichtbar abdecken
+- [ ] Prüfpunkt 1–4: echter Skriptablauf und Bildplan, einschließlich Thema ohne Katze
+- [ ] 5. Handkontakt und Gegenstandsinteraktion verbessern
+- [ ] 6. Bewegungstempo mit Erzählung synchronisieren
+- [ ] 7. Figuren- und Gegenstandskontinuität zwischen Bildabschnitten sichern
+- [ ] Prüfpunkt 5–7: Filmproben für Kontakt, Aktionstakte und Kontinuität
+- [ ] 8. Stimmqualität und Sprachfluss fertigstellen
+- [ ] 9. Verständliche UI, Einrichtung und ehrliche Fortschrittsanzeige abschließen
+- [ ] 10. Originalversion mit mehreren Videos abnehmen, dokumentieren, prüfen und sichern/pushen
+- [ ] Prüfpunkt 8–10: Originalversion abgeschlossen; Grenzen und Prüfergebnisse dokumentiert
+
+Erst nach Abschluss von 10:
+
+- [ ] 11. Konten und offiziell unterstützte kostenlose Anmeldewege unter Einstellungen erklären
+- [ ] 12. Kostenlosen automatischen Skriptweg mit eigenem Familienzugang ergänzen
+- [ ] 13. Webversion als validierten Prompt-/Ergebnisimport ergänzen; zulässige Automation gesondert bewerten
+- [ ] Abschlussprüfpunkt: echter Familienablauf ohne Pro-Pflicht oder versteckte Kosten; Review und autorisierter Push
+
+Erhaltene erledigte Etappe:
+
+- [x] Stimmenstudio und gezielte Szenenüberarbeitung
 - [x] Weiches Anlaufen/Abbremsen und Richtungswechsel mit getragenen Gegenständen
-- [x] Regressionstests und reale Full-HD-Probe mit lokaler Stimme prüfen
-- [ ] Handkontakt und Gegenstandskontinuität über Szenenschnitte weiter verbessern
+- [x] Regressionstests und reale Full-HD-Probe mit lokaler Stimme
 
 Maßgeblicher Stand: `STATUS.md` und `tasks/plan.md`. Die älteren Aufgaben bleiben
 als eingefrorener Verlauf erhalten und stellen keinen aktiven Ausbauauftrag dar.

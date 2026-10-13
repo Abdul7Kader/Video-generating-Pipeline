@@ -4,6 +4,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -25,6 +26,7 @@ _ERROR_MESSAGES = {
     "policy_violation": "Antigravity wollte ein Werkzeug verwenden; der Lauf wurde aus Sicherheitsgründen verworfen.",
     "quota_or_capacity": "Antigravity ist wegen Kontingent- oder Kapazitätsgrenzen vorübergehend nicht verfügbar.",
     "unavailable": "Antigravity konnte den Skriptauftrag nicht abschließen.",
+    "model_unavailable": "Du bist angemeldet, aber das gewählte Modell wird für dieses Konto nicht angeboten.",
 }
 
 
@@ -53,7 +55,7 @@ def _executable() -> str:
 
 def _classify_failure(diagnostic: str) -> str:
     text = diagnostic.casefold()
-    if any(marker in text for marker in ("not logged", "sign in", "authentication required", "unauthenticated")):
+    if any(marker in text for marker in ("not logged", "sign in", "authentication required", "unauthenticated", "unauthorized", "login required")):
         return "auth_required"
     if any(marker in text for marker in ("quota", "rate limit", "resource exhausted", "capacity")):
         return "quota_or_capacity"
@@ -206,25 +208,34 @@ def generate_structured(prompt: str, schema: dict[str, Any]) -> tuple[dict[str, 
                 _INFLIGHT.pop(request_key, None)
 
 
-def antigravity_status() -> dict[str, Any]:
+def antigravity_status(*, model: str | None = None, refresh: bool = False) -> dict[str, Any]:
     global _STATUS_CACHE
+    model = model or settings.antigravity_model
+    status = {"ready": False, "provider": "antigravity", "model": model,
+              "installed": None, "authenticated": None, "available_models": [],
+              "quota": "not_checked", "billing": "not_checked"}
+    def failed(code, next_step):
+        return {**status, "code": code, "message": str(AntigravityError(code)), "next_step": next_step}
     if not settings.antigravity_enabled:
-        return {"ready": False, "provider": "antigravity", "model": settings.antigravity_model, "message": str(AntigravityError("disabled"))}
+        return failed("disabled", "Aktiviere den vorhandenen Cloudzugang in der Konfiguration oder wähle den lokalen Betrieb.")
     executable = shutil.which(settings.antigravity_command)
     if not executable:
-        return {"ready": False, "provider": "antigravity", "model": settings.antigravity_model, "message": str(AntigravityError("missing"))}
+        status['installed'] = False
+        return failed("missing", "Installiere die offizielle Antigravity-CLI und starte die Pipeline danach neu.")
+    status['installed'] = True
     with _STATUS_LOCK:
         cached = _STATUS_CACHE
-        if cached and cached[:2] == (executable, settings.antigravity_model) and time.monotonic() - cached[2] < 30:
-            return dict(cached[3])
+        if not refresh and cached and cached[:2] == (executable, model) and time.monotonic() - cached[2] < 30:
+            return copy.deepcopy(cached[3])
         result = None
+        failure = "unavailable"
         try:
             with tempfile.TemporaryDirectory(prefix="video-pipeline-antigravity-status-", ignore_cleanup_errors=True) as workspace:
                 result = subprocess.run(
                     [executable, "--log-file", os.devnull, "models"],
                     cwd=workspace,
                     stdout=subprocess.PIPE,
-                    stderr=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
                     text=True,
                     encoding="utf-8",
                     errors="replace",
@@ -232,17 +243,31 @@ def antigravity_status() -> dict[str, Any]:
                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                     check=False,
                 )
-        except (OSError, subprocess.TimeoutExpired):
+        except subprocess.TimeoutExpired:
+            failure = "timeout"
+        except OSError:
             pass
-        models = {line.split("\t", 1)[0].strip() for line in result.stdout.splitlines()} if result and result.returncode == 0 else set()
-        ready = settings.antigravity_model in models
-        message = (
-            "Anmeldung und gewähltes Modell bestätigt."
-            if ready else
-            "Antigravity ist nicht angemeldet oder die Modellliste ist nicht erreichbar. Starte 'agy' interaktiv."
-            if not models else
-            "Das konfigurierte Antigravity-Modell ist für dieses Konto nicht verfügbar."
-        )
-        status = {"ready": ready, "provider": "antigravity", "model": settings.antigravity_model, "message": message}
-        _STATUS_CACHE = (executable, settings.antigravity_model, time.monotonic(), status)
-        return dict(status)
+        if result is not None and result.returncode != 0:
+            failure = _classify_failure(f"{result.stdout[-2000:]}\n{getattr(result, 'stderr', '')[-2000:]}")
+        models = set()
+        if result is not None and result.returncode == 0:
+            for line in result.stdout[:65536].splitlines():
+                identifier = line.split()[0] if line.split() else ''
+                if re.fullmatch(r"(?:gemini|claude|gpt)-[a-z0-9][a-z0-9.-]{0,79}", identifier):
+                    models.add(identifier)
+        if models:
+            status.update(authenticated=True, available_models=sorted(m for m in models if m.startswith('gemini-')))
+            if model in models:
+                status.update(ready=True, code="ready", message="Anmeldung und Modellangebot bestätigt.",
+                              next_step="Du kannst einen Sprechertext erstellen. Das verfügbare Kontingent wird erst bei der Anfrage geprüft.")
+            else:
+                status = failed("model_unavailable", "Wähle eines der angebotenen Gemini-Modelle und speichere die Auswahl; es wird nicht automatisch gewechselt.")
+        else:
+            if failure == "auth_required":
+                status['authenticated'] = False
+            steps = {"auth_required": "Öffne Antigravity regulär mit 'agy' und melde dich im Herstellerdialog an.",
+                     "quota_or_capacity": "Warte auf die Kontingentfreigabe oder prüfe die Kapazität im Anbieter. Es wird kein Tarif aktiviert.",
+                     "timeout": "Prüfe die Verbindung und klicke danach erneut auf Zugang prüfen."}
+            status = failed(failure, steps.get(failure, "Die Verbindung oder Modellliste konnte nicht bestätigt werden. Prüfe Netzwerk und Anbieterstatus; eine neue Anmeldung ist nicht automatisch nötig."))
+        _STATUS_CACHE = (executable, model, time.monotonic(), copy.deepcopy(status))
+        return status

@@ -3,12 +3,14 @@ from __future__ import annotations
 import tempfile
 import unittest
 import uuid
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
 from fastapi import HTTPException
 
 from backend.db import Database
+from backend.config import settings as default_settings
 from backend.main import create_job, health
 from backend.plan import finalize_scene_plan
 from backend.planner import ScriptProviderUnavailable
@@ -50,12 +52,18 @@ class JobCreationTests(unittest.TestCase):
 
     def test_health_reports_ready_preferred_antigravity_provider(self):
         status = {"ready": True, "provider": "antigravity", "model": "gemini-3.1-pro-high"}
-        with patch("backend.main.antigravity_status", return_value=status), \
+        with patch('backend.main.settings', replace(default_settings, script_provider='antigravity')), patch("backend.main.antigravity_status", return_value=status), \
              patch("backend.main.script_provider_status") as local_status:
             result = health()
 
         self.assertEqual(result["script_generation"], status)
         local_status.assert_not_called()
+
+    def test_health_keeps_selected_cloud_failure_instead_of_reporting_local_ready(self):
+        status={'ready':False,'provider':'antigravity','model':'gemini-3.1-pro-high','code':'model_unavailable'}
+        with patch('backend.main.settings',replace(default_settings,script_provider='antigravity')), patch('backend.main.antigravity_status',return_value=status), patch('backend.main.script_provider_status') as local:
+            self.assertEqual(health()['script_generation'],status)
+            local.assert_not_called()
 
     def test_qwen_retry_with_same_generation_id_returns_existing_job(self):
         payload = JobCreate(

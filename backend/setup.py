@@ -16,9 +16,9 @@ import threading
 import time
 import urllib.request
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Query
 from pydantic import BaseModel, ConfigDict
 
 from .config import settings
@@ -329,7 +329,8 @@ def setup_status(request: Request):
     return {'token': TOKEN, 'device': info, 'recommendation': recommendation(info), 'task': manager.status(),
             'production_busy': bool(manager.production_requests or manager.blocked()),
             'preferences': preferences.model_dump() if preferences else None,
-            'effective': {'model': settings.ollama_model, 'voice': settings.tts_provider, 'script': settings.script_provider},
+            'effective': {'model': settings.ollama_model, 'voice': settings.tts_provider, 'script': settings.script_provider,
+                          'antigravity_model': settings.antigravity_model},
             'installed_models': installed or [],
             'tools': {'ollama': bool(ollama_executable()), 'ollama_running': installed is not None,
                       'node': bool(shutil.which('node')), 'renderer': (settings.renderer_dir / 'node_modules' / '@remotion' / 'renderer').is_dir(),
@@ -344,11 +345,24 @@ def task_status(request: Request):
 
 
 @router.get('/accounts')
-def accounts(request: Request):
+def accounts(request: Request, provider: Literal['local', 'antigravity', 'all'] = 'all',
+             model: Annotated[str | None, Query(max_length=87, pattern=r'^gemini-[a-z0-9][a-z0-9.-]{0,79}$')] = None):
     require_local(request)
     from .antigravity import antigravity_status
-    return {'local': {'ready': True, 'message': 'Lokale Skripte und Stimmen benötigen kein Konto und keinen API-Schlüssel.'},
-            'antigravity': antigravity_status()}
+    if provider == 'antigravity':
+        return {'antigravity': antigravity_status(model=model, refresh=True)}
+    installed = ollama_models()
+    ready = installed is not None and settings.ollama_model in installed
+    code = 'ready' if ready else 'missing' if not ollama_executable() else 'service_unavailable' if installed is None else 'model_missing'
+    next_steps = {'ready': 'Du kannst einen Sprechertext erstellen.', 'missing': 'Installiere Ollama über den offiziellen Download.',
+                  'service_unavailable': 'Starte den lokalen Dienst in den Einstellungen. Bei einem blockierten Port wird kein weiterer geöffnet.',
+                  'model_missing': 'Lade das ausgewählte Skriptmodell herunter.'}
+    result = {'local': {'ready': ready, 'provider': 'ollama', 'model': settings.ollama_model, 'code': code,
+                      'message': 'Kein Konto nötig. Lokales Modell erreichbar.' if ready else 'Kein Konto nötig. Der lokale Skriptzugang ist noch nicht bereit.',
+                      'next_step': next_steps[code]}}
+    if provider == 'all':
+        result['antigravity'] = antigravity_status(refresh=True)
+    return result
 
 
 @router.post('/recommend')
@@ -368,7 +382,7 @@ def setup_action(request: Request, payload: SetupAction):
 def preferences_update(request: Request, payload: MachinePreferences):
     require_local(request)
     choice = recommendation(device_info(payload.hardware))
-    if payload.model not in choice['allowed_models'] or payload.voice == 'qwen_tts' and not choice['qwen_suitable']:
+    if payload.script == 'local' and payload.model not in choice['allowed_models'] or payload.voice == 'qwen_tts' and not choice['qwen_suitable']:
         raise HTTPException(422, 'Die Auswahl liegt außerhalb des Gerätebudgets. Nutze die Empfehlung oder prüfe die Geräteangaben.')
     if payload.script == 'local' and payload.model not in (ollama_models() or []):
         raise HTTPException(422, 'Lade zuerst das ausgewählte Skriptmodell herunter.')
@@ -376,8 +390,9 @@ def preferences_update(request: Request, payload: MachinePreferences):
         raise HTTPException(422, 'Richte zuerst die Qwen-Stimme vollständig ein.')
     if payload.script == 'antigravity':
         from .antigravity import antigravity_status
-        if not antigravity_status()['ready']:
-            raise HTTPException(422, 'Das optionale Cloudprofil ist noch nicht angemeldet oder erreichbar. Nutze den lokalen Betrieb oder schließe die reguläre Anmeldung ab.')
+        access = antigravity_status(model=payload.antigravity_model or settings.antigravity_model, refresh=True)
+        if not access['ready']:
+            raise HTTPException(422, access['message'] + ' ' + access['next_step'])
     with manager.lock:
         manager.require_idle()
         try:

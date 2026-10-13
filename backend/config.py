@@ -45,7 +45,7 @@ class Settings:
     antigravity_model: str = os.getenv("ANTIGRAVITY_MODEL", "gemini-3.1-pro-high")
     antigravity_effort: str = os.getenv("ANTIGRAVITY_EFFORT", "high").lower()
     antigravity_timeout_seconds: int = max(30, min(1800, int(os.getenv("ANTIGRAVITY_TIMEOUT_SECONDS", "600"))))
-    antigravity_fallback_to_qwen: bool = _bool("ANTIGRAVITY_FALLBACK_TO_QWEN", True)
+    antigravity_fallback_to_qwen: bool = _bool("ANTIGRAVITY_FALLBACK_TO_QWEN", False)
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
     openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5.6-terra")
     openai_base_url: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")

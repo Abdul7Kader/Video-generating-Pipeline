@@ -1,5 +1,26 @@
 # Ein Sprecher-Skript, danach automatisch Bildplanung und Video
 
+## Verlässliche Freigabe und Wiederholung
+
+Eingegebene Änderungswünsche müssen zuerst über **KI verbessert das Skript**
+angewendet oder aus dem Feld entfernt werden. Solange sie noch nicht angewendet
+sind, ist die Freigabe gesperrt und ein Seitenwechsel verwirft sie nicht unbemerkt.
+Bei fehlendem Skriptzugang erklärt die Oberfläche den nächsten Einrichtungsschritt;
+vorhandene Texte bleiben lesbar. Der tatsächlich verwendete Anbieter und das Modell
+stehen direkt am Sprechertext.
+
+Nach erfolgreicher Bildplanung speichert eine Datenbanktransaktion die neue
+Bildplanversion, die hashgebundene Freigabe und den Renderauftrag gemeinsam.
+Schlägt einer dieser Schreibschritte fehl, bleiben ursprünglicher Text und Version
+erhalten. Veraltete Versionen, veränderte Wörter und konkurrierende Änderungen
+werden vor der Produktion abgewiesen; Änderungen können einen bereits eingereihten
+oder laufenden Render nicht überschreiben.
+
+Eine wiederholte identische Freigabe startet keine zweite Bildplanung. Nach einem
+Renderfehler verwendet ein erneuter Aufruf den gespeicherten freigegebenen Bildplan,
+auch nach einem Neuladen der UI. Dafür ist kein weiterer KI-Aufruf erforderlich.
+Die Freigabe zur Veröffentlichung wird dadurch nicht erteilt.
+
 Neue Strichmännchen-Aufträge in der UI verwenden `script_mode=story`. Die erste
 KI-Anfrage liefert einen zusammenhängenden Sprechertext und eine kurze Bildidee.
 Die UI zeigt den Text zum Lesen, ein Feld für Änderungswünsche an die KI sowie

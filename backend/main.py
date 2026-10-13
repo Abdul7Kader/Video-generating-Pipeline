@@ -184,12 +184,12 @@ async def security_headers(request: Request, call_next):
 
 @app.get("/api/health")
 def health():
-    preferences = load_preferences()
-    preferred_cloud = antigravity_status() if not preferences or preferences.script != 'local' else {'ready':False,'message':'Optionales Cloudprofil; lokaler Betrieb ist gewählt.'}
+    cloud_selected = settings.script_provider == 'antigravity'
+    preferred_cloud = antigravity_status() if cloud_selected else {'ready':False,'message':'Optionales Cloudprofil; anderer Skriptzugang ist gewählt.'}
     return {
         "status": "ok",
         "dependencies": dependency_status(),
-        "script_generation": preferred_cloud if preferred_cloud.get("ready") else script_provider_status(),
+        "script_generation": preferred_cloud if cloud_selected else script_provider_status(),
         "antigravity": preferred_cloud,
         "asset_generation": asset_provider_status(),
         "publication_platforms": platform_catalog(),
@@ -239,6 +239,7 @@ def production_options():
         qwen_tts_ready=qwen_tts.voice_status()["ready"],
     )
     preferences = load_preferences()
+    catalog['default_profile_id'] = 'cloud_stickman' if settings.script_provider == 'antigravity' else 'local_stickman'
     if preferences:
         catalog['default_profile_id'] = 'local_stickman' if preferences.script == 'local' else 'cloud_stickman'
         catalog['default_voice_id'] = 'qwen_narrator' if settings.tts_provider == 'qwen_tts' else 'thorsten'
@@ -402,8 +403,8 @@ def update_script(job_id: str, payload: ScriptUpdate):
         return db.update_script(job_id, payload.expected_version, script)
     except KeyError:
         raise HTTPException(404, "Auftrag nicht gefunden")
-    except ValueError:
-        raise HTTPException(409, "Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.")
+    except ValueError as exc:
+        raise HTTPException(409, "Während der Produktion kann das Skript nicht geändert werden." if str(exc) == 'job_busy' else "Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.") from exc
 
 
 @app.patch("/api/jobs/{job_id}/scenes/{scene_id}")
@@ -438,7 +439,7 @@ def update_scene(job_id: str, scene_id: str, payload: SceneUpdate):
     try:
         return db.update_script(job_id, payload.expected_version, script)
     except ValueError as exc:
-        if str(exc) == "version_conflict":
+        if str(exc) in {"version_conflict", "job_busy"}:
             raise HTTPException(409, "Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.") from exc
         raise
 
@@ -464,7 +465,7 @@ def revise_script(job_id: str, payload: ScriptRevision):
         except ScriptProviderUnavailable as exc:
             raise HTTPException(503, str(exc)) from exc
         except ValueError as exc:
-            raise HTTPException(409 if str(exc) == 'version_conflict' else 502, str(exc)) from exc
+            raise HTTPException(409 if str(exc) in {'version_conflict', 'job_busy'} else 502, 'Während der Produktion kann das Skript nicht geändert werden.' if str(exc) == 'job_busy' else str(exc)) from exc
     selected_scene = next((scene for scene in current["script"]["scenes"] if scene["scene_id"] == payload.scene_id), None)
     if payload.scene_id and selected_scene is None:
         raise HTTPException(404, "Szene nicht gefunden.")
@@ -499,7 +500,7 @@ def revise_script(job_id: str, payload: ScriptRevision):
     except ScriptProviderUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc
     except ValueError as exc:
-        if str(exc) == "version_conflict":
+        if str(exc) in {"version_conflict", "job_busy"}:
             raise HTTPException(409, "Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.") from exc
         raise HTTPException(502, f"Skriptüberarbeitung fehlgeschlagen: {exc}") from exc
     except Exception as exc:
@@ -580,10 +581,16 @@ def approve_story_and_render(job_id: str, payload: VersionAction):
     if not script['integrity_verified']:
         raise HTTPException(409, 'Die Integritätsprüfung des Skripts ist fehlgeschlagen.')
     metadata = script.get('metadata', {})
-    if current['status'] in {'render_queued', 'rendering', 'video_review'} and metadata.get('approved_story_hash') == payload.expected_hash and metadata.get('approved_story_version') == payload.expected_version and current['render_script_hash'] == script['content_hash']:
-        return current
     if current['video_type'] != 'stickman':
         raise HTTPException(422, 'Dieser Ablauf ist für Strichmännchen-Videos vorgesehen.')
+    original_approval = metadata.get('approved_story_hash') == payload.expected_hash and metadata.get('approved_story_version') == payload.expected_version
+    current_approval = current['script_version'] == payload.expected_version and script['content_hash'] == payload.expected_hash
+    approved_story = metadata.get('workflow') == 'storyboard' and (original_approval or current_approval) and current['render_script_hash'] == script['content_hash'] and current['approved_script_hash'] == script['content_hash']
+    if approved_story:
+        if current['status'] == 'render_failed':
+            return queue_render(job_id, VersionAction(expected_version=current['script_version'], expected_hash=script['content_hash']))
+        if current['status'] in {'render_queued', 'rendering', 'video_review', 'ready_to_publish', 'publish_queued', 'publishing', 'published', 'published_partial', 'publish_failed'}:
+            return current
     if current['script_version'] != payload.expected_version or script['content_hash'] != payload.expected_hash:
         raise HTTPException(409, 'Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.')
     if current['status'] in {'render_queued', 'rendering', 'publish_queued', 'publishing'}:
@@ -596,17 +603,14 @@ def approve_story_and_render(job_id: str, payload: VersionAction):
         plan = generate_storyboard(request, script)
         if spoken_story(plan) != spoken_story(script):
             raise ValueError('Die Bildplanung darf den freigegebenen Sprechertext nicht verändern.')
-        issues = render_plan_readiness(plan['scenes']) + visual_coverage_issues(plan['scenes'], current['topic'])
+        issues = production_plan_readiness(current['production_config'], plan['scenes']) + render_plan_readiness(plan['scenes']) + visual_coverage_issues(plan['scenes'], current['topic'])
         if issues:
             raise ValueError(' '.join(issues))
-        planned = db.update_script(job_id, payload.expected_version, plan)
-        version, fingerprint = planned['script_version'], planned['script']['content_hash']
-        db.approve_script(job_id, version, fingerprint)
-        return queue_render(job_id, VersionAction(expected_version=version, expected_hash=fingerprint))
+        return db.queue_story_render(job_id, payload.expected_version, payload.expected_hash, plan)
     except ScriptProviderUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(409 if str(exc) == 'version_conflict' else 502, str(exc)) from exc
+        raise HTTPException(409 if str(exc) in {'version_conflict', 'hash_conflict', 'script_integrity_error', 'job_busy'} else 502, str(exc)) from exc
     finally:
         _story_plan_slot.release()
 

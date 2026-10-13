@@ -59,6 +59,8 @@ class StoryTests(unittest.TestCase):
     def test_approval_plans_and_queues_automatically_and_retry_is_idempotent(self):
         with patch('backend.main.db', self.db), patch('backend.main.require_active_production'), patch('backend.story.planner.generate_script', return_value=copy.deepcopy(self.plan)) as generate:
             queued = main.approve_story_and_render(self.id, self.action)
+            same_approval = self.db.approve_script(self.id, queued['script_version'], queued['script']['content_hash'])
+            self.assertEqual(same_approval['status'], 'render_queued')
             repeated = main.approve_story_and_render(self.id, self.action)
         self.assertEqual(queued['status'], 'render_queued')
         self.assertEqual(queued['script_version'], 2)
@@ -112,3 +114,51 @@ class StoryTests(unittest.TestCase):
         self.assertEqual(result['script_version'], 2)
         self.assertEqual(result['status'], 'script_review')
         self.assertIn('schnuppert', story.spoken_story(result['script']))
+
+    def test_atomic_approval_rolls_back_when_queue_event_cannot_be_saved(self):
+        event = self.db._event
+        def fail_queue(conn, job_id, kind, message, metadata=None):
+            if kind == 'render_queued':
+                raise ValueError('queue storage failed')
+            return event(conn, job_id, kind, message, metadata)
+        with patch('backend.main.db', self.db), patch('backend.main.require_active_production'), patch('backend.main.generate_storyboard', return_value=copy.deepcopy(self.plan)), patch.object(self.db, '_event', side_effect=fail_queue):
+            with self.assertRaises(HTTPException):
+                main.approve_story_and_render(self.id, self.action)
+        job = self.db.get_job(self.id)
+        self.assertEqual(job['script_version'], 1)
+        self.assertEqual(job['status'], 'script_review')
+        self.assertIsNone(job['approved_script_hash'])
+        with self.db.connect() as conn:
+            self.assertEqual(conn.execute('SELECT count(*) FROM script_versions WHERE job_id=?', (self.id,)).fetchone()[0], 1)
+        with patch('backend.main.db', self.db), patch('backend.main.require_active_production'), patch('backend.main.generate_storyboard', return_value=copy.deepcopy(self.plan)):
+            self.assertEqual(main.approve_story_and_render(self.id, self.action)['status'], 'render_queued')
+
+    def test_render_retry_reuses_approved_plan_without_another_ai_call(self):
+        with patch('backend.main.db', self.db), patch('backend.main.require_active_production'), patch('backend.main.generate_storyboard', return_value=copy.deepcopy(self.plan)) as generate:
+            queued = main.approve_story_and_render(self.id, self.action)
+            self.db.fail_render(self.id, 'interrupted render')
+            repeated = main.approve_story_and_render(self.id, self.action)
+            self.db.fail_render(self.id, 'another interrupted render')
+            reloaded_action = VersionAction(expected_version=queued['script_version'],expected_hash=queued['script']['content_hash'])
+            self.assertEqual(main.approve_story_and_render(self.id,reloaded_action)['script_version'],queued['script_version'])
+        self.assertEqual(repeated['status'], 'render_queued')
+        self.assertEqual(repeated['script_version'], queued['script_version'])
+        self.assertEqual(generate.call_count, 1)
+
+    def test_revision_started_before_approval_cannot_replace_a_queued_plan(self):
+        revised = copy.deepcopy(self.draft)
+        revised['scenes'][0]['narration'] += ' Eine neue Aussage.'
+        def delayed_revision(*args, **kwargs):
+            self.db.queue_story_render(self.id, 1, self.action.expected_hash, self.plan)
+            return revised
+        with patch('backend.main.db', self.db), patch('backend.main.generate_story', side_effect=delayed_revision), self.assertRaises(HTTPException) as result:
+            main.revise_script(self.id, ScriptRevision(expected_version=1, instructions='Mehr Details', story_mode=True))
+        self.assertEqual(result.exception.status_code, 409)
+        self.assertEqual(self.db.get_job(self.id)['status'], 'render_queued')
+        self.assertEqual(story.spoken_story(self.db.get_job(self.id)['script']), self.text)
+
+    def test_edits_cannot_invalidate_a_claimed_render(self):
+        queued = self.db.queue_story_render(self.id, 1, self.action.expected_hash, self.plan)
+        with self.assertRaisesRegex(ValueError, 'job_busy'):
+            self.db.update_script(self.id, queued['script_version'], self.draft)
+        self.assertEqual(self.db.get_job(self.id)['render_script_hash'], queued['script']['content_hash'])

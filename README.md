@@ -2,6 +2,12 @@
 
 Eine lokale Videoproduktion mit Startern für Windows, Linux und macOS. Aktueller Schwerpunkt sind gezeichnete Strichmenschen-Geschichten mit Remotion, SVG, Piper und FFmpeg. FastAPI und SQLite speichern Auftrag, Versionen, Fehler und beide verbindlichen Freigaben.
 
+Die weitere Entwicklung folgt dem [nummerierten Entwicklungsplan](ENTWICKLUNGSPLAN.md):
+zuerst die Originalversion fertigstellen (Schritte 1–10), danach die Familienversion
+ohne Pro-Abos (Schritte 11–13). [Arbeitsstand](ARBEITSSTAND.md),
+[Abnahmebedingungen](tasks/plan.md) und [Aufgabencheckliste](tasks/todo.md)
+halten Prioritäten und Bearbeitungsstatus fest.
+
 ## Einrichtung auf diesem Rechner
 
 **⚙ Einstellungen** bündelt die lokale Rechnerprüfung, passende Skriptmodelle,

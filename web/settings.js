@@ -1,7 +1,7 @@
 window.PipelineSettings = (() => {
   const dialog=document.getElementById('settings-dialog'), body=document.getElementById('settings-content');
   const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  let state=null, token='', poll=null, manual=null;
+  let state=null, token='', poll=null, manual=null, access=null;
   async function api(path='',method='GET',value) {
     const response=await fetch('/api/settings'+path,{method,headers:{'Content-Type':'application/json','X-Setup-Token':token},...(value?{body:JSON.stringify(value)}:{})});
     let result;try{result=await response.json()}catch{throw new Error('Die lokale Einrichtung antwortet nicht vollständig. Prüfe, ob die Pipeline noch läuft, und öffne die Einstellungen erneut.')}
@@ -28,7 +28,7 @@ window.PipelineSettings = (() => {
   function draw(){
     const {device:d,recommendation:r,tools:t,preferences:p,effective:e}=state;
     const choice=p?.model&&r.allowed_models.includes(p.model)?p.model:r.model;
-    const voice=r.qwen_suitable?(p?.voice||r.voice):'piper', script=p?.script||'local';
+    const voice=r.qwen_suitable?(p?.voice||r.voice):'piper', script=p?.script||(e.script==='antigravity'?'antigravity':'local');
     const qwenPlatform=['Windows','Linux'].includes(d.os)&&['amd64','x86_64'].includes(d.architecture.toLowerCase())||d.os==='Darwin'&&['arm64','x86_64'].includes(d.architecture.toLowerCase());
     body.innerHTML=`${state.production_busy?'<p class="notice" role="status">Gerade läuft eine Videoproduktion. Du kannst die Einrichtung ansehen; Downloads und Änderungen warten auf deren Abschluss.</p>':''}<p class="settings-intro">Einmal auf diesem Rechner einrichten. Danach bedienst du die gesamte Pipeline hier: Idee eingeben, Text freigeben, Video herunterladen.</p>
       <section class="settings-section"><h2>1 · Dein Rechner und die passende Qualität</h2><p>Die Prüfung liest nur lokale Gerätewerte. Sie sendet keine Hardwaredaten an einen Anbieter.</p>
@@ -46,11 +46,12 @@ window.PipelineSettings = (() => {
         ${row('Piper · schnelle lokale Stimme','Die sparsame deutsche Stimme für kleine Rechner. Die Spracherzeugung läuft lokal.',t.piper,action('piper_voice','Piper-Stimme herunterladen'))}
         ${row('Qwen · natürlichere lokale Stimme','Option für stärkere Rechner. Benötigt Python 3.12, eine separate Laufzeit und etwa 4,5 GB Modelldaten; die Einrichtung reserviert 20 GB Plattenplatz. Auf der CPU kann eine Hörprobe mehrere Minuten dauern.',t.qwen,action('qwen_voice','Qwen-Stimme einrichten',!r.qwen_suitable||!qwenPlatform)+link('https://www.python.org/downloads/','Python herunterladen'))}
       </section>
-      <section class="settings-section"><h2>3 · Betriebsart und Konten</h2><label>Skripterstellung<select id="settings-script"><option value="local" ${script==='local'?'selected':''}>Auf diesem Rechner · ohne Konto</option><option value="antigravity" ${script==='antigravity'?'selected':''}>Optional: vorhandenes Antigravity-Cloudprofil</option></select></label><p>Der lokale Betrieb funktioniert ohne Codex und ohne einen steuernden Agenten. Die Pipeline ruft das Skriptmodell selbst auf.</p>
-        <div id="settings-account" hidden><p>Das optionale Cloudprofil benötigt die reguläre Herstelleranmeldung. Texte werden dabei an den Anbieter gesendet. Passwörter und Zugangstokens gibst du ausschließlich im Herstellerdialog ein.</p>${link('https://antigravity.google/docs/cli/install','Download und reguläre Anmeldung')}<button type="button" id="settings-accounts-check" class="ghost">Anmeldung prüfen</button><p id="settings-account-status" role="status">Noch nicht geprüft.</p></div>
+      <section class="settings-section"><h2>3 · Skript-KI und Zugang</h2><p><strong>Aktiv für neue Skripte:</strong> ${escape(e.script==='antigravity'?'Antigravity · '+e.antigravity_model:'Ollama · '+e.model)}. Die Auswahl unten gilt erst nach dem Speichern.</p><label>Skripterstellung<select id="settings-script"><option value="local" ${script==='local'?'selected':''}>Auf diesem Rechner · ohne Konto</option><option value="antigravity" ${script==='antigravity'?'selected':''}>Vorhandener Google-Zugang · Antigravity</option></select></label><p>Die Pipeline ruft das gewählte Skriptmodell selbst auf. Lokale Stimmen und Videoerzeugung benötigen kein Cloudkonto.</p>
+        <div id="settings-account" hidden><p>Antigravity nutzt deine reguläre Google-Anmeldung. Zugang und Modellangebot hängen vom Konto ab; ein Pro-Abo wird nicht pauschal vorausgesetzt. Texte werden an Google gesendet. Passwörter und Zugangstokens gibst du ausschließlich im Herstellerdialog ein.</p>${link('https://antigravity.google/docs/cli/install','Offizielle Installation und Anmeldung')}${link('https://www.antigravity.google/docs/plans','Kontingente und Kosten beim Anbieter prüfen')}<label>Gemini-Modell für Skripte<select id="settings-cloud-model"><option value="${escape(p?.antigravity_model||e.antigravity_model||'gemini-3.1-pro-high')}">${escape(p?.antigravity_model||e.antigravity_model||'gemini-3.1-pro-high')} · Zugang noch prüfen</option></select></label><p class="field-hint">Es wird kein Modell automatisch ersetzt. Diese Prüfung kann weder dein Restkontingent noch deine Abrechnung bestätigen und aktiviert keine Tarife oder Credits.</p></div>
+        <button type="button" id="settings-accounts-check" class="ghost">Gewählten KI-Zugang prüfen</button><div id="settings-account-status" role="status">Noch nicht geprüft.</div>
         <label>Standardstimme für neue deutsche Videos<select id="settings-voice"><option value="piper" ${voice==='piper'?'selected':''}>Piper · schnell und sparsam</option><option value="qwen_tts" ${voice==='qwen_tts'?'selected':''} ${r.qwen_suitable&&(qwenPlatform||t.qwen)?'':'disabled'}>Qwen · natürlicher, mehr Rechenzeit</option></select></label>
         <p>Vorhandene Skripte, Videos und die gewählten Stimmen bleiben erhalten. Neue KI-Überarbeitungen verwenden das aktuelle Skriptmodell dieses Rechners.</p>
-        <button type="button" class="primary" id="settings-save" ${state.production_busy?'disabled':''}>Auswahl speichern und verwenden</button><p class="field-hint">Aktuell: ${escape(e.model)} · ${escape(e.voice)}. ${p?'Geräteeinstellungen sind gespeichert.':'Noch keine Geräteeinstellungen gespeichert.'}</p>
+        <button type="button" class="primary" id="settings-save" ${state.production_busy?'disabled':''}>Auswahl speichern und verwenden</button><p class="field-hint">Aktuelle Standardstimme: ${escape(e.voice)}. ${p?'Geräteeinstellungen sind gespeichert.':'Noch keine Geräteeinstellungen gespeichert.'}</p>
       </section>
       <section class="settings-section"><h2>Lokal und geschützt</h2><p>Die Oberfläche bleibt ausschließlich auf diesem Rechner unter 127.0.0.1 erreichbar. Es werden keine Portweiterleitungen, Tunnel oder Firewallfreigaben eingerichtet. Geräteoptionen werden lokal gespeichert; bestehende Schlüssel aus deiner Umgebung werden weder angezeigt noch überschrieben.</p></section>
       <div id="settings-message" class="notice" role="status" hidden></div><div id="setup-progress" class="setup-progress" role="status" aria-live="polite" hidden></div>`;
@@ -58,18 +59,34 @@ window.PipelineSettings = (() => {
     document.getElementById('settings-rescan').onclick=()=>{manual=null;load()};
     document.getElementById('settings-manual').onclick=async()=>{try{const value={ram_gb:Number(document.getElementById('device-ram').value),cpu_threads:Number(document.getElementById('device-cpu').value),gpu_gb:Number(document.getElementById('device-gpu').value)};const result=await api('/recommend','POST',value);manual=value;Object.assign(state,result);draw()}catch(error){message(error.message,true)}};
     document.getElementById('settings-model').onchange=modelHint;
-    document.getElementById('settings-script').onchange=()=>document.getElementById('settings-account').hidden=document.getElementById('settings-script').value==='local';
+    document.getElementById('settings-script').onchange=()=>{access=null;document.getElementById('settings-account').hidden=document.getElementById('settings-script').value==='local';document.getElementById('settings-account-status').textContent='Noch nicht geprüft. Klicke auf Gewählten KI-Zugang prüfen.'};
     document.getElementById('settings-script').onchange();
-    document.getElementById('settings-accounts-check').onclick=async()=>{const host=document.getElementById('settings-account-status');host.textContent='Reguläre Anmeldung wird geprüft …';try{const result=await api('/accounts');host.textContent=result.antigravity.ready?'Angemeldet und erreichbar.':result.antigravity.message}catch(error){host.textContent=error.message}};
+    document.getElementById('settings-accounts-check').onclick=checkAccess;
     document.getElementById('settings-save').onclick=save;
     modelHint();progress(state.task);
     if(state.task.status==='running')watch();
+  }
+  async function checkAccess(){
+    const provider=document.getElementById('settings-script').value,button=document.getElementById('settings-accounts-check'),host=document.getElementById('settings-account-status');
+    button.disabled=true;host.textContent='Anbieterzugang und Modellangebot werden geprüft …';
+    try{
+      const result=await api('/accounts?provider='+provider+(provider==='antigravity'?'&model='+encodeURIComponent(document.getElementById('settings-cloud-model').value):''));
+      if(document.getElementById('settings-script').value!==provider)return;
+      access=result[provider];
+      const labels={ready:'Zugang bestätigt',missing:'Programm fehlt',disabled:'Zugang deaktiviert',auth_required:'Anmeldung erforderlich',model_unavailable:'Angemeldet · anderes Modell wählen',quota_or_capacity:'Kontingent oder Kapazität erreicht',timeout:'Prüfung dauert zu lange',service_unavailable:'Lokaler Dienst nicht erreichbar',model_missing:'Modell fehlt',unavailable:'Verbindung nicht bestätigt'};
+      host.innerHTML=`<strong>${escape(labels[access.code]||'Zugang prüfen')}</strong><p>${escape(access.message)}</p><p>${escape(access.next_step)}</p>`;
+      if(provider==='antigravity'){
+        const select=document.getElementById('settings-cloud-model'),current=select.value,models=access.available_models||[];
+        select.innerHTML=(!models.includes(current)?`<option value="${escape(current)}">${escape(current)} · ${models.length?'nicht angeboten':'noch nicht bestätigt'}</option>`:'')+models.map(model=>`<option value="${escape(model)}">${escape(model)}</option>`).join('');
+        select.value=current;
+      }
+    }catch(error){host.textContent=error.message}finally{button.disabled=false}
   }
   function modelHint(){const model=document.getElementById('settings-model').value;document.getElementById('settings-model-hint').textContent=state.installed_models.includes(model)?'Dieses Modell ist bereits heruntergeladen.':'Dieses Modell muss vor dem lokalen Betrieb einmal heruntergeladen werden.'}
   async function load(){clearInterval(poll);body.innerHTML='<p role="status">Rechner, installierte Bausteine und lokale Dienste werden geprüft …</p>';try{state=await api();token=state.token;manual=state.preferences?.hardware||manual;draw()}catch(error){body.textContent=error.message}}
   async function start(actionId){try{const value={action:actionId,...(manual?{hardware:manual}:{})};if(actionId==='script_model')value.model=document.getElementById('settings-model').value;state.task=await api('/actions','POST',value);progress(state.task);document.getElementById('setup-progress').scrollIntoView({block:'nearest'});watch()}catch(error){message(error.message,true)}}
   function watch(){clearInterval(poll);poll=setInterval(async()=>{try{state.task=await api('/task');progress(state.task);if(state.task.status!=='running'){clearInterval(poll);const task=state.task;await load();message(task.message,task.status==='failed')}}catch(error){clearInterval(poll);message(error.message,true)}},1500)}
-  async function save(){try{const value={model:document.getElementById('settings-model').value,voice:document.getElementById('settings-voice').value,script:document.getElementById('settings-script').value,...(manual?{hardware:manual}:{})};const result=await api('/preferences','PUT',value);await load();message(result.message);window.dispatchEvent(new Event('machine-settings-saved'))}catch(error){message(error.message,true)}}
+  async function save(){try{const script=document.getElementById('settings-script').value;const value={model:document.getElementById('settings-model').value||(script==='antigravity'?state.effective.model||'qwen3.5:0.8b':''),voice:document.getElementById('settings-voice').value,script,...(script==='antigravity'?{antigravity_model:document.getElementById('settings-cloud-model').value}:{}),...(manual?{hardware:manual}:{})};const result=await api('/preferences','PUT',value);await load();message(result.message);window.dispatchEvent(new Event('machine-settings-saved'))}catch(error){message(error.message,true)}}
   async function open(){if(window.ProcessProgress?.busy){document.getElementById('toast').textContent='Warte auf den laufenden Vorgang, bevor du die Einrichtung öffnest.';return}if(!dialog.open)dialog.showModal();await load()}
   document.getElementById('settings-button').onclick=open;
   document.querySelectorAll('[data-open-settings]').forEach(button=>button.onclick=open);

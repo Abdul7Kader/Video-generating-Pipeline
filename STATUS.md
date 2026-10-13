@@ -1,6 +1,87 @@
 # Entwicklungsstatus – Video Pipeline V2
 
-Letzte Aktualisierung: 2026-10-11
+Letzte Aktualisierung: 2026-10-13
+
+## Maßgeblicher Arbeitsstand vom 2026-10-13
+
+### Umsetzung von Schritt 1 und 2
+
+Implementiert: getrennte Zugangszustände mit konkreten nächsten Schritten,
+ausdrückliche Auswahl tatsächlich angebotener Gemini-Modelle und erneute Prüfung
+vor dem Speichern. Lokaler Zugang gilt erst mit laufendem Dienst und vorhandenem
+Modell als bereit. Gesundheitsanzeige und Standardprofil folgen dem gewählten
+Anbieter; eine Alternative wird nicht automatisch eingesetzt. Der bisherige
+automatische Antigravity→Qwen-Fallback ist standardmäßig deaktiviert.
+
+Implementiert: Fließtext mit sichtbarer Anbieter-/Modellherkunft; nicht angewendete
+Änderungswünsche blockieren die Freigabe. Der Erstellungsdialog bleibt während der
+Zugangsprüfung bedienbar. Bildplan, Skriptfreigabe und Renderauftrag werden atomar
+gespeichert; Fehler rollen vollständig zurück. Veraltete Fassungen und Änderungen
+während eingereihter/laufender Produktion werden abgewiesen. Eine Render-Wiederholung
+verwendet den freigegebenen Bildplan ohne neuen KI-Aufruf, auch nach UI-Neuladen.
+
+Getestet: 197 Backend-Tests ausgeführt, davon ein optionaler Rendertest regulär
+übersprungen; 12 Node-Tests sowie TypeScript-/Syntaxprüfungen bestanden.
+Negative Fälle umfassen diagnostische Secret-Ausgaben, ungültige Modellnamen,
+Herkunfts-/Token-Grenzen, Transaktionsfehler, konkurrierende Überarbeitung und
+Render-Wiederholung. Die Windows-Sandbox blockiert asyncio-Loopback-Sockets;
+Backend-Tests außerhalb der Sandbox bestanden. Ein erster Lauf mit TEMP im Projekt
+scheiterte ausschließlich an zwei Tests, die eine externe Installation verlangen;
+der Lauf mit normalem Windows-TEMP bestand.
+
+Echte Prüfung: CLI 1.3.4 bestätigt Anmeldung und Gemini-3.8-Flash-Modellangebot;
+das bisherige `gemini-3.1-pro-high` fehlt. Browser zeigt diesen Unterschied mit
+ausdrücklicher Auswahl korrekt an. Fließtext und Sperre bei noch nicht angewendeten
+Änderungswünschen wurden in der realen UI geprüft. Screenshots:
+`data/provider-access-ui.png`, `data/story-approval-ui.png` (lokal, nicht versioniert).
+
+Offen: vollständiger neuer KI-/Videolauf nach ausdrücklicher Modellwahl; die Frage
+nach Gemini 3.8 Flash (High) als Testmodell ist noch offen. Schritte 1 und 2 bleiben
+bis zu diesem Echtlauf in der Checkliste offen. Keine gespeicherten Präferenzen,
+Anbieter-Credit-Einstellungen, Tarife oder vorhandenen Aufträge verändert.
+Der frühere Blocker für eine neue externe npm-Audit-Abfrage bleibt unverändert.
+
+### Bereits vorhandene Grundlage und weitere Reihenfolge
+
+Die aktuelle Reihenfolge steht in [ENTWICKLUNGSPLAN.md](ENTWICKLUNGSPLAN.md):
+zuerst die Originalversion abschließen (1–10), danach die Familienversion ohne
+Pro-Abos (11–13). [tasks/plan.md](tasks/plan.md) enthält Abnahmen und Prüfungen;
+[tasks/todo.md](tasks/todo.md) ist die Checkliste. Ältere offene Ausbauaufträge
+und Fortsetzungshinweise weiter unten bleiben historischer, eingefrorener Verlauf.
+
+Implementiert und zuvor gepusht: kontinuierlicher Sprechertext mit KI-Überarbeitung
+und Skriptfreigabe, automatische Bildplanung, konkrete Tierdarstellung und
+Sprachanker (`643e933`); lokale Rechnerprüfung, Ressourcenempfehlungen, explizite
+Downloads und begrenzte Gerätekonfiguration unter ⚙ Einstellungen (`2784d30`).
+Dies ersetzt nicht die noch ausstehende Qualitätsabnahme der Schritte 1–10.
+
+Geprüft im vorausgegangenen Implementierungslauf: Backend-/Node-Tests,
+TypeScript-/Syntaxprüfung sowie Sicherheits-Negativfälle der Einrichtung.
+In der anschließenden Informationsprüfung wurde die Oberfläche im echten Browser
+gelesen; dabei wurden keine Kontoeinstellungen gespeichert oder Downloads gestartet.
+Für die vorausgegangene reine Dokumentationspflege wurden keine Produktions- oder
+Modelltests erneut ausgeführt; der anschließende Implementierungslauf ist oben dokumentiert.
+
+Letzter gespeicherter Katzenadoptionsauftrag: `antigravity / gemini-3.1-pro-high`
+für das Skript, lokale `qwen_tts` und der bestehende SVG-/Remotion-/FFmpeg-Pfad.
+Diese Produktionsdaten belegen Anbieter und Modell, keinen Abrechnungstarif.
+Die zuletzt gelesene UI meldete den lokalen Skriptdienst nicht erreichbar und das
+konfigurierte Antigravity-Modell für das Konto nicht verfügbar. Das sind Momentaufnahmen,
+keine permanente Verfügbarkeitsgarantie. Die neuere echte Zugangskontrolle für Schritt 1 steht oben.
+
+Offen: allgemeine Bildabdeckung, Hand-/Gegenstandskontakt, Aktionssynchronisierung,
+Kontinuität, Stimm-/UI-Qualität und mehrere echte Abnahmevideos gemäß Plan.
+Mac-/Linux-Einrichtung wurde nicht auf realer Zielhardware nachgewiesen.
+Eine neue `npm audit`-Abfrage bleibt nach Ablehnung durch die automatische
+Freigabeprüfung wegen externer Metadatenübermittlung offen; vor einem erneuten
+Versuch ist die explizite Nutzerfreigabe erforderlich. Historische Auditbefunde
+weiter unten sind keine aktuelle Schwachstellenfreigabe.
+
+Familien-Anmeldungen, neuer kostenloser Skriptzugang und Webimport sind geplant,
+noch nicht in dieser Etappe implementiert. Die vorangegangene Planungs-/Dokumentationspflege
+änderte nur Markdown; die anschließenden Codeänderungen an Schritt 1 und 2 stehen oben.
+
+## Historischer Entwicklungsverlauf
 
 ## Neue Etappe: weichere Strichmenschen-Bewegungen
 

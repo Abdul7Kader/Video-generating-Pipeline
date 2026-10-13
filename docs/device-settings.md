@@ -1,5 +1,38 @@
 # Rechner einrichten und die Pipeline selbst bedienen
 
+## Skriptzugang prüfen und das Modell ausdrücklich wählen
+
+Unter **3 · Skript-KI und Zugang** steht der tatsächlich aktive Anbieter mit
+Modell. Eine Auswahl im Formular wird erst mit **Auswahl speichern und verwenden**
+aktiv. **Gewählten KI-Zugang prüfen** unterscheidet fehlendes Programm,
+Anmeldebedarf, nicht angebotenes Modell, Verbindung/Zeitlimit und
+Kontingent-/Kapazitätsfehler. Eine fehlgeschlagene Verbindung wird nicht als
+fehlende Anmeldung ausgegeben.
+
+Antigravity bestätigt über die offizielle CLI die Anmeldung und das Modellangebot.
+Ein normales Google-Konto oder ein Abo ist keine Garantie für ein bestimmtes Modell.
+Die Auswahl zeigt nur tatsächlich angebotene Gemini-Modellnamen. Fehlt das bisherige
+Modell, bleibt es bis zur ausdrücklichen Auswahl eines anderen sichtbar; es erfolgt
+kein automatischer Ersatz. Beim Speichern wird der ausgewählte Modellzugang erneut
+geprüft. Der lokale Weg prüft Dienst und installiertes Modell, nicht nur Konto-Freiheit.
+
+Die reine Modellprüfung bestätigt weder Restkontingent noch Abrechnung. Die Pipeline
+aktiviert keine Tarife oder Credits. Bestehende Credit-Einstellungen des Anbieters
+sind damit nicht geprüft und können im offiziellen Anbieter überprüft werden.
+Bei einer ausdrücklich gespeicherten Antigravity-Auswahl ist ein automatischer
+Wechsel zu lokalem Qwen abgeschaltet; der Standard für
+`ANTIGRAVITY_FALLBACK_TO_QWEN` ist ebenfalls `false`.
+
+Beim Öffnen von **Neues Video** bleiben Idee, Formate und Abbrechen während der
+Zugangsprüfung bedienbar. Erst eine verfügbare, ausdrücklich ausgewählte Herstellung
+erlaubt die Skripterstellung. Der Gesundheitsstatus berichtet den gewählten Zugang
+auch dann als nicht bereit, wenn eine andere Alternative erreichbar wäre.
+
+Quellen für Anmeldung und Kontingente:
+[offizielle CLI-Anmeldung](https://www.antigravity.google/docs/cli/install),
+[Pläne](https://www.antigravity.google/docs/plans),
+[Credit-Einstellungen](https://www.antigravity.google/docs/cli/credits/).
+
 Die Oberfläche hat ein Zahnrad **Einstellungen**. Dort stehen Rechnerprüfung,
 passende lokale Modelle, Download-Schritte, Standardstimme und optionale
 Anmeldungen. Die tägliche Produktion benötigt keinen Coding-Agenten: Ein Prompt
