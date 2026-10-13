@@ -21,10 +21,17 @@ Standbilder in 16:9/9:16 geprüft. Keine Video-/Audio-/KI-Erzeugung oder neuen
 Produktionsaufträge. Render-HTTP-Server auf Loopback begrenzt. Live-/Filmabnahme
 und allgemeine semantische Bildbewertung bleiben offen.
 
+Stand 6–7: technisch implementiert. Aktionen enden vor dem nächsten Sprachanker;
+Gesten beruhigen sich nach ihrem Abschnitt. Stabile Figuren-/Objektmerkmale,
+Besitz, Ablage- und Ruheposen sowie tatsächliche Endpositionen im selben Schauplatz
+werden über Schnitte erhalten. 234 Backend-Tests (ein regulärer Skip), 31 Renderer-
+Tests und acht echte Schnitt-Standbilder in 16:9/9:16 geprüft. Kein Testvideo oder
+echter Sprach-/KI-Aufruf. Wortzeiten bleiben geschätzt; Film-/Audioabnahme folgt später.
+
 Nutzervorgabe: keine routinemäßigen Testvideos in der UI. Echte KI-/Video- und
 redaktionelle Abnahme durch den Nutzer bzw. am Ende in Schritt 10; jetzt nur eine
 Videoprobe, wenn eine konkrete Änderung sie zwingend braucht. Die technische
-Erledigung von 2–3 ist keine Behauptung einer bestandenen Live-/Qualitätsabnahme.
+Erledigung von 2–7 ist keine Behauptung einer bestandenen Live-/Qualitätsabnahme.
 
 - [x] Installation, Anmeldung, Modellangebot und Verbindungsfehler getrennt anzeigen
 - [x] Modell nur ausdrücklich speichern; kein automatischer Anbieterersatz
@@ -39,9 +46,9 @@ Erledigung von 2–3 ist keine Behauptung einer bestandenen Live-/Qualitätsabna
 - [x] 4. Begrenzte Motivgruppe und zentrale erkannte Handlungen sichtbar abdecken, automatisiert prüfen
 - [x] Prüfpunkt 1–4 technisch: Text-/Bildplanverträge einschließlich Thema ohne Katze prüfen; echter Lauf bleibt später vorgemerkt
 - [x] 5. Handkontakt, dauerhafte Ablage und Gegenstandsbesitz verbessern; Tests und Standbilder prüfen
-- [ ] 6. Bewegungstempo mit Erzählung synchronisieren
-- [ ] 7. Figuren- und Gegenstandskontinuität zwischen Bildabschnitten sichern
-- [ ] Prüfpunkt 5–7: Filmproben für Kontakt, Aktionstakte und Kontinuität
+- [x] 6. Aktionen auf Sprachfenster begrenzen, Gesten beruhigen und Bewegungsanker prüfen
+- [x] 7. Figuren-/Gegenstandsidentität, Besitz, Ablage und Ruheposen über Schnitte sichern
+- [x] Prüfpunkt 5–7 technisch: Kontakt, Aktionstakte und Schnittzustände testen; Film-/Audioabnahme bleibt später
 - [ ] 8. Stimmqualität und Sprachfluss fertigstellen
 - [ ] 9. Verständliche UI, Einrichtung und ehrliche Fortschrittsanzeige abschließen
 - [ ] 10. Originalversion mit mehreren Videos abnehmen, dokumentieren, prüfen und sichern/pushen

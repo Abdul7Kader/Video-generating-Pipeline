@@ -6,9 +6,11 @@ Nummerierte Übersicht: [ENTWICKLUNGSPLAN.md](ENTWICKLUNGSPLAN.md).
 Detaillierter Plan: [tasks/plan.md](tasks/plan.md); Checkliste: [tasks/todo.md](tasks/todo.md).
 Schritte 1–10 schließen die Originalversion ab. Schritte 11–13 betreffen anschließend die Familienversion.
 
-Dokumentationsstand: Schritte 2–5 technisch abgeschlossen. Schritt 4 prüft neben Tieren auch Bücher, Telefone, Laptops, Dokumente und Futter sowie ausdrücklich erkannte Lese-/Tipp-/Greif-/Trage-/Ablage-/Streichelaktionen mit passenden Textankern und Zielen. Bekannte nicht unterstützte Motive werden vor der Bild-KI benannt. Schritt 5 verbindet Hand und Gegenstand über einen gemeinsamen Kontaktpunkt, unterstützt dauerhafte Ablagekoordinaten oder Tischflächen und prüft Besitzwechsel. Sitzt die Katze, sind Kopf und Körper nun verbunden. Renderer-Version `ink-story-v5` verhindert alte Asset-Zuordnungen.
+Dokumentationsstand: Schritte 2–7 technisch abgeschlossen. Schritt 6 begrenzt Aktionen auf verfügbare Sprachfenster und lässt Gesten auslaufen; Laufwege mit altem `end_x` bekommen einen erkannten gesprochenen Bewegungsanker. Schritt 7 prüft wiederkehrende Figuren-/Objektmerkmale, übergibt Besitz über stabile Gegenstands-IDs bzw. eindeutige Typen und erhält Ablage- und Ruhe-/Schlafzustände. Der Renderer übernimmt tatsächliche Endpositionen im selben Schauplatz einschließlich Haltegriff und Bewegungsphase. Renderer-Version `ink-story-v6` verhindert alte Asset-Zuordnungen.
 
-Prüfstand: 224 Backend-Tests ausgeführt, einer regulär übersprungen; 28 Renderer-Tests, TypeScript, Backend-Syntax und Diff-Prüfung. Zehn lokale PNG-Standbilder in `data/contact-proof/` für Greifen, Lesen, Ablegen und Streicheln in 16:9/9:16 erzeugt und visuell kontrolliert. Kein Testvideo, kein Audio, keine echte KI-Anfrage und kein neuer Produktionsauftrag. Redaktionelle und echte Videoabnahme bleiben offen.
+Prüfstand 6–7: 234 Backend-Tests ausgeführt, einer regulär übersprungen; 31 Renderer-Tests, TypeScript, Backend-Syntax und Diff-Prüfung. Acht PNG-Standbilder vor/nach Schnitten aus vier Abschnitten in `data/continuity-proof/` (16:9/9:16) visuell kontrolliert. Früherer Stand 4–5: 224 Backend-/28 Renderer-Tests und zehn PNGs unter `data/contact-proof/`. Kein Testvideo, kein echtes Audio, keine KI-Inferenz und kein neuer Produktionsauftrag. Redaktionelle und echte Videoabnahme bleiben offen.
+
+Grenzen: Sprachzeiten bleiben energiegestützte Wortschätzungen. Stabile Merkmale werden strikt geprüft; absichtliche Kleidungs-/Objekttypwechsel werden aktuell abgewiesen. Ohne Objekt-ID wird ein eindeutiger tragbarer Typ als dasselbe Objekt interpretiert; mehrere gleichartige tragbare Objekte brauchen IDs. Gleicher Schauplatz erhält Positionen, Szenen-/Auftrittswechsel erlauben neue Aufstellung. Das ist keine allgemeine semantische Ursachenprüfung.
 
 Sicherheit: neue Ablagefelder sind begrenzt und serverseitig geprüft; ungültige, unsichtbare und doppelt gehaltene Ziele werden abgewiesen. Die temporären HTTP-Server der Renderbibliothek werden ausschließlich im Renderprozess auf Loopback begrenzt (`renderer/loopback.mjs`), mit echtem Listener-Test und Standbildrendering geprüft. Keine Firewall-, System- oder Kontoeinstellungen verändert.
 
@@ -24,8 +26,8 @@ Der Nutzer hat Gemini 3.8 Flash (High) bestätigt. Als Skriptmodell lokal gespei
 und per Einstellungs-API zurückgelesen: `gemini-3.8-flash-high` / Antigravity.
 Bestehende Stimmen- und Hardwareauswahl erhalten; keine Anbieter-Credit-Einstellungen
 oder Tarife geändert. Das Speichern führte keinen Generierungsauftrag aus.
-Nächste Entwicklungsetappe: Schritt 6, Bewegungen mit der Erzählung takten, danach
-Schritt 7, Kontinuität über Schnitte. Die Bildprüfung ist ein begrenzter deutscher/
+Nächste Entwicklungsetappe: Schritt 8, Stimme und Sprachfluss, danach Schritt 9,
+UI und Einrichtung. Die Bildprüfung ist ein begrenzter deutscher/
 englischer Motivkatalog, keine allgemeine semantische Abnahme. Echter KI-/Videolauf
 bleibt für die spätere Nutzerabnahme vorgemerkt und blockiert die Implementierung nicht.
 

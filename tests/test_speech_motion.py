@@ -108,3 +108,23 @@ class SpeechMotionTests(unittest.TestCase):
         scene['stickman']['props'][1]['exit'] = .2
         with self.assertRaisesRegex(ValueError, 'nicht sichtbar'):
             direct_scene(scene, words, 2)
+
+    def test_actions_finish_before_next_anchor_and_gestures_end_with_the_spoken_beat(self):
+        scene = {'narration': 'Mila geht zum Tisch und zeigt das Buch.', 'stickman': {
+            'characters': [{'id': 'mila', 'cues': [{'on': 'geht', 'pose': 'walk', 'move_to': 65, 'duration': 2.5},
+                                                 {'on': 'zeigt das Buch', 'pose': 'point', 'target_prop': 0, 'duration': 2.5}]}],
+            'props': [{'kind': 'book'}]}}
+        words = [{'text': word, 'start': index*.2, 'end': (index+1)*.2} for index, word in enumerate(scene['narration'].split())]
+        cues = direct_scene(scene, words, 1.6)['stickman']['characters'][0]['motion_cues']
+        self.assertLessEqual(cues[0]['at']+cues[0]['duration'], cues[1]['at'])
+        self.assertLessEqual(cues[1]['at']+cues[1]['duration'], 1.6)
+        self.assertAlmostEqual(cues[1]['active_until'], 1.6)
+        self.assertEqual(scene['stickman']['characters'][0]['cues'][0]['duration'], 2.5)
+
+    def test_motion_does_not_start_before_its_word_and_invalid_timings_are_rejected(self):
+        scene={'narration': 'Mila nimmt das Buch.', 'stickman': {'characters': [{'cues': [{'on': 'nimmt', 'pose': 'pick', 'target_prop': 0, 'duration': .5}]}], 'props': [{'kind': 'book'}]}}
+        words=[{'text': word, 'start': index*.3, 'end': (index+1)*.3} for index, word in enumerate(scene['narration'].split())]
+        self.assertEqual(direct_scene(scene, words, 1.2)['stickman']['characters'][0]['motion_cues'][0]['at'], .3)
+        for bad in [words[:-1], [{**word,'start':float('nan')} for word in words], [{**word,'end':5} for word in words]]:
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                direct_scene(scene,bad,1.2)

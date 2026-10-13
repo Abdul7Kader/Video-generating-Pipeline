@@ -62,18 +62,20 @@ Greifen, Tragen, Ablegen und Streicheln anhand bestehender Bewegungen verbessern
 - Abhängigkeiten: 4. Umfang M; `renderer/src/ink.tsx`, `backend/stickman.py`, `tests/test_stickman.py`, `renderer/ink.test.mjs`.
 
 ### 6. Bewegung passend zur Erzählung takten
+Technisch umgesetzt: Wortzeitdaten auf Anzahl, Reihenfolge, Endzeiten und endliche Werte geprüft. Aktionen dauern höchstens bis zum nächsten Anker/Abschnittsende, maximal 1,2 Sekunden für Laufwege und 0,9 Sekunden für andere Bewegungen. Sprachfenster steuern das Gestenende; richtungsloses Marschieren stoppt. Alte Laufziele werden an erkannte Bewegungswörter gebunden, statt bei Bildbeginn loszulaufen. Sehr enge Anker werden abgewiesen. Wortzeiten bleiben Schätzungen aus Sprachenergie und Wortgewichten; echte Sprach-/Filmabnahme später.
 Die vorhandenen Sprachanker für Aktionsbeginn, Tempo und Abschluss nutzen; unnötig lange Leerlaufbewegungen vermeiden, kurze Aktionen lesbar halten.
 - Abnahme: die Hauptaktion erscheint während der entsprechenden Erzählstelle; Laufwege und Gesten sind zügig, flüssig und verständlich statt beliebig beschleunigt.
 - Prüfung: `python -m unittest tests.test_speech_motion`; Renderer-Tests und Filmvergleich mit zugehörigem Audio.
 - Abhängigkeiten: 5. Umfang M; `backend/speech.py`, `backend/rendering.py`, `renderer/src/ink.tsx`, `tests/test_speech_motion.py`.
 
 ### 7. Kontinuität zwischen Bildabschnitten sichern
+Technisch umgesetzt: stabile Gegenstands-IDs und begrenzter Anfangsbesitz; Figurenart/Kleidung/Größe und Objekttyp/Größe/Beschriftung werden über Wiederauftritte geprüft. Besitzwechsel benötigen Ablage, gehaltene Objekte bleiben beim Träger, Ruhe-/Schlafzustände bis zur nächsten Aktion erhalten. Ablage bleibt im selben Schauplatz erhalten. Der Renderer übernimmt tatsächliche Endpositionen inklusive automatischer Annäherung und setzt die Bewegungsphase fort; gehaltene Objekte verschwinden mit ihrem Träger. Normalisierung erfolgt vor Speicherung des neuen Bildplans und vor dem Rendern bestehender Pläne, ohne Änderungen am Sprechertext oder gespeicherten Altversionen. 234 Backend-Tests (ein Skip), 31 Renderer-Tests, TypeScript/Syntax und acht Schnitt-Standbilder aus vier Abschnitten in beiden Formaten geprüft; kein Testvideo. Begrenzter Zustandsvertrag, keine allgemeine Ursachen-/Spracherkennungsprüfung. Absichtliche Merkmalswechsel sind derzeit nicht unterstützt.
 Figurenidentität, Tiermerkmale, gehaltene Gegenstände und erzählte Zustände über Schnitte hinweg erhalten.
 - Abnahme: dieselbe Figur/dasselbe Tier bleibt erkennbar; wichtige Gegenstände und Zustandsänderungen verschwinden oder wechseln nicht ohne erzählte Ursache.
 - Prüfung: mehrteilige Filmprobe und gezielte Tests für Figuren-/Objektzustände; Bildabschnitte vor und nach Schnitten vergleichen.
 - Abhängigkeiten: 6. Umfang M; `backend/story.py`, `backend/visual_coverage.py`, `renderer/src/ink.tsx`, `tests/test_visual_coverage.py`, `tests/test_stickman_studio.py`.
 
-Prüfpunkt nach 5–7: Filmproben zeigen korrekten Kontakt, passende Aktionstakte und Kontinuität; Bewertung umfasst Bild und Ton.
+Prüfpunkt nach 5–7: technische Prüfungen und Schnitt-Standbilder bestanden; Filmproben für Bild-/Tonabnahme auf Nutzerwunsch später.
 
 ### 8. Erzählerqualität und Sprachfluss fertigstellen
 Qwen als vorhandene natürliche Stimmoption und Piper als ausdrücklich wählbare schnelle Alternative vergleichen; Aussprache, Lautheit und unnötige Pausen verbessern.

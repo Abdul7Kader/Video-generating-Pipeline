@@ -13,6 +13,7 @@ from .antigravity import AntigravityError, generate_structured
 from .config import settings
 from .plan import finalize_scene_plan
 from .visual_coverage import unsupported_motif_issues, visual_coverage_issues
+from .continuity import normalize_continuity
 from .voices import estimated_words_per_minute
 
 
@@ -160,6 +161,11 @@ Petting requires pet targeting the animal. No pointing or talking in place of th
 Keep one owner per object; place before a different character picks it up. For placement at a new
 surface use place_x and place_y together; the object remains there until the next pickup.
 For placing on a desk, use place_surface with that desk's prop index to align the object to the table.
+Maintain stable actor IDs, species, outfits and physical scales across shots; use camera framing for zoom.
+Maintain stable prop IDs, kind, scale and label, even if their local list indexes change.
+Do not omit a held object when its actor remains visible; do not transfer ownership without placement.
+Keep resting/sleeping states until a spoken cue changes them. Newly introduced actors need enter_on.
+No idle wandering or scene-long repetitive gestures; use short actions at the spoken beat.
 APPROVED NARRATION: {narration}
 VISUAL INTENT (not spoken): {approved_script.get('metadata', {}).get('visual_summary', '')}
 USER CHANGE REQUEST (not spoken): {approved_script.get('metadata', {}).get('visual_requests', '')}
@@ -168,18 +174,20 @@ USER CHANGE REQUEST (not spoken): {approved_script.get('metadata', {}).get('visu
         try:
             plan = planner.generate_script(request, previous=approved_script, instructions=instruction)
         except ValueError:
-            issues = ['Der Zeichenplan ist ungültig. Prüfe Schema, eindeutige Figuren-IDs, Verweise und exakte Textanker.']
+            issues = ['Der Zeichenplan ist ungültig. Prüfe stabile Figuren-/Gegenstands-IDs und Merkmale, gehaltene Objekte nach Schnitten, vorheriges Ablegen, Verweise und exakte Textanker.']
             instruction += '\n' + issues[0]
             continue
         issues = visual_coverage_issues(plan['scenes'], request.topic)
         if spoken_story(plan) != narration:
             issues.insert(0, 'Der freigegebene Sprechertext wurde verändert. Alle Wörter unverändert und vollständig übernehmen.')
         if not issues:
+            plan['scenes'] = normalize_continuity(plan['scenes'])
             plan['title'], plan['description'] = approved_script['title'], approved_script['description']
             plan['metadata'].update(workflow='storyboard', approved_story_hash=approved_script['content_hash'],
                                     approved_story_version=approved_script['version'],
                                     visual_summary=approved_script.get('metadata', {}).get('visual_summary', ''),
                                     fact_check_notes=approved_script.get('metadata', {}).get('fact_check_notes', []))
+            plan['metadata']['continuity_policy'] = 'identity-and-props-v1'
             if approved_script.get('metadata', {}).get('story_quality'):
                 plan['metadata']['story_quality'] = dict(approved_script['metadata']['story_quality'])
             return plan

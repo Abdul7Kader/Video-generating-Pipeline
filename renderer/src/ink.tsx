@@ -4,10 +4,11 @@ export type Character = {
   id?: string; species?: 'human' | 'cat' | 'dog'; x: number; y: number; scale?: number; pose?: string;
   expression?: string; outfit?: string; facing?: string; enter?: number; end_x?: number | null;
   exit?: number | null;
-  speed?: number; motion_cues?: MotionCue[];
+  enter_on?: string | null;
+  speed?: number; motion_cues?: MotionCue[]; initial_prop?: number | null; clock_offset?: number;
 };
-export type MotionCue = {at: number; pose: string; expression?: string | null; target_prop?: number | null; target_character?: string | null; move_to?: number | null; place_x?: number | null; place_y?: number | null; place_surface?: number | null; duration: number};
-export type Prop = {kind: string; x: number; y: number; scale?: number; enter?: number; exit?: number | null; label?: string};
+export type MotionCue = {at: number; pose: string; expression?: string | null; target_prop?: number | null; target_character?: string | null; move_to?: number | null; place_x?: number | null; place_y?: number | null; place_surface?: number | null; duration: number; active_until?: number};
+export type Prop = {id?: string | null; kind: string; x: number; y: number; scale?: number; enter?: number; exit?: number | null; label?: string};
 export type Board = {
   setting?: string; framing?: string; camera_move?: string;
   characters: Character[]; props: Prop[];
@@ -35,6 +36,7 @@ export function actorState(c: Character, time: number, duration: number) {
   let at = (c.enter ?? 0) * duration;
   let seconds = travel;
   let pose = c.pose ?? 'stand';
+  let active_until = at+seconds;
   let expression = c.expression ?? 'neutral';
   let target_prop: number | null = null;
   let target_character: string | null = null;
@@ -43,7 +45,7 @@ export function actorState(c: Character, time: number, duration: number) {
   let turnAt = at;
   // A shot starting with placement continues an object already held in the previous shot.
   const first = c.motion_cues?.[0];
-  let held_prop: number | null = first?.pose === 'place' ? first.target_prop ?? null : null;
+  let held_prop: number | null = c.initial_prop ?? (first?.pose === 'place' ? first.target_prop ?? null : null);
   let held_at = -1;
   let held_duration = .55;
   for (const cue of c.motion_cues ?? []) {
@@ -57,6 +59,7 @@ export function actorState(c: Character, time: number, duration: number) {
     }
     at = cue.at;
     seconds = cue.duration;
+    active_until = cue.active_until ?? at+seconds;
     pose = cue.pose;
     expression = cue.expression ?? expression;
     target_prop = cue.target_prop ?? null;
@@ -72,8 +75,9 @@ export function actorState(c: Character, time: number, duration: number) {
   const x = from + (goal - from) * ease(progress);
   const facing = facingFrom + (facingGoal - facingFrom) * ease((time - turnAt) / .18);
   const action_pose = pose;
-  if ((pose === 'walk' || pose === 'run') && goal !== from && progress === 1) pose = 'stand';
-  return {x, pose, action_pose, expression, target_prop, target_character, held_prop, held_at, held_duration, at, progress, facing, traveling: goal !== from};
+  if (pose==='place' && progress===1) pose='stand';
+  if ((pose === 'walk' || pose === 'run') && (goal !== from && progress === 1 || goal === from && time >= active_until)) pose = 'stand';
+  return {x, pose, action_pose, expression, target_prop, target_character, held_prop, held_at, held_duration, at, active_until, progress, facing, traveling: goal !== from};
 }
 
 // Feet anchor at (0, 0). Actions start at spoken text anchors, with no frame randomness.
@@ -83,9 +87,10 @@ export function actorMotion(character: Character, frame: number, fps: number, du
   const moving = state.pose === 'walk' || state.pose === 'run' || state.traveling && state.progress < 1;
   const cycle = Math.sin((time - state.at) * (state.pose === 'run' ? 17 : 11) * (character.speed ?? 1.35));
   const weight = state.traveling ? ease(state.progress / .18) * ease((1 - state.progress) / .18) : 1;
-  const breathing = Math.sin(time * 3.5) * .7;
+  const breathing = Math.sin((time+(character.clock_offset??0)) * 3.5) * .7;
   const bob = moving ? breathing * (1 - weight) - Math.abs(cycle) * weight * (state.pose === 'run' ? 8 : 4) : breathing;
-  return {...state, bob, stride: moving ? cycle * 23 * weight : 0, gesture: Math.sin((time - state.at) * 10 * (character.speed ?? 1.35)) * 9};
+  const gestureWeight = ease((state.active_until-time)/.15);
+  return {...state, bob, stride: moving ? cycle * 23 * weight : 0, gesture: Math.sin((time - state.at) * 10 * (character.speed ?? 1.35)) * 9 * gestureWeight};
 }
 
 const Face: React.FC<{expression: string; frame: number; fps: number}> = ({expression, frame, fps}) => {
@@ -108,7 +113,7 @@ const Face: React.FC<{expression: string; frame: number; fps: number}> = ({expre
 const InkAnimal: React.FC<{character: Character; frame: number; fps: number; duration: number; stageWidth: number; stageHeight: number}> = ({character: c, frame, fps, duration, stageWidth: w, stageHeight: h}) => {
   const motion = actorMotion(c, frame, fps, duration), scale = (c.scale ?? 1) * h / 600;
   const sitting = motion.pose === 'sit', sleeping = motion.pose === 'sleep', cat = c.species === 'cat';
-  const stride = motion.stride * .45, wag = Math.sin(frame / fps * 5) * (cat ? 5 : 13);
+  const stride = motion.stride * .45, wag = Math.sin((frame / fps+(c.clock_offset??0)) * 5) * (cat ? 5 : 13);
   const headY = motion.pose === 'sniff' ? -33 : sitting ? -79 : -62;
   return <g data-character={c.id} data-species={c.species} data-pose={motion.pose} opacity={entryProgress(frame,fps,duration,c.enter)*(c.exit==null?1:clamp((c.exit*duration-frame/fps)/.28))}
     transform={`translate(${motion.x*w/100} ${c.y*h/100+motion.bob*.4}) scale(${scale*motion.facing} ${scale})`} {...pen}>
@@ -298,8 +303,9 @@ export function directedProp(prop: Prop, index: number, board: Board, time: numb
   let surface = prop, owner: Character | undefined;
   let acquired = -1, acquisition = .55;
   let release: MotionCue | undefined;
+  owner = board.characters.find(c=>c.initial_prop===index);
   // A first placement may continue a held object from a previous shot.
-  if (events[0]?.cue.pose === 'place') owner = events[0].c;
+  if (!owner && events[0]?.cue.pose === 'place') owner = events[0].c;
   for (const {c,cue} of events) {
     if (cue.at > time) break;
     if (release && cue.at >= release.at+release.duration) {
@@ -319,17 +325,20 @@ export function directedProp(prop: Prop, index: number, board: Board, time: numb
   if (release && time >= release.at+release.duration) return placementDestination(surface,release,board);
   if (!owner) return surface;
   const state = actorMotion(owner,time*30,30,duration), scale = (owner.scale??1)*h/600;
+  const visibility = {...surface};
+  if ((owner.enter??0)>(visibility.enter??0)) visibility.enter=owner.enter;
+  if (owner.exit!=null) visibility.exit=Math.min(visibility.exit??1,owner.exit);
   // One grip shared by the actual hand drawing and the object in every posture.
   const handX = state.x+32*scale*state.facing/w*100;
   const handY = owner.y+(-96*scale+state.bob+30*(prop.scale??1)*h/600)/h*100;
   if (release) {
     const destination=placementDestination(surface,release,board);
     const progress = ease((time-release.at)/release.duration);
-    return {...surface, x:handX+(destination.x-handX)*progress,
+    return {...visibility, x:handX+(destination.x-handX)*progress,
       y:handY+(destination.y-handY)*progress};
   }
   const progress = ease((time-acquired)/acquisition);
-  return {...surface,x:surface.x+(handX-surface.x)*progress,y:surface.y+(handY-surface.y)*progress};
+  return {...visibility,x:surface.x+(handX-surface.x)*progress,y:surface.y+(handY-surface.y)*progress};
 }
 
 // Bring contact actions within reach without changing the stored model geometry.
@@ -357,6 +366,24 @@ export function interactionCharacters(board: Board, duration: number, w: number,
       }
     }
     return directed;
+  });
+}
+
+export function continuousScenes<T extends {stickman?: Board | null; start: number; duration: number}>(scenes: T[], w: number, h: number): T[] {
+  const history = new Map<string,{setting?:string;x:number;y:number}>();
+  return scenes.map(scene=>{
+    if (!scene.stickman) return scene;
+    const board=scene.stickman;
+    const characters=board.characters.map(c=>{
+      const previous=c.id ? history.get(c.id) : undefined;
+      const keep=previous && previous.setting===board.setting && !c.enter_on && (c.enter??0)===0;
+      return {...c,x:keep?previous.x:c.x,y:keep?previous.y:c.y,clock_offset:scene.start};
+    });
+    const directed=interactionCharacters({...board,characters},scene.duration,w,h);
+    for (const actor of directed) {
+      if (actor.id) history.set(actor.id,{setting:board.setting,x:actorState(actor,scene.duration,scene.duration).x,y:actor.y});
+    }
+    return {...scene,stickman:{...board,characters:directed}};
   });
 }
 

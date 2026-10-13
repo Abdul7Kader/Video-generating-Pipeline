@@ -17,6 +17,8 @@ Bildpläne prüfen eine begrenzte Gruppe erzählter Tiere, Gegenstände und Hand
 Hände und gehaltene Gegenstände teilen einen Kontaktpunkt; abgelegte Gegenstände
 bleiben am neuen Ort oder auf einer referenzierten Tischfläche. Temporäre
 Render-HTTP-Server lauschen ausschließlich auf Loopback.
+Aktionen folgen begrenzten Sprachfenstern; Figurenmerkmale, Besitz und Ablageorte
+werden über Schnitte geprüft. Die Wortzeiten sind Schätzungen, die Filmabnahme folgt später.
 
 ## Einrichtung auf diesem Rechner
 

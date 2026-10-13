@@ -2,6 +2,7 @@
 import re
 
 from .speech import anchor_index
+from .continuity import continuity_issues
 
 
 ANIMALS = {
@@ -102,6 +103,7 @@ def visual_coverage_issues(scenes, topic=''):
     central = {species for species, pattern in ANIMALS.items() if _mentions(pattern, story)}
     issues = []
     issues.extend(unsupported_motif_issues(story))
+    issues.extend(continuity_issues(scenes))
     preceding = ''
     for scene in scenes:
         narration = str(scene.get('narration', ''))

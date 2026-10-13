@@ -101,6 +101,16 @@ class StoryTests(unittest.TestCase):
             story.generate_storyboard(self.request, draft)
         generate.assert_not_called()
 
+    def test_changed_recurring_character_is_corrected_without_changing_narration(self):
+        bad = copy.deepcopy(self.plan)
+        bad['scenes'][1]['stickman']['characters'][0]['outfit'] = 'office'
+        with patch('backend.story.planner.generate_script', side_effect=[bad, copy.deepcopy(self.plan)]) as generate:
+            result = story.generate_storyboard(self.request, self.current['script'])
+        self.assertEqual(generate.call_count, 2)
+        self.assertEqual(story.spoken_story(result), self.text)
+        self.assertEqual(result['scenes'][1]['stickman']['characters'][0]['outfit'],'plain')
+        self.assertEqual(result['scenes'][2]['continuity_policy'],'identity-and-props-v1')
+
     def test_non_animal_storyboard_preserves_words_and_requires_reading_action(self):
         draft = copy.deepcopy(self.current['script'])
         text = 'Mila nimmt das Buch. Dann liest sie darin. Schließlich legt sie das Buch auf den Tisch.'

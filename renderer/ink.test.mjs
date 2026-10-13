@@ -17,7 +17,7 @@ compiled.filename = filename;
 compiled.paths = Module._nodeModulePaths(filename.replace(/[/\\][^/\\]+$/, ''));
 compiled.require = createRequire(import.meta.url);
 compiled._compile(code, filename);
-const {DrawingStage, actorMotion, actorState, directedProp, entryProgress, interactionCharacters} = compiled.exports;
+const {DrawingStage, actorMotion, actorState, directedProp, entryProgress, interactionCharacters, continuousScenes} = compiled.exports;
 const board = {
   setting:'camp', framing:'split', camera_move:'static',
   characters:[{id:'modern',x:25,y:78,pose:'work',outfit:'office',expression:'tired'},
@@ -125,6 +125,7 @@ test('picked objects travel with the actor and return to the surface on place', 
   assert.ok(directedProp(prop,0,value,1.8,6,1000,600).x>60);
   assert.equal(actorMotion(value.characters[0],54,30,6).stride,0);
   assert.deepEqual(directedProp(prop,0,value,2.5,6,1000,600),prop);
+  assert.equal(actorState(value.characters[0],2.5,6).pose,'stand');
 });
 
 test('a new shot can place an object held in the preceding shot', () => {
@@ -192,6 +193,34 @@ test('placing on a desk aligns the drawn book bottom with the tabletop', () => {
     assert.equal(placed.x,desk.x);
     assert.ok(Math.abs((placed.y*h/100-10*.7*h/600)-(desk.y*h/100-67*h/600))<.001);
   }
+});
+
+test('spoken gestures settle and walking without a destination does not march forever', () => {
+  const c={x:40,y:80,motion_cues:[{at:1,pose:'talk',duration:.4,active_until:1.7}]};
+  assert.equal(actorState(c,.9,6).pose,'stand');
+  assert.notEqual(actorMotion(c,36,30,6).gesture,0);
+  assert.equal(actorMotion(c,60,30,6).gesture,0);
+  assert.equal(actorState({x:40,y:80,pose:'walk'},3,6).pose,'stand');
+});
+
+test('a carried object and actor keep their actual contact position across cuts in both formats', () => {
+  for (const [w,h] of [[1000,600],[600,900]]) {
+    const input=[{start:0,duration:2,stickman:{setting:'room',characters:[{id:'mila',x:20,y:81,motion_cues:[{at:.2,pose:'pick',target_prop:0,duration:.5}]}],props:[{id:'b',kind:'book',x:70,y:65}]}},
+      {start:2,duration:2,stickman:{setting:'room',characters:[{id:'mila',x:15,y:81,initial_prop:1}],props:[{kind:'desk',x:70,y:81},{id:'b',kind:'book',x:50,y:65}]}}];
+    const before=JSON.stringify(input), [first,next]=continuousScenes(input,w,h);
+    assert.equal(actorState(first.stickman.characters[0],2,2).x,next.stickman.characters[0].x);
+    const a=directedProp(first.stickman.props[0],0,first.stickman,2,2,w,h);
+    const b=directedProp(next.stickman.props[1],1,next.stickman,0,2,w,h);
+    assert.ok(Math.abs(a.x-b.x)<.001); assert.ok(Math.abs(a.y-b.y)<.001);
+    assert.equal(actorState(next.stickman.characters[0],0,2).held_prop,1);
+    assert.equal(JSON.stringify(input),before);
+  }
+});
+
+test('a held object leaves the frame together with its owner', () => {
+  const board={characters:[{id:'mila',x:40,y:81,initial_prop:0,exit:.5}],props:[{kind:'phone',x:50,y:65}]};
+  assert.equal(directedProp(board.props[0],0,board,1,6,1000,600).exit,.5);
+  assert.match(draw(board,120),/data-prop="phone"[^>]*opacity="0"/);
 });
 
 test('distant pickup approaches the object and preserves the achieved position', () => {

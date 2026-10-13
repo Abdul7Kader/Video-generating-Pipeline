@@ -2,6 +2,43 @@
 
 Letzte Aktualisierung: 2026-10-14
 
+## Aktuelle Etappe vom 2026-10-14: Schritt 6 und 7
+
+Implementiert: Aktionen werden auf das verfügbare Sprachfenster, den nächsten
+Anker und das Abschnittsende begrenzt. Gesten laufen aus, richtungsloses Marschieren
+stoppt und abgeschlossene Ablage kehrt zur Ruhehaltung zurück. Laufwege aus altem
+`end_x` werden an erkannte Bewegungswörter gebunden. Ungültige Wortzeiten und zu
+enge Aktionsanker werden abgewiesen. Wortzeiten bleiben energiegestützte Schätzungen.
+
+Implementiert: `backend/continuity.py` prüft Figuren-/Objektidentität und übergibt
+Besitz, Ablage- und Ruhe-/Schlafzustände über Schnitte. Objekte bekommen optionale
+stabile IDs, Figuren begrenzte Anfangsbesitz-Verweise. Mehrere gleichartige tragbare
+Objekte brauchen IDs. Verlorene gehaltene Objekte, unbegründeter Besitzerwechsel,
+abweichende Merkmale und wiederholtes Aufnehmen bereits gehaltener Objekte werden
+abgewiesen. Fehlerhafte Bildpläne dürfen einmal korrigiert werden; danach keine Freigabe.
+
+Implementiert im Renderer: tatsächliche Endpositionen im selben Schauplatz werden
+nach automatischer Annäherung übernommen, Atem-/Bewegungsphasen fortgesetzt und
+gehaltene Objekte mit ihrem Träger ein-/ausgeblendet. Die Videokomposition verwendet
+diesen Zustandspfad für alle Strichmännchen-Abschnitte. Renderer-Version `ink-story-v6`.
+Neue Bildpläne speichern die normalisierten Zustände; vorhandene Daten bleiben
+unverändert und werden beim Rendern durch denselben Vertrag interpretiert.
+
+Getestet: 234 Backend-Tests ausgeführt, ein optionaler Videotest übersprungen;
+31 Renderer-Tests, TypeScript, Backend-Syntax und Diff-Prüfung. Acht echte PNGs
+unmittelbar vor/nach Schnitten aus vier Abschnitten in 16:9/9:16 geprüft
+(`data/continuity-proof/`, nicht versioniert). Negativfälle: ungültige Zeitdaten,
+wechselnde Arten/Kleidung/Objekttypen, fehlender Besitz, doppelte IDs, ungültige
+Anfangsverweise, Geheimnisausgabe in Validierungsfehlern. Kein Testvideo, keine
+echte TTS-/KI-Erzeugung und keine neuen Produktionsaufträge. Keine neuen Pakete,
+Konten oder öffentlichen Listener; prozesslokaler Loopback-Schutz bleibt aktiv.
+
+Offen: echte Film-/Audioabnahme, Stimme/UI in 8–9, tatsächliche Skriptanfrage aus 1
+und externer npm-Audit-Blocker. Strikte Merkmalskontinuität erlaubt derzeit keine
+absichtlichen Kleidungs-/Objekttypwechsel. Gleichartige Objekte ohne ID werden nur
+bei Eindeutigkeit zugeordnet; Orts-/Auftrittswechsel erlauben neue Aufstellung.
+Keine allgemeine semantische Ursachenprüfung oder exakte Spracherkennung behauptet.
+
 ## Aktuelle Etappe vom 2026-10-14: Schritt 4 und 5
 
 Implementiert: Bildabdeckung über Katze/Hund hinaus für Bücher, Telefone, Laptops,

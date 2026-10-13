@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-RENDERER_VERSION = "ink-story-v5"
+RENDERER_VERSION = "ink-story-v6"
 PORTABLE_PROPS = {'phone', 'book', 'basket', 'rock', 'spear', 'food', 'water', 'bowl', 'carrier', 'document'}
 Pose = Literal["stand", "walk", "run", "point", "think", "shrug", "sit", "sleep", "work", "gather", "carry", "celebrate", "talk", "pick", "place", "read", "pet", "feed", "sniff"]
 Expression = Literal["neutral", "happy", "sad", "worried", "angry", "surprised", "tired", "determined"]
@@ -53,6 +53,7 @@ class Character(DrawingModel):
     exit_on: str | None = Field(default=None, min_length=2, max_length=100, description="Exact spoken phrase to disappear, e.g. after entering a carrier.")
     end_x: float | None = Field(default=None, ge=8, le=92, description="Movement destination; null to stay in place.")
     speed: float = Field(default=1.35, ge=0.6, le=2.5)
+    initial_prop: int | None = Field(default=None, ge=0, le=7, strict=True, description='Prop already held at shot start; continuity resolves its local index across cuts.')
     cues: list[MotionCue] = Field(default_factory=list, max_length=8)
 
     def model_post_init(self, context):
@@ -63,6 +64,7 @@ class Character(DrawingModel):
 
 
 class Prop(DrawingModel):
+    id: str | None = Field(default=None, pattern=r'^[a-zA-Z0-9_-]{1,32}$', description='Stable object identity across shots; required for multiple portable objects of the same kind.')
     kind: Literal["clock", "laptop", "desk", "chair", "bed", "phone", "book", "tree", "bush", "fire", "spear", "basket", "rock", "sun", "moon", "cloud", "house", "food", "water", "gear", "lightbulb", "arrow", "question", "check", "cross", "heart", "chart", "carrier", "pet_bed", "bowl", "litter_box", "cat_tree", "document"]
     x: float = Field(default=65, ge=5, le=95)
     y: float = Field(default=76, ge=15, le=84)
@@ -91,7 +93,15 @@ class StickmanBoard(DrawingModel):
         ids = [character.id for character in self.characters]
         if len(ids) != len(set(ids)):
             raise ValueError("Figuren brauchen eindeutige IDs.")
+        prop_ids = [prop.id for prop in self.props if prop.id]
+        if len(prop_ids) != len(set(prop_ids)):
+            raise ValueError('Gegenstände brauchen eindeutige IDs.')
+        initial = [actor.initial_prop for actor in self.characters if actor.initial_prop is not None]
+        if len(initial) != len(set(initial)):
+            raise ValueError('Ein Gegenstand kann anfangs nur einer Figur gehören.')
         for character in self.characters:
+            if character.initial_prop is not None and (character.species != 'human' or character.initial_prop >= len(self.props) or self.props[character.initial_prop].kind not in PORTABLE_PROPS):
+                raise ValueError('Ein anfangs gehaltener Gegenstand braucht ein tragbares Ziel und eine menschliche Figur.')
             for cue in character.cues:
                 if cue.target_prop is not None and cue.target_prop >= len(self.props):
                     raise ValueError("Ein Handlungsschritt verweist auf einen fehlenden Gegenstand.")
@@ -130,8 +140,8 @@ class StickmanBoard(DrawingModel):
             exit = anchor_index(narration, prop.exit_on) if prop.exit_on else None
             if enter is not None and exit is not None and exit <= enter:
                 raise ValueError("Der Abgangs-Textanker muss nach dem Auftritt liegen.")
-        owners = {}
-        held = {}
+        held = {actor.id:actor.initial_prop for actor in self.characters if actor.initial_prop is not None}
+        owners = {prop:actor for actor, prop in held.items()}
         beats = set()
         for start, actor, cue in sorted(ownership, key=lambda event: event[0]):
             index = cue.target_prop

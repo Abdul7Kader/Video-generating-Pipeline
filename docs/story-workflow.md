@@ -122,8 +122,31 @@ Besitzer muss es abgelegt werden. Neue Ablagefelder und Zielindizes sind begrenz
 Die tatsächliche Sprachzeit begrenzt die Ablage vor dem nächsten Greifanker.
 Nach der Sprachzeitberechnung müssen Ziele während ihrer Aktion sichtbar bleiben,
 auch bei prozentualen Auftritts-/Abgangszeiten; andernfalls stoppt der Renderpfad.
-Diese Regeln gelten innerhalb eines Bildabschnitts; Kontinuität über Schnitte
-bleibt eine eigene Entwicklungsetappe.
+Diese Kontaktregeln werden durch den folgenden Schnittzustandsvertrag ergänzt.
+
+## Sprachfenster und Kontinuität über Schnitte
+
+Aktionen beginnen am geschätzten Wortbeginn ihres Textankers und enden vor der
+nächsten Aktion bzw. dem Abschnittsende. Laufwege sind auf 1,2 Sekunden, andere
+Bewegungen auf 0,9 Sekunden begrenzt; Gesten beruhigen sich nach ihrem Sprachfenster.
+Zu enge Anker und ungültige Zeitdaten stoppen den Ablauf. Vorhandene Wortzeiten
+stammen aus Sprachenergie und Wortgewichten, nicht aus exakter Spracherkennung.
+
+Gegenstände können eine stabile `id` haben; mehrere gleichartige tragbare Objekte
+brauchen unterschiedliche IDs. Ohne ID wird ein eindeutiger tragbarer Typ als
+dasselbe Objekt interpretiert. `initial_prop` wird aus dem vorherigen Besitz auf
+den lokalen Objektindex des nächsten Abschnitts umgesetzt. Gehaltene Objekte dürfen
+bei sichtbarem Träger nicht verschwinden oder ohne Ablage den Besitzer wechseln.
+Wiederkehrende Figuren behalten Art/Kleidung/Größe, Gegenstände Typ/Größe/Beschriftung.
+Absichtliche Merkmalswechsel sind derzeit nicht unterstützt. Ruhe-/Schlafzustände
+bleiben bis zur nächsten Aktion erhalten, Ablageorte im selben Schauplatz bestehen.
+
+Der Renderer übernimmt tatsächliche Endpositionen einschließlich Annäherung im
+selben Schauplatz und setzt die Bewegungsphase fort. Neue Schauplätze oder explizite
+Auftritte erlauben neue Aufstellung. Gehaltene Gegenstände folgen der Sichtbarkeit
+ihres Trägers. Neue Pläne speichern die Zustände vor der Freigabe; Altversionen
+werden nicht verändert. Beim Rendern gilt derselbe Vertrag. Das ersetzt keine
+allgemeine semantische Ursachenprüfung; Film-/Audioabnahme bleibt später vorgesehen.
 
 Die Renderbibliothek bindet temporäre HTTP-Server standardmäßig an alle
 Schnittstellen. Der prozesslokale Schutz in `renderer/loopback.mjs` beschränkt

@@ -1,6 +1,7 @@
 """Continuous speech and bounded direction derived from the approved narration."""
 from array import array
 import copy
+import math
 from pathlib import Path
 import re
 import sys
@@ -105,18 +106,50 @@ def speech_scene_durations(scenes, segments):
     return [float(segment['duration']) for segment in segments]
 
 
+def anchor_movement(character, narration):
+    cues = character.get('cues', [])
+    if any(cue['pose'] in {'walk','run'} for cue in cues):
+        character['end_x'] = None
+        if character.get('pose') in {'walk','run'}:
+            character['pose'] = 'stand'
+    elif character.get('pose') in {'walk','run'} and character.get('end_x') is not None:
+        match = re.search(r'\b(?:geht|gehen|läuft|laufen|rennt|rennen|walks?|walked|goes|runs?|went)\b', narration, re.I)
+        if not match:
+            raise ValueError('Ein Laufweg braucht einen gesprochenen Bewegungsanker.')
+        cues = [*cues, {'on':match.group(), 'pose':character['pose'], 'move_to':character['end_x'], 'duration':.7}]
+        character['cues'] = sorted(cues,key=lambda cue:anchor_index(narration,cue['on']))
+        character['pose'], character['end_x'] = 'stand', None
+
+
 def direct_scene(scene: dict, words: list[dict], duration: float) -> dict:
     result = copy.deepcopy(scene)
     board = result.get('stickman')
     if not board:
         return result
+    if not math.isfinite(duration) or duration <= 0 or len(words) != len(scene['narration'].split()):
+        raise ValueError('Sprachzeiten und Sprechertext stimmen nicht überein.')
+    previous_end = 0
+    for word in words:
+        start, end = word['start'], word['end']
+        if not all(math.isfinite(value) for value in (start, end)) or not 0 <= start < end <= duration+.001 or start+.001 < previous_end:
+            raise ValueError('Ungültige oder überlappende Sprachzeiten.')
+        previous_end = end
     for character in board.get('characters', []):
+        anchor_movement(character, scene['narration'])
         cursor = 0
         motions = []
         for cue in character.get('cues', []):
             index = anchor_index(scene['narration'], cue['on'], cursor)
             cursor = index+len(cue['on'].split())
-            motions.append({**cue, 'at':words[index]['start']})
+            motions.append({**cue, 'at':words[index]['start'], 'active_until':words[cursor-1]['end']})
+        for index, motion in enumerate(motions):
+            limit = motions[index+1]['at'] if index+1 < len(motions) else duration
+            available = limit-motion['at']
+            if available < 1/30:
+                raise ValueError('Die Aktionsanker liegen zu eng für eine sichtbare Bewegung. Bitte die Bildplanung überarbeiten.')
+            ceiling = 1.2 if motion['pose'] in {'walk', 'run'} else .9
+            motion['duration'] = min(motion['duration'], ceiling, available)
+            motion['active_until'] = min(limit, max(motion['active_until'], motion['at']+motion['duration']))
         character['motion_cues'] = motions
     # Complete release before the next owner acquires the same object.
     interactions = {}
@@ -135,7 +168,7 @@ def direct_scene(scene: dict, words: list[dict], duration: float) -> dict:
                 prop[field] = words[anchor_index(scene['narration'], prop[anchor])]['start']/duration
     for character in board.get('characters', []):
         for cue in character.get('motion_cues', []):
-            targets = []
+            targets = [character]
             if cue.get('target_prop') is not None:
                 targets.append(board['props'][cue['target_prop']])
             if cue.get('place_surface') is not None:
@@ -147,4 +180,5 @@ def direct_scene(scene: dict, words: list[dict], duration: float) -> dict:
                 raise ValueError('Ein Interaktionsziel ist während der gesprochenen Aktion nicht sichtbar. Bitte Auftritt und Abgang korrigieren.')
     result['words'] = words
     result['timing_method'] = TIMING_METHOD
+    result['motion_policy'] = 'speech-beats-v2'
     return result

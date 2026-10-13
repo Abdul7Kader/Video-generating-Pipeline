@@ -2,9 +2,11 @@
 
 Stand: 2026-10-14. Vom Nutzer gewünschte Reihenfolge: zuerst die Originalversion fertigstellen, erst danach die Familienversion ohne Pro-Abos. Vorhandene Funktionen werden geprüft und verbessert; andere Videoarten bleiben ausgeblendet.
 
-Arbeitsstand: Schritte 2–5 technisch umgesetzt und automatisiert geprüft.
+Arbeitsstand: Schritte 2–7 technisch umgesetzt und automatisiert geprüft.
 Bildabdeckung für eine begrenzte Motivgruppe und Textanker/Ziele, gemeinsame
 Kontaktpunkte, Besitzwechsel und dauerhafte Tisch-/Koordinatenablage implementiert.
+Aktionen bleiben in ihrem Sprachfenster; Figuren- und Gegenstandszustände werden
+über Schnitte geprüft und übernommen. Sprachzeiten sind weiterhin Schätzungen.
 Keine routinemäßigen Testvideos in der UI; echte Videotests übernimmt der Nutzer
 später bzw. am Ende. Nur bei zwingendem Prüfbedarf einer konkreten Änderung eine
 Videoprobe erzeugen. Die echte Qualitätsabnahme ist dadurch nicht vorweggenommen.

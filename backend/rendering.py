@@ -19,6 +19,7 @@ from .moneyprinter import moneyprinter_status, render_with_moneyprinter, write_r
 from .plan import file_sha256, object_sha256
 from .quality import find_ffmpeg, find_ffprobe, run_quality_gate
 from .speech import VOICE_POLICY, TIMING_METHOD, compact_speech, estimate_word_timings, speech_scene_durations, direct_scene
+from .continuity import normalize_continuity
 from .voices import voice_choice, validate_voice_language
 from . import qwen_tts
 
@@ -311,6 +312,8 @@ def render_job(job: dict[str, Any], *, job_dir_override: Path | None = None) -> 
     editor = production_config.get("editor", "remotion")
     if editor not in {"remotion", "moneyprinter"}:
         raise RuntimeError(f"Der gewählte Schnittanbieter {editor} ist noch nicht integriert.")
+    if editor == 'remotion' and all(scene.get('visual_type') == 'stickman' for scene in job['script']['scenes']):
+        job = {**job, 'script': {**job['script'], 'scenes': normalize_continuity(job['script']['scenes'])}}
     prepare_scene_assets(job_dir, job["script"]["scenes"], job["aspect_ratio"])
     continuous = editor == 'remotion' and all(scene.get('visual_type') == 'stickman' for scene in job['script']['scenes'])
     audio_segments, tts_mode = prepare_scene_audio(
