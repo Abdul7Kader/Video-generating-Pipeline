@@ -33,6 +33,8 @@ def voice_fingerprint() -> dict:
 
 def voice_status() -> dict:
     reason = "Qwen-Stimme einmalig einrichten: siehe docs/qwen-voice.md."
+    if (settings.qwen_tts_python.parent.parent / '.pipeline-setup-pending').exists():
+        return {'ready':False, 'message':'Die Qwen-Einrichtung ist unvollständig. Öffne die Einstellungen und starte „Qwen-Stimme einrichten“ erneut.'}
     try:
         model = settings.qwen_tts_model_dir
         manifest = json.loads((model / "pipeline-install.json").read_text(encoding="utf-8"))
@@ -75,6 +77,9 @@ def synthesize(text: str, output: Path, language: str, speed: float) -> tuple[st
     status = voice_status()
     if not status["ready"]:
         raise RuntimeError(status["message"])
+    from .device import device_info, recommendation
+    if not recommendation(device_info())["qwen_suitable"]:
+        raise RuntimeError('Für Qwen ist aktuell nicht genügend freier Arbeitsspeicher verfügbar. Schließe große Programme oder wähle Piper in den Einstellungen.')
     raw = output.with_name(output.stem + ".qwen-raw.wav")
     request = {
         "text": text, "model": str(settings.qwen_tts_model_dir),

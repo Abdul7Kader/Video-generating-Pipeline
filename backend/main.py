@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .antigravity import antigravity_status
@@ -34,6 +34,8 @@ from .story import generate_story, generate_storyboard, spoken_story
 from .visual_coverage import visual_coverage_issues
 from . import qwen_tts
 from .plan import object_sha256
+from . import setup
+from .device import load_preferences
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("video-pipeline")
@@ -129,22 +131,47 @@ async def lifespan(_: FastAPI):
     settings.voices_dir.mkdir(parents=True, exist_ok=True)
     db.initialize()
     db.recover_interrupted()
+    setup.manager.blocked = lambda: any(job['status'] in {'render_queued','rendering','publish_queued','publishing'} for job in db.list_jobs())
+    preferences = load_preferences()
+    if preferences and preferences.script == 'local' and settings.ollama_model:
+        try:
+            await asyncio.to_thread(setup.manager.ensure_ollama)
+        except (OSError, RuntimeError):
+            logger.warning('Lokaler Skriptdienst noch nicht bereit; Einrichtung in den Einstellungen prüfen.')
     stop = asyncio.Event()
     worker = asyncio.create_task(render_worker(stop))
     yield
     stop.set()
     await worker
+    setup.manager.close()
 
 
 app = FastAPI(title="Video Pipeline", version="1.0.0", lifespan=lifespan, docs_url="/api/docs", redoc_url=None)
+app.include_router(setup.router)
 
 
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
-    response = await call_next(request)
+    production = request.method in {'POST','PUT','PATCH','DELETE'} and (request.url.path.startswith('/api/jobs') or request.url.path == '/api/voice-previews')
+    if request.url.path.startswith('/api/settings') and request.method != 'GET':
+        length = request.headers.get('content-length', '')
+        if not length.isdecimal() or int(length) > 8192:
+            return JSONResponse({'detail':'Die Einstellungsanfrage benötigt eine gültige Länge von höchstens 8192 Bytes.'}, status_code=413)
+    with setup.manager.lock:
+        blocked = production and setup.manager.busy
+        if production and not blocked:
+            setup.manager.production_requests += 1
+    try:
+        response = JSONResponse({'detail':'Die Rechnereinrichtung läuft. Warte auf ihren Abschluss.'}, status_code=409) if blocked else await call_next(request)
+    finally:
+        if production and not blocked:
+            with setup.manager.lock:
+                setup.manager.production_requests -= 1
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
+    if request.url.path.startswith('/api/settings'):
+        response.headers['Cache-Control'] = 'no-store'
     # FastAPI's Swagger UI intentionally loads its own documented CDN assets.
     # Keep the production UI strict without silently breaking /api/docs.
     if request.url.path != "/api/docs":
@@ -157,7 +184,8 @@ async def security_headers(request: Request, call_next):
 
 @app.get("/api/health")
 def health():
-    preferred_cloud = antigravity_status()
+    preferences = load_preferences()
+    preferred_cloud = antigravity_status() if not preferences or preferences.script != 'local' else {'ready':False,'message':'Optionales Cloudprofil; lokaler Betrieb ist gewählt.'}
     return {
         "status": "ok",
         "dependencies": dependency_status(),
@@ -184,12 +212,15 @@ def production_options():
     dependencies = dependency_status()
     script_status = script_provider_status()
     profiles = gemini_cli_pool.statuses()
-    cloud_status = antigravity_status()
+    preferences = load_preferences()
+    cloud_status = antigravity_status() if not preferences or preferences.script != 'local' else {'ready':False,'message':'Optional: Cloudprofil in den Einstellungen aktivieren.'}
     qwen_ready = bool(
         (script_status.get("provider") == "ollama" and script_status.get("ready"))
         or script_status.get("fallback_ready")
     )
-    return build_production_catalog(
+    if preferences and preferences.script == 'local' and qwen_ready:
+        qwen_ready = setup.local_service_safe()
+    catalog = build_production_catalog(
         qwen_ready=qwen_ready,
         gemini_cli_ready=bool(
             settings.gemini_cli_enabled
@@ -207,6 +238,11 @@ def production_options():
         antigravity_reason=str(cloud_status.get("message", "Antigravity ist nicht verfügbar.")),
         qwen_tts_ready=qwen_tts.voice_status()["ready"],
     )
+    preferences = load_preferences()
+    if preferences:
+        catalog['default_profile_id'] = 'local_stickman' if preferences.script == 'local' else 'cloud_stickman'
+        catalog['default_voice_id'] = 'qwen_narrator' if settings.tts_provider == 'qwen_tts' else 'thorsten'
+    return catalog
 
 
 @app.get("/api/gemini-profiles")
@@ -228,7 +264,7 @@ def voice_catalog():
             installed, available, reason = status["ready"], status["ready"], status["message"]
         else:
             model = settings.voices_dir / f"{item['model']}.onnx"
-            installed = model.is_file() and model.with_suffix(".onnx.json").is_file()
+            installed = model.is_file() and model.with_suffix(".onnx.json").is_file() and not (item['id']=='thorsten' and (settings.voices_dir / '.piper-setup-pending').exists())
             available, reason = settings.piper_auto_download or installed, ""
         catalog.append({**item, "provider": item.get("provider", "piper"),
                         "estimated_words_per_minute": estimated_words_per_minute(item["id"]),

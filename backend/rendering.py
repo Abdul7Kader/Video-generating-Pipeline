@@ -41,6 +41,8 @@ def _voice_model() -> Path:
 
 def ensure_voice(voice_id: str | None = None) -> Path | None:
     model = settings.voices_dir / f"{voice_choice(voice_id)['model']}.onnx" if voice_id else _voice_model()
+    if model.stem == 'de_DE-thorsten-high' and (settings.voices_dir / '.piper-setup-pending').exists():
+        raise RuntimeError('Die Piper-Einrichtung wurde unterbrochen. Öffne die Einstellungen und lade die Piper-Stimme erneut herunter.')
     if model.exists() and model.with_suffix(".onnx.json").exists():
         return model
     if not settings.piper_auto_download:
@@ -407,7 +409,7 @@ def dependency_status() -> dict[str, Any]:
         "piper_voice": _voice_model().exists(),
         "tts_provider": settings.tts_provider,
         "cloud_tts_allowed": settings.allow_cloud_tts,
-        "renderer": (settings.renderer_dir / "render.mjs").exists(),
+        "renderer": (settings.renderer_dir / "render.mjs").exists() and (settings.renderer_dir / 'node_modules' / '@remotion' / 'renderer').is_dir(),
         "moneyprinter": moneyprinter["ready"],
         "moneyprinter_reason": moneyprinter["reason"],
     }

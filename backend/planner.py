@@ -411,6 +411,12 @@ def _ollama_url(path: str) -> str:
 
 
 def _post_ollama(payload: dict[str, Any], *, timeout: int | None = None) -> dict[str, Any]:
+    from .device import load_preferences
+    preferences = load_preferences()
+    if preferences and preferences.script == 'local':
+        from .setup import local_service_safe
+        if not local_service_safe():
+            raise ScriptProviderUnavailable('Der lokale Skriptdienst ist nicht sicher als Loopback-Dienst bestätigt. Prüfe ihn in den Einstellungen.')
     request = urllib.request.Request(
         _ollama_url("/api/chat"),
         data=json.dumps(payload).encode(),
@@ -418,7 +424,11 @@ def _post_ollama(payload: dict[str, Any], *, timeout: int | None = None) -> dict
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=timeout or settings.ollama_timeout_seconds) as response:
+        class NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, *args, **kwargs):
+                raise ScriptProviderUnavailable('Der lokale Skriptdienst darf nicht auf einen anderen Host umleiten.')
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+        with opener.open(request, timeout=timeout or settings.ollama_timeout_seconds) as response:
             return json.loads(response.read())
     except urllib.error.HTTPError as exc:
         details = exc.read().decode("utf-8", errors="replace")[:600]

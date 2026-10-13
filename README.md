@@ -1,6 +1,21 @@
 # Lokale Video Pipeline
 
-Eine lokale Videoproduktion für Windows und Linux. Aktueller Schwerpunkt sind gezeichnete Strichmenschen-Geschichten mit Remotion, SVG, Piper und FFmpeg. FastAPI und SQLite speichern Auftrag, Versionen, Fehler und beide verbindlichen Freigaben.
+Eine lokale Videoproduktion mit Startern für Windows, Linux und macOS. Aktueller Schwerpunkt sind gezeichnete Strichmenschen-Geschichten mit Remotion, SVG, Piper und FFmpeg. FastAPI und SQLite speichern Auftrag, Versionen, Fehler und beide verbindlichen Freigaben.
+
+## Einrichtung auf diesem Rechner
+
+**⚙ Einstellungen** bündelt die lokale Rechnerprüfung, passende Skriptmodelle,
+Downloads, Standardstimme und optionale Anmeldungen. Kleine Geräte bekommen kleinere
+Modelle und Piper, stärkere Geräte können größere Modelle und Qwen wählen. Die
+Empfehlung berücksichtigt auch freien RAM und Plattenplatz. Bei unklarer Erkennung
+kann der Nutzer technische Geräteangaben ergänzen. Es werden keine Hardwaredaten
+an einen Anbieter geschickt und keine Firewall- oder Routerfreigaben eingerichtet.
+
+Der normale lokale Betrieb braucht keinen Coding-Agenten, kein Konto und keine
+manuelle `.env`-Bearbeitung. **Auswahl speichern und verwenden** aktiviert begrenzte,
+gerätelokale Optionen für neue Aufträge. Installationen starten mit eigenen Knöpfen;
+Systemprogramme öffnen ihre offiziellen Downloadseiten. Details, Plattformgrenzen
+und Sicherheitsprüfungen: [docs/device-settings.md](docs/device-settings.md).
 
 ## Strichmenschen-Geschichten
 
@@ -26,16 +41,12 @@ Kerstins Modell ist als niedrige Qualität gekennzeichnet; eine andere Stimme is
 automatisch besser. Wortbudget und Sprechzeitschätzung berücksichtigen Stimme und Tempo,
 bleiben aber Näherungen auf Basis einer kurzen lokalen Vergleichspassage.
 
-**Skripte verbessern:** **Umfang der Überarbeitung** auf das gesamte Skript oder eine
-einzelne Szene setzen. **Natürlich erzählen**, **Besser visualisieren** oder **Straffen**
-füllt einen bearbeitbaren Änderungswunsch aus; erst **Entwurf überarbeiten** startet die KI.
-Bei einer einzelnen Szene bleiben Titel, Beschreibung, andere Szenen und deren Dauer
-serverseitig erhalten. Sprechertext und Zeichenregie werden zusammen überarbeitet.
-Wortzahl und geschätzte Sprechzeit erscheinen im Editor. Ungespeicherte Änderungen
-sperren KI-Überarbeitung/Freigabe und verhindern einen versehentlichen Auftragswechsel.
-Skript- und Stimmenänderungen getrennt speichern; **verwerfen** setzt nur ungespeicherte
-Eingaben auf den zuletzt gespeicherten Stand zurück. Sachprüfungsnotizen bleiben bei
-manuellen Textänderungen sichtbar.
+**Skripte verbessern:** Die UI zeigt einen durchgehenden Sprechertext und eine Bildidee.
+Unter **Was soll die KI verbessern?** einen Änderungswunsch eingeben und
+**KI verbessert das Skript** wählen. Die nächste Version erneut lesen und dann
+**Freigeben & Video erzeugen** drücken. Bildplanung und Rendern entstehen automatisch,
+ohne Einzelszenen-Kontrolle. Die Bildplanung muss den freigegebenen Sprechertext
+unverändert übernehmen. Details: [docs/story-workflow.md](docs/story-workflow.md).
 
 Quellen für den lokalen Stimmenvergleich: [Piper Python API](https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/API_PYTHON.md),
 [Thorsten emotional](https://huggingface.co/rhasspy/piper-voices/blob/main/de/de_DE/thorsten_emotional/medium/MODEL_CARD),
@@ -46,11 +57,15 @@ Lizenzpflichten der Piper-Laufzeit bestehen unabhängig davon.
 
 Die Bildsprache orientiert sich an [Ink Explainer](https://www.youtube.com/watch?v=49_Ph2q6uIM): heller Zeichenhintergrund, schwarze Konturen, wenige flache Farben, Mimik, Kleidung, Requisiten und wechselnde Schauplätze. Standardformat ist 16:9. Ein ausführbarer `stickman`-Zeichenplan steuert bis zu vier Figuren und acht Requisiten pro Szene, Posen, Gefühle, Positionen, Laufwege, zeitliche Auftritte, Ausschnitt und Kamerabewegung. Die KI darf nur den validierten Zeichenbaukasten verwenden; sie erzeugt keine beliebigen Illustrationen aus Freitext.
 
-Im Szeneneditor unter „Zeichenregie“ lässt sich jede Einstellung bearbeiten. Speichern erzeugt eine neue Planversion und macht alte Freigaben ungültig. Alte Entwürfe ohne Zeichenplan müssen ergänzt oder mit der KI überarbeitet werden, bevor sie gerendert werden können.
+Für einen ersten Test: **Neues Video** öffnen, eine Idee eingeben, Länge und
+Videoformat wählen und **Sprecher-Skript erstellen** drücken. Die Stimme und
+Herstellung verwenden die Rechnereinstellungen; eine andere Stimme ist optional.
+Den Fließtext lesen, bei Bedarf einen KI-Änderungswunsch eingeben und schließlich
+**Freigeben & Video erzeugen** wählen. Das fertige Video ansehen und herunterladen.
 
-Für einen ersten Test: Pipeline neu starten, **Neues Video** öffnen, Thema eingeben, **30 Sekunden**, **16:9** und **Cloud-Qualität · Strichmännchen** wählen. **Skriptentwurf erstellen**, Sprechertext und Zeichenregie prüfen, Änderungen speichern, **Skript freigeben**, dann **Video erzeugen**. Die installierte Skript-KI sowie Piper, FFmpeg und Remotion müssen verfügbar sein; der Erstellen-Dialog zeigt deren Status.
-
-Beispielthema: „Eine Figur legt ihr Handy weg, nimmt ein Buch, liest darin und zeigt einer zweiten Figur ihre Idee. Zeige die gesprochenen Handlungen mit schnellen, passenden Bewegungen und Gegenständen.“ Unter **Zeichenregie → Figur → Regieschritt** kann man etwa bei „nimmt ein Buch“ die Handlung **Aufheben** und die passende **Requisite** wählen. Startworte müssen wörtlich im Sprechertext stehen. Regieschritte folgen dessen Reihenfolge; **Bewegung dauert** bestimmt, wie schnell ein Griff oder Laufweg abgeschlossen wird.
+Beispielthema: „Eine Figur legt ihr Handy weg, nimmt ein Buch, liest darin und zeigt
+einer zweiten Figur ihre Idee. Zeige die gesprochenen Handlungen mit passenden
+Bewegungen und tatsächlichen Gegenständen.“
 
 Strichmenschen-Videos folgen jetzt der tatsächlichen Stimme statt künstlich auf die geplante Szenenlänge zu warten. Lange stille TTS-Abschnitte werden gekürzt; kurze Wortabstände bleiben erhalten. Bewegungen, Gegenstandswechsel und Untertitel nutzen lokal geschätzte Wortzeiten aus Sprachsignal und Text. Diese Zuordnung ist keine wortgenaue Spracherkennung. Bestehende Entwürfe brauchen passende Regieschritte oder eine neue KI-Überarbeitung, um mehrere erzählte Handlungen zu zeigen.
 
@@ -81,13 +96,13 @@ python scripts/render_stickman_demo.py --script examples/stickman-turn-demo.json
 
 Direkt im Projektordner liegen Starter und Stopper:
 
-- **Windows:** `Start-Pipeline.cmd` doppelklicken. Das sichtbare Konsolenfenster zeigt den Server; mit `Strg+C` wird er beendet. Die vorhandene `.runtime/windows-python`-Umgebung wird bevorzugt, andernfalls eine bereits eingerichtete System-Python-Umgebung. Es wird nichts automatisch installiert.
-- **Linux:** im Terminal `./Start-Pipeline.sh` ausführen. Der Starter bevorzugt eine vorhandene lokale Python-/Node-Laufzeit und verwendet sonst Docker Compose, falls Docker läuft. Beim ersten Docker-Start werden die im Compose-Projekt festgelegten Images und das Qwen-Modell geladen.
+- **Windows:** `Start-Pipeline.cmd` doppelklicken. Das sichtbare Konsolenfenster zeigt den Server; mit `Strg+C` wird er beendet. Die vorhandene `.runtime/windows-python`-Umgebung wird bevorzugt, andernfalls eine bereits eingerichtete System-Python-Umgebung. Fehlende Python-Pakete können nach Rückfrage ausschließlich in einer projektlokalen Umgebung installiert werden.
+- **Linux/macOS:** `./Start-Pipeline.sh` ausführen. Der Starter nutzt vorhandenes Python oder die projektlokale Laufzeit und fragt vor deren Einrichtung. Docker und große Modelle werden nicht automatisch gestartet oder geladen.
 - **Stoppen:** Unter Windows `stop.cmd` ausführen, unter Linux `./stop.sh`. Beide stoppen nur die durch diese Projekt-Starter verwalteten lokalen Server. Unter Linux stoppt `stop.sh` zusätzlich den Compose-Webdienst dieses Projekts, falls er läuft; Ollama und Datenvolumes bleiben erhalten. Ein manuell mit `uvicorn` gestarteter Server wird nicht beendet – dort `Strg+C` verwenden.
 
 Beide Starter binden die Weboberfläche ausschließlich an `127.0.0.1`. Im lokalen Python-Betrieb wird sie nach dem Gesundheitscheck im Browser geöffnet; ohne grafischen Browser steht die Adresse im Terminal. Eine bereits laufende Pipeline wird erkannt und nicht doppelt gestartet. Lokale Einstellungen können in einer nicht versionierten `.env` stehen. Für den Qwen-Fallback muss Ollama separat laufen; Antigravity benötigt keinen gestarteten Ollama-Dienst.
 
-`start_pipeline.py` ist der gemeinsame lokale Starter hinter den Windows- und Linux-Dateien: Er lädt `.env`, prüft Port und Gesundheitsstatus, startet FastAPI/Uvicorn und öffnet die Oberfläche. Die `.cmd`-/`.sh`-Dateien wählen dafür nur die passende Laufzeit oder unter Linux alternativ Compose. Der Starter schreibt eine kleine, nicht versionierte Prozesskennung nach `.runtime`; `stop_pipeline.py` fordert damit ohne Port-Freigabe ein sauberes Herunterfahren an. Optional stoppt `stop_pipeline.py --port 8080` nur eine bestimmte lokale Instanz.
+`start_pipeline.py` ist der gemeinsame lokale Starter hinter den Windows- und Linux-Dateien: Er lädt `.env`, prüft Port und Gesundheitsstatus, startet FastAPI/Uvicorn und öffnet die Oberfläche. Die `.cmd`-/`.sh`-Dateien wählen die passende Laufzeit; `setup_pipeline.py` kann nach Rückfrage eine fehlende lokale Python-Umgebung anlegen. Der Starter schreibt eine kleine, nicht versionierte Prozesskennung nach `.runtime`; `stop_pipeline.py` fordert damit ohne Port-Freigabe ein sauberes Herunterfahren an. Optional stoppt `stop_pipeline.py --port 8080` nur eine bestimmte lokale Instanz.
 
 Der bisherige Docker-Befehl bleibt ebenfalls möglich:
 
@@ -113,9 +128,9 @@ Auf diesem Rechner liegt zusätzlich eine verifizierte projektlokale Testlaufzei
 
 ## Bedienung
 
-1. Unter **Neues Video** Thema, Sprache, Länge, Videoformate, Strichmenschenprofil und lokale Stimme wählen. Es entsteht zunächst nur ein Skriptentwurf.
-2. Skript und Zeichenregie prüfen, bei Bedarf gezielt überarbeiten, Änderungen speichern und **Skript freigeben**.
-3. **Video erzeugen**. Der Rechner bearbeitet bewusst nur einen Renderauftrag gleichzeitig.
+1. Unter **Neues Video** die Idee, Sprache, Länge und Videoformate wählen. Es entsteht ein zusammenhängender Sprechertext.
+2. Lesen, bei Bedarf Änderungswünsche an die KI geben und **Freigeben & Video erzeugen** drücken.
+3. Bildplanung und Videoproduktion abwarten. Der Rechner bearbeitet einen Renderauftrag gleichzeitig.
 4. Jedes fertige Format ansehen und herunterladen. **Skript bearbeiten** führt zurück zum Entwurf. Veröffentlichungsfunktionen sind derzeit ausgeblendet.
 
 Das **i** im Seitenkopf öffnet die Bedienhilfe. Felder und Aktionen erklären sich zusätzlich beim Darüberfahren mit der Maus oder beim Fokussieren mit der Tab-Taste.

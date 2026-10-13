@@ -2,6 +2,13 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {resolveBrowserExecutable} from './browser.mjs';
 
+test('uses installed browsers on macOS and Linux without downloading a fallback', () => {
+  const mac='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  assert.equal(resolveBrowserExecutable({platform:'darwin',env:{},exists:path=>path===mac}),mac);
+  assert.equal(resolveBrowserExecutable({platform:'linux',env:{PATH:'/usr/bin'},exists:path=>path==='/usr/bin/chromium'}),'/usr/bin/chromium');
+  assert.throws(()=>resolveBrowserExecutable({platform:'linux',env:{},exists:()=>false}),/kein Browser automatisch/);
+});
+
 test('finds an installed Windows browser even when Program Files variables are wrong', () => {
   const chrome = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
   const found = resolveBrowserExecutable({

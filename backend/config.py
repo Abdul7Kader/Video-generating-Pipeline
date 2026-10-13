@@ -104,3 +104,9 @@ class Settings:
 
 
 settings = Settings()
+
+# Machine-local choices made in the UI override only bounded performance fields.
+# Existing .env credentials, paths and security controls are never rewritten.
+from .device import load_preferences, apply_preferences
+if (machine_preferences := load_preferences()) is not None:
+    apply_preferences(settings, machine_preferences, adapt=True)

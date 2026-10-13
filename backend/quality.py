@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import platform
 import subprocess
 import wave
 from array import array
@@ -28,8 +29,13 @@ def find_ffprobe() -> str | None:
         ("compositor-win32-x64-msvc", "ffprobe.exe"),
         ("compositor-linux-x64-gnu", "ffprobe"),
         ("compositor-linux-x64-musl", "ffprobe"),
+        ("compositor-linux-arm64-gnu", "ffprobe"),
+        ("compositor-darwin-x64", "ffprobe"),
+        ("compositor-darwin-arm64", "ffprobe"),
     )
     for platform, filename in candidates:
+        if not _native_compositor(platform):
+            continue
         candidate = project_root / "renderer" / "node_modules" / "@remotion" / platform / filename
         if candidate.is_file():
             return str(candidate)
@@ -45,12 +51,23 @@ def find_ffmpeg() -> str | None:
         ("compositor-win32-x64-msvc", "ffmpeg.exe"),
         ("compositor-linux-x64-gnu", "ffmpeg"),
         ("compositor-linux-x64-musl", "ffmpeg"),
+        ("compositor-linux-arm64-gnu", "ffmpeg"),
+        ("compositor-darwin-x64", "ffmpeg"),
+        ("compositor-darwin-arm64", "ffmpeg"),
     )
     for platform, filename in candidates:
+        if not _native_compositor(platform):
+            continue
         candidate = project_root / "renderer" / "node_modules" / "@remotion" / platform / filename
         if candidate.is_file():
             return str(candidate)
     return None
+
+
+def _native_compositor(name):
+    system = {'Windows':'win32', 'Linux':'linux', 'Darwin':'darwin'}.get(platform.system())
+    architecture = 'arm64' if platform.machine().lower() in {'arm64','aarch64'} else 'x64'
+    return bool(system and name.startswith(f'compositor-{system}-{architecture}'))
 
 
 def _probe(path: Path) -> dict[str, Any]:
