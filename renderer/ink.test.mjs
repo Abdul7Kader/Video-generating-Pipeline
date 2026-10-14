@@ -66,6 +66,17 @@ const board = {
 };
 const draw = (value, frame = 30, portrait = false) => renderToStaticMarkup(React.createElement(DrawingStage, {board:value,frame,fps:30,duration:6,portrait}));
 
+test('held books and documents leave the face visible at different scales in both formats',()=>{
+  for(const [w,h] of [[1000,600],[600,900]]) for(const kind of ['book','document']) for(const [actorScale,propScale] of [[1,1],[.8,1.2],[1.2,.8]]){
+    const actor={id:'reader',x:45,y:82,scale:actorScale,pose:'read',initial_prop:0};
+    const prop={kind,x:50,y:82,scale:propScale};
+    const held=directedProp(prop,0,{characters:[actor],props:[prop]},1,3,w,h);
+    const top=held.y*h/100-(kind==='book'?88:94)*propScale*h/600;
+    const chin=actor.y*h/100-140*actorScale*h/600;
+    assert.ok(top>=chin+5*actorScale*h/600);
+  }
+});
+
 test('real drawing contains directed actors, props and split staging', () => {
   const svg = draw(board);
   assert.match(svg, /data-character="modern"/);

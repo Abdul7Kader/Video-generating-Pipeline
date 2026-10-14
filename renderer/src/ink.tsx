@@ -338,7 +338,11 @@ export function directedProp(prop: Prop, index: number, board: Board, time: numb
   if (owner.exit!=null) visibility.exit=Math.min(visibility.exit??1,owner.exit);
   // One grip shared by the actual hand drawing and the object in every posture.
   const handX = state.x+32*scale*state.facing/w*100;
-  const handY = state.y+(propGrip(prop.kind).hand*scale+state.bob+propGrip(prop.kind).offset*(prop.scale??1)*h/600)/h*100;
+  const propScale=(prop.scale??1)*h/600;
+  const top=prop.kind==='book'?88:prop.kind==='document'?94:null;
+  const base=propGrip(prop.kind).hand*scale+propGrip(prop.kind).offset*propScale;
+  // Keep reading material below the chin while retaining its authored size and grip.
+  const handY = state.y+((top===null?base:Math.max(base,-130*scale+top*propScale))+state.bob)/h*100;
   if (release) {
     const destination=placementDestination(surface,release,board);
     const progress = ease((time-release.at)/release.duration);
