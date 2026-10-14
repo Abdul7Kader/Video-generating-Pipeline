@@ -4,7 +4,7 @@ Werkzeuge der Strichmännchen-Pipeline. Alternativen werden ausdrücklich ausgew
 
 | Tool / Technologie | Wofür wir es nutzen | Anmeldung / Abo |
 |---|---|---|
-| Antigravity + Gemini | Skripte überarbeiten und Szenarien planen; beim letzten Katzenvideo verwendet. | Google-Anmeldung nötig. Pro-Abo optional; Modelle und Limits hängen vom Konto ab. [Tarife](https://www.antigravity.google/docs/plans) |
+| Antigravity + Gemini | Skripte überarbeiten und Szenarien planen; beim letzten Katzenvideo verwendet. | Eigenes berechtigtes Google-Konto nötig. Kostenloses begrenztes Basiskontingent, Pro-Abo optional; Modelle und Limits hängen vom Konto ab. [Tarife](https://www.antigravity.google/docs/plans) |
 | Ollama + Qwen 3.5 | Alternative für lokale Skripte und Szenarien. | Kein Konto, kein Abo; Modell herunterladen. |
 | Qwen3-TTS + PyTorch | Natürlichere Erzählerstimme auf dem eigenen Rechner. | Kein Konto, kein Abo; Modell herunterladen. |
 | Piper TTS | Schnellere, sparsame lokale Stimmalternative. | Kein Konto, kein Abo; Stimme herunterladen. |

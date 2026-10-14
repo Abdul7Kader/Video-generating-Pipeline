@@ -47,6 +47,11 @@ test('settings show a safe small-device recommendation and do not start download
   const html=app.document.getElementById('settings-content').innerHTML;
   assert.match(html,/qwen3\.5:4b/);assert.match(html,/&lt;script&gt;untrusted/);assert.doesNotMatch(html,/<script>untrusted/);
   assert.doesNotMatch(html,/test-token/);
+  assert.match(html,/Konten und Anmeldungen/);
+  assert.match(html,/Normales persönliches Google-Konto genügt/);
+  assert.match(html,/begrenztes wöchentliches Basiskontingent/);
+  assert.match(html,/Gemini-Webversion und API · spätere Erweiterungen/);
+  assert.doesNotMatch(html,/<input[^>]*(?:password|token|api.key)/i);
   assert.equal(app.actions.find(action=>action.dataset.setupAction==='qwen_voice').disabled,true);
   assert.equal(app.requests.filter(request=>request.method==='POST').length,0);
 });

@@ -19,6 +19,15 @@ schnelle Cache-Antworten und Fehler lernen keine Generierungsdauer. Dauert es l�
 wird dies angezeigt. Prozentwerte erscheinen bei tatsächlichen Downloadangaben oder
 nach Abschluss. Gespeichert werden Zeitwerte, keine Sprechertexte.
 
+## Konten und Anmeldungen
+
+Unter Abschnitt 3 stehen kostenloser Google-Einstieg, optionales Pro-/Ultra-Abo,
+Kontingent- und Konto-Voraussetzungen sowie die Anmeldung über die offizielle CLI.
+Lokaler Skriptweg, Stimmen und Schnitt brauchen kein Konto. Es werden keine
+Passwörter oder API-Schlüssel in der Oberfläche verlangt. Quellenstand und genaue
+Bedienung: [docs/accounts.md](accounts.md). Web- und zusätzliche API-Adapter
+bleiben Schritt 12/13; ein Webseiten-Login allein schaltet sie nicht frei.
+
 ## Skriptzugang prüfen und das Modell ausdrücklich wählen
 
 Unter **3 · Skript-KI und Zugang** steht der tatsächlich aktive Anbieter mit
