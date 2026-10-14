@@ -125,12 +125,21 @@ Die zu diesem Zeitpunkt offiziell unterstützten kostenlosen Gemini-/Antigravity
 - Abhängigkeiten: 10. Umfang M; `backend/setup.py`, `web/settings.js`, `tests/test_settings_api.py`, `tests/settings-ui.test.cjs`, `docs/device-settings.md`.
 
 ### 12. Kostenlosen automatischen Skriptweg ergänzen
+Technisch umgesetzt: offiziell unterstützter Antigravity-Individual-Zugang,
+Credit-Einstellung vor jedem Aufruf geprüft, API-/Agentenvariablen ausgeschlossen,
+Fehler ohne Teilauftrag/Versionsverlust. Gemini CLI wegen aktueller Consumer-
+Abkündigung verworfen. Echter bestehender Providerzugang geprüft; eigener
+Free-Tier-Familienkonto-Test bleibt externe Abnahme. [Nachweise](../docs/family-paths.md).
 Nach Verfügbarkeits- und Konditionenprüfung einen offiziell unterstützten Free-Tier-API- oder CLI-Weg auswählen. Jeder nutzt den eigenen Zugang; Stimme und Renderer bleiben Teil der bestehenden Pipeline.
 - Abnahme: kostenloser Zugang erzeugt und überarbeitet Skripte ohne steuernden Coding-Agenten; Limit-/Anmeldefehler behalten den Auftrag. Keine automatische Tarif-/Credit-Aktivierung und keine unangekündigte Anbieterumschaltung.
 - Prüfung: Provider-Vertrags- und Negativtests für fehlenden Zugang, Kontingent und ungültige Antworten; echter Familien-End-to-End-Test mit dem gewählten Zugang.
 - Abhängigkeiten: 11. Umfang M; `backend/planner.py`, `backend/setup.py`, `web/settings.js`, `tests/test_planner.py`, `tests/test_settings_api.py`.
 
 ### 13. Webversion als Alternative prüfen und integrieren
+Technisch umgesetzt und im Browser bis zum geprüften Video nachgewiesen:
+Fließtext, Änderungswünsche und Zeichenplan mit Version/Hash validiert importieren.
+Ein notwendiges 25-s-Testvideo, keine Webautomation. Eigene Web-KI-Anmeldung und
+schwächerer physischer Rechner bleiben externe Abnahme. [Anleitung](../docs/family-paths.md).
 Zunächst einen verständlichen Prompt-/Ergebnisimport vorsehen. Automatische Browserbedienung nur bei offiziell erlaubtem und nachgewiesen zuverlässigem Zugang als gesonderte Erweiterung bewerten.
 - Abnahme: kopierter Webtext lässt sich validieren, bearbeiten und freigeben; Modellausgaben erhalten keine Systemrechte. Anmeldungen, Captchas und Limits werden nicht durch Fenster-/Kontowechsel umgangen; ein manueller Import wird nicht als vollautomatisch beworben.
 - Prüfung: Import-Schema- und Negativtests, Browser-Smoke-Test sowie kompletter Videoablauf aus einem importierten Text; Geräteprüfung auf einem schwächeren Rechner.

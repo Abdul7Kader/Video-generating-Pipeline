@@ -14,7 +14,7 @@ PlatformId = Literal[
 ]
 
 VideoType = Literal["stickman", "explainer", "social", "podcast", "generated"]
-ScriptProviderId = Literal["qwen", "gemini_cli", "antigravity"]
+ScriptProviderId = Literal["qwen", "gemini_cli", "antigravity", "web_import"]
 MediaProviderId = Literal["procedural_stickman", "pexels_stock", "generated_media", "moneyprinter_media", "podcast_layout"]
 VoiceProviderId = Literal["piper", "qwen_tts", "gemini_tts", "moneyprinter_voice"]
 EditorId = Literal["remotion", "moneyprinter", "podcast_editor"]

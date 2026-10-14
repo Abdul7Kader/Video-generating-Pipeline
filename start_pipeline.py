@@ -130,7 +130,7 @@ def main() -> int:
     state_path.write_text(json.dumps({"pid": os.getpid(), "port": port, "token": token}), encoding="utf-8")
     try:
         from backend.main import app
-        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port))
+        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, timeout_graceful_shutdown=30))
         threading.Thread(target=_watch_for_stop, args=(server, request_path, token), kwargs={'on_stop':app.state.shutdown_requested.set}, daemon=True).start()
         server.run()
     finally:

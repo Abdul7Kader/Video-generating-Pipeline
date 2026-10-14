@@ -581,6 +581,8 @@ def _selected_provider() -> tuple[str, str]:
 def _provider_for_request(request: JobCreate) -> tuple[str, str]:
     config = request.production_config
     selected = config.get("script_provider") if isinstance(config, dict) else config.script_provider if config else None
+    if selected == 'web_import' or (not selected and settings.script_provider == 'web_import'):
+        raise ScriptProviderUnavailable('Webimport ist manuell: Prompt kopieren und Antwort einfügen.')
     if selected == "antigravity":
         if not settings.antigravity_enabled:
             raise ScriptProviderUnavailable(str(AntigravityError("disabled")))
@@ -592,6 +594,9 @@ def _provider_for_request(request: JobCreate) -> tuple[str, str]:
 
 
 def script_provider_status() -> dict[str, Any]:
+    if settings.script_provider == 'web_import':
+        return {'ready': True, 'provider': 'web_import', 'model': 'Manueller Import', 'manual': True,
+                'requested': 'web_import', 'message': 'Prompt kopieren und Antwort aus deiner Web-KI einfügen.'}
     try:
         provider, model = _selected_provider()
         if provider == "antigravity":
@@ -648,7 +653,7 @@ def generate_script(
             raw_script, metrics = generate_structured(f"{_system_prompt()}\n\n{prompt}", _response_schema())
             script = _extract_json(json.dumps(raw_script, ensure_ascii=False))
         except AntigravityError as exc:
-            if not settings.antigravity_fallback_to_qwen:
+            if not settings.antigravity_fallback_to_qwen or exc.code in {'credits_enabled', 'billing_unknown'}:
                 raise ScriptProviderUnavailable(str(exc)) from exc
             actual_provider = "ollama"
             actual_model = settings.ollama_model

@@ -59,9 +59,11 @@ def credit_guard() -> dict[str, str | bool]:
     """Check the documented CLI setting without modifying global account state."""
     path = Path.home() / '.gemini' / 'antigravity-cli' / 'settings.json'
     try:
-        if not path.exists():
+        try:
+            size = path.stat().st_size
+        except FileNotFoundError:
             return {'extra_credits_allowed': False, 'credit_setting_source': 'manufacturer_default'}
-        if path.stat().st_size > 65536:
+        if size > 65536:
             raise ValueError()
         value = json.loads(path.read_text(encoding='utf-8-sig'))
         credits = value.get('useG1Credits', False)

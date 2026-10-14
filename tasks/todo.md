@@ -60,12 +60,14 @@ Stand 10–11: vier kurze Filme geprüft; 249 Backend-Tests (1 Skip), 35 Rendere
 und 16 JS-Tests, TypeScript, UI/Download und npm-Produktionsaudit (0 bekannte
 Schwachstellen nach Nutzerfreigabe). [Abnahmebericht](../docs/acceptance-10.md).
 Schritt 11 als Informations-/Anmeldebereich auf ausdrücklichen Auftrag umgesetzt;
-12/13 und echter Free-Tier-Familienkonto-Test bleiben offen.
+12/13 sind technisch umgesetzt; die gesonderte externe Familienabnahme bleibt offen.
+264 Backend-/18 UI-Tests, echter Antigravity-Aufruf mit Credit-Sperre und ein
+Webimport-Video (25,02 s) geprüft. [Anleitung/Nachweise](../docs/family-paths.md).
 
 - [x] 11. Konten und offiziell unterstützte kostenlose Anmeldewege unter Einstellungen erklären; eigener Familienkonto-Test bleibt offen
-- [ ] 12. Kostenlosen automatischen Skriptweg mit eigenem Familienzugang ergänzen
-- [ ] 13. Webversion als validierten Prompt-/Ergebnisimport ergänzen; zulässige Automation gesondert bewerten
-- [ ] Abschlussprüfpunkt: echter Familienablauf ohne Pro-Pflicht oder versteckte Kosten; Review und autorisierter Push
+- [x] 12. Kostenlos unterstützten automatischen Antigravity-Weg mit Credit-Sperre technisch ergänzen; eigener Familienkonto-Test gesondert offen
+- [x] 13. Vollständigen manuellen Webimport für Text/Überarbeitung/Zeichnung ergänzen und bis zum Video prüfen; keine Browserautomation
+- [ ] Externer Abschlussprüfpunkt: echter Familienablauf mit eigenem Gratiszugang; technische Umsetzung, Review und autorisierter Push abgeschlossen
 
 Erhaltene erledigte Etappe:
 
@@ -133,3 +135,5 @@ Fortsetzungspunkt: Schritt 3, Architekturfreigabe. Vor der Freigabe keine Umsetz
 - [ ] Erstes Profil interaktiv anmelden und real vollständig testen
 - [ ] Zweites Profil interaktiv anmelden; Ausfall/Fortsetzung nachweisen
 - [ ] Gesamttests, Secret-Prüfung, Commit und Push ausführen
+
+- [ ] Externe Abnahme 12/13: eigenes kostenloses Familienkonto, ausgewählte Web-KI und schwächerer physischer Rechner

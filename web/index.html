@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Video Pipeline</title><script src="/theme.js"></script><link rel="stylesheet" href="/styles.css?v=accounts-acceptance-3">
+  <title>Video Pipeline</title><script src="/theme.js"></script><link rel="stylesheet" href="/styles.css?v=family-2">
 </head>
 <body>
   <header><div class="brand"><span class="brandmark">▶</span><div><strong>Video Pipeline</strong><small>Strichmenschen · gezeichnete Geschichten</small></div></div><div class="header-tools"><div class="header-status"><div id="health" class="health">System wird geprüft …</div></div><button id="settings-button" class="settings-toggle" type="button" aria-label="Einstellungen öffnen" aria-haspopup="dialog" title="Rechner prüfen, Downloads und Konten einrichten"><span aria-hidden="true">⚙</span> Einstellungen</button><button id="help-button" class="help-toggle" type="button" aria-label="Hilfe zur Bedienung öffnen" aria-haspopup="dialog" title="Hilfe zur Bedienung öffnen">i</button><button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false" aria-label="Dunklen Modus aktivieren" title="Dunklen Modus aktivieren"><span class="theme-icon" aria-hidden="true">☾</span><span class="theme-label">Dunkel</span></button></div></header>
@@ -34,5 +34,14 @@
     </details><div id="create-progress"></div><div class="dialog-actions"><button type="button" class="ghost" data-close title="Auftrag schließen, ohne etwas anzulegen">Abbrechen</button><button id="create-submit" class="primary" title="Nur den Skriptentwurf erzeugen; noch kein Video oder Upload">Sprecher-Skript erstellen</button></div>
   </form></dialog>
   <dialog id="settings-dialog" aria-labelledby="settings-title"><div class="settings-shell"><div class="dialog-head"><div><small>DIESER RECHNER</small><h1 id="settings-title">Pipeline einrichten</h1></div><button id="settings-close" type="button" class="icon" aria-label="Einstellungen schließen">×</button></div><div id="settings-content"></div></div></dialog>
-  <div id="toast"></div><script src="/stickman.js?v=stickman-studio-3"></script><script src="/progress.js?v=voice-setup-3"></script><script src="/voices.js?v=voice-setup-3"></script><script src="/app.js?v=accounts-acceptance-2"></script><script src="/settings.js?v=accounts-acceptance-2"></script>
+  <dialog id="web-import-dialog" aria-labelledby="web-import-title"><form id="web-import-form">
+    <div class="dialog-head"><div><small>WEB-KI · MANUELLER IMPORT</small><h2 id="web-import-title">Antwort aus deiner Web-KI übernehmen</h2></div><button type="button" class="icon" id="web-import-close" aria-label="Webimport schließen">×</button></div>
+    <p id="web-import-stage"></p><p>Du entscheidest, welche Web-KI du verwendest. Anmeldung und Gratislimits gelten beim Anbieter. Der kopierte Prompt enthält deinen Text: Verwende nur Inhalte, die du dort teilen möchtest.</p>
+    <label>1 · Diesen Prompt in deiner Web-KI verwenden<textarea id="web-import-prompt" rows="5" readonly></textarea></label><button type="button" class="secondary" id="web-import-copy">Prompt kopieren</button>
+    <p class="field-hint"><a href="https://gemini.google.com/" target="_blank" rel="noopener noreferrer">Gemini öffnen ↗</a> · <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPT öffnen ↗</a>. Die Pipeline bedient diese Webseiten nicht automatisch.</p>
+    <label>2 · Vollständige Antwort einfügen<textarea id="web-import-response" rows="8" maxlength="300000" placeholder="Die komplette JSON-Antwort aus der Web-KI hier einfügen." required></textarea></label>
+    <p id="web-import-message" class="notice" role="status" aria-live="polite" hidden></p><div id="web-import-progress"></div>
+    <div class="dialog-actions"><button type="submit" class="primary" id="web-import-submit">Antwort prüfen und Skript übernehmen</button></div>
+  </form></dialog>
+  <div id="toast"></div><script src="/stickman.js?v=stickman-studio-3"></script><script src="/progress.js?v=voice-setup-3"></script><script src="/voices.js?v=voice-setup-3"></script><script src="/web-import.js?v=family-2"></script><script src="/app.js?v=family-2"></script><script src="/settings.js?v=family-2"></script>
 </body></html>

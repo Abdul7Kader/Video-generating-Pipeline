@@ -50,7 +50,9 @@ test('settings show a safe small-device recommendation and do not start download
   assert.match(html,/Konten und Anmeldungen/);
   assert.match(html,/Normales persönliches Google-Konto genügt/);
   assert.match(html,/begrenztes wöchentliches Basiskontingent/);
-  assert.match(html,/Gemini-Webversion und API · spätere Erweiterungen/);
+  assert.match(html,/Warum wir Gemini CLI nicht als Gratiszugang verwenden/);
+  assert.match(html,/Web-KI · manuell kopieren und einfügen/);
+  assert.match(html,/gesperrten Zusatzcredits/);
   assert.doesNotMatch(html,/<input[^>]*(?:password|token|api.key)/i);
   assert.equal(app.actions.find(action=>action.dataset.setupAction==='qwen_voice').disabled,true);
   assert.equal(app.requests.filter(request=>request.method==='POST').length,0);
@@ -78,7 +80,7 @@ test('cloud access check lists alternatives without switching or saving the mode
   const source=app.document.getElementById('settings-content').innerHTML;
   assert.match(source,/Aktiv für neue Skripte:<\/strong> Antigravity/);
   assert.match(source,/value="antigravity" selected/);
-  assert.match(source,/Lokale Skript-KI · optionale Alternative, für Antigravity nicht nötig/);
+  assert.match(source,/Lokale Skript-KI · optionale Alternative, für den gewählten Weg nicht nötig/);
   assert.match(source,/<details id="settings-local-tools" ><summary>/);
   assert.match(source,/Deine aktive Herstellung/);
   app.document.getElementById('settings-script').value='local';

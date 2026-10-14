@@ -173,3 +173,13 @@ Prüfungen: `python -m unittest tests.test_device_setup`, vollständige bestehen
 Backend-Suite und `node --test renderer/browser.test.mjs renderer/ink.test.mjs`.
 Tests decken Gerätebudgets, dauerhafte Konfiguration, unerlaubte Payloads,
 fremde Origins/Hosts, fehlende CSRF-Tokens sowie parallele Einrichtung ab.
+
+## Automatischer Gratiszugang und Webimport
+
+Antigravity verwendet das eigene berechtigte Google-Konto; Pro ist optional. Die
+Pipeline prüft vor jedem Aufruf, dass Zusatzcredits aus sind, ohne globale
+Kontoeinstellungen zu ändern. Eine neue Anmeldung erfolgt nur beim Hersteller.
+**Web-KI · manuell kopieren und einfügen** ist eine weitere speicherbare Skriptoption.
+Dafür wird kein lokales Sprachmodell heruntergeladen; Piper und Rendering bleiben
+rechnerabhängig. Gemini CLI ist wegen Googles Consumer-Abkündigung kein aktiver
+Familien-Gratisweg. [Einrichtung und Abnahmegrenzen](family-paths.md).

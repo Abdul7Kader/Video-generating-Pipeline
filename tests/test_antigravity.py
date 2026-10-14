@@ -330,6 +330,13 @@ class AntigravityAdapterTests(unittest.TestCase):
 
 
 class AntigravityCreditGuardTests(unittest.TestCase):
+    def test_unreadable_settings_do_not_look_like_the_default(self):
+        with patch('backend.antigravity.Path.stat',side_effect=PermissionError('private-test-path')):
+            with self.assertRaises(antigravity.AntigravityError) as failure:
+                antigravity.credit_guard()
+        self.assertEqual(failure.exception.code,'billing_unknown')
+        self.assertNotIn('private-test-path',str(failure.exception))
+
     def test_credit_guard_reads_manufacturer_default_and_explicit_false_without_writing(self):
         with tempfile.TemporaryDirectory() as folder, patch('backend.antigravity.Path.home',return_value=Path(folder)):
             self.assertEqual(antigravity.credit_guard()['credit_setting_source'],'manufacturer_default')

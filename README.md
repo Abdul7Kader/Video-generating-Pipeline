@@ -187,27 +187,28 @@ Das lokale Modell bearbeitet höchstens eine Skripterstellung gleichzeitig. Vor 
 
 Die vorhandenen Cloudadapter bleiben ausschließlich für eine spätere ausdrücklich gewählte Konfiguration erhalten. Sie werden nicht automatisch verwendet.
 
-### Gemini CLI mit Google AI Pro
+### Kostenloser automatischer Zugang und Webimport
 
-Wichtiger aktueller Produktstand: Google hat „Login with Google“ in Gemini CLI für private Gemini-Code-Assist-, Google-AI-Pro- und Google-AI-Ultra-Konten zum 18. Juni 2026 eingestellt. Der reale Login auf diesem Rechner endet deshalb mit `This client is no longer supported for Gemini Code Assist for individuals`. Gemini CLI bleibt laut Google nur mit Code Assist Standard/Enterprise unterstützt. Für Consumer-/Pro-Konten verweist Google auf Antigravity CLI. Quelle: <https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals>.
+Unter **⚙ Einstellungen → Skript-KI und Zugang** stehen Antigravity mit dem
+berechtigten eigenen Google-Konto, lokale Ollama-Modelle und der manuelle Webimport.
+Der automatische Antigravity-Weg verlangt kein Pro-Abo; der Anbieter begrenzt das
+Basiskontingent und Modellangebot. Vor jedem Aufruf prüft die Pipeline, dass
+Zusatzcredits ausgeschaltet sind. Sie aktiviert keine Tarife und überschreibt keine
+Kontoeinstellungen. Zugangsdaten bleiben im Herstellerdialog/-Schlüsselspeicher.
 
-Die sichere Gemini-CLI-Integration bleibt daher standardmäßig deaktiviert. Sie ist für ein künftig unterstütztes CLI-Profil beziehungsweise Code Assist Standard/Enterprise vorbereitet. Jedes Konto erhält ein getrenntes `GEMINI_CLI_HOME`; die Pipeline speichert oder zeigt keine Tokens, Cookies oder Passwörter. Profilverzeichnisse werden mit folgendem Skript eingerichtet und interaktiv angemeldet:
+Für **Web-KI · manuell kopieren und einfügen** sind zwei Übertragungen nötig:
+Sprechertext importieren und lesen/überarbeiten; nach Textfreigabe die Zeichenantwort
+importieren. Danach entstehen Stimme und Video lokal. Kein automatischer Weblogin,
+keine Einzelszenenfreigabe und kein Umgehen von Limits. Eine ungültige oder veraltete
+Antwort ersetzt keine gespeicherte Fassung. [Kurzanleitung und geprüfte Grenzen](docs/family-paths.md).
 
-```powershell
-.\scripts\gemini_profile.ps1 -Profile primary -Action login
-.\scripts\gemini_profile.ps1 -Profile secondary -Action login
-```
-
-Die Anmeldung erfolgt vollständig im offiziellen CLI-/Google-Dialog. Beim ersten Start wird der leere Profil-Arbeitsordner ausdrücklich als **nicht vertrauenswürdig** gewählt. Für Pipeline-Aufrufe sind alle Gemini-CLI-Tools per Policy gesperrt; Prompts werden über stdin übergeben und nicht als Kommandozeilenargument sichtbar. Der Pool zeigt keine erfundene Resttokenzahl. Raten-/Kontingentfehler führen zu einer Cooldown-Markierung und der aktuelle Schritt wird mit exakt derselben gespeicherten Eingabe über das nächste verfügbare Profil neu gestartet.
-
-Die Profile werden nur nach einem erfolgreichen, offiziell unterstützten Einzeltest aktiviert. Mit den vorhandenen Google-AI-Pro-Konten darf diese Einstellung derzeit **nicht** aktiviert werden:
-
-```dotenv
-GEMINI_CLI_ENABLED=1
-GEMINI_CLI_PROFILES=primary,secondary
-```
-
-Im Dialog **Neues Video** kann zwischen lokalem Qwen und der Gemini CLI gewählt werden. Der Gemini-Pfad speichert Themenbriefing, Struktur, vollständiges Sprecher-Skript, Szenenplan und Qualitätsprüfung einzeln mit Eingabe-/Ausgabehash, Modell, Profil und Prompt-Version. Nach einem Serverneustart werden abgeschlossene Schritte nicht erneut erzeugt. Die technische Spezifikation steht in `SPEC-gemini-cli-pool.md`.
+**Gemini CLI ist kein aktueller Consumer-Gratiszugang:** Googles spezielle
+[Abkündigung](https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals)
+(aktualisiert 09.10.2026) gilt seit 18.06.2026 auch für Gemini CLI. Allgemeine ältere
+CLI-Anleitungen widersprechen dem. Der frühere Profilpool in `SPEC-gemini-cli-pool.md`
+bleibt eingefrorener Verlauf und wird in der aktiven UI nicht angeboten.
+Ein echter Test mit dem eigenen kostenlosen Familienkonto und einem schwächeren
+Rechner bleibt gesonderte Abnahme; der vorhandene Nutzerzugang beweist keinen Tarif.
 
 Beispiel für eine ausdrückliche spätere Cloud-Auswahl:
 

@@ -36,12 +36,14 @@ from . import qwen_tts
 from .plan import object_sha256
 from . import setup
 from .device import load_preferences
+from . import web_import
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("video-pipeline")
 db = Database(settings.database_path)
 _voice_preview_slot = threading.BoundedSemaphore(1)
 _story_plan_slot = threading.BoundedSemaphore(1)
+_web_import_lock = threading.Lock()
 try:
     _gemini_profile_names = parse_profile_names(settings.gemini_cli_profiles)
 except ValueError:
@@ -154,7 +156,17 @@ app.include_router(setup.router)
 
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
+    loopback = {'localhost', '127.0.0.1', '::1'}
+    if request.url.hostname not in loopback or not request.client or request.client.host not in {'127.0.0.1', '::1'}:
+        return JSONResponse({'detail': 'Die Pipeline ist nur direkt auf diesem Rechner erreichbar.'}, status_code=403)
+    origin = request.headers.get('origin')
+    if request.headers.get('sec-fetch-site') == 'cross-site' or origin and origin != str(request.base_url).rstrip('/'):
+        return JSONResponse({'detail': 'Ein fremder Webauftritt darf die lokale Pipeline nicht aufrufen.'}, status_code=403)
     production = request.method in {'POST','PUT','PATCH','DELETE'} and (request.url.path.startswith('/api/jobs') or request.url.path == '/api/voice-previews')
+    if request.method == 'POST' and request.url.path.startswith('/api/jobs') and '/web-' in request.url.path:
+        length = request.headers.get('content-length', '')
+        if not length.isdecimal() or int(length) > 1500000:
+            return JSONResponse({'detail': 'Die Webimport-Anfrage braucht eine gültige Länge von höchstens 1,5 MB.'}, status_code=413)
     if request.url.path.startswith('/api/settings') and request.method != 'GET':
         length = request.headers.get('content-length', '')
         if not length.isdecimal() or int(length) > 8192:
@@ -215,7 +227,7 @@ def production_options():
     script_status = script_provider_status()
     profiles = gemini_cli_pool.statuses()
     preferences = load_preferences()
-    cloud_status = antigravity_status() if not preferences or preferences.script != 'local' else {'ready':False,'message':'Optional: Cloudprofil in den Einstellungen aktivieren.'}
+    cloud_status = antigravity_status() if not preferences or preferences.script == 'antigravity' else {'ready':False,'message':'Optional: Cloudprofil in den Einstellungen aktivieren.'}
     qwen_ready = bool(
         (script_status.get("provider") == "ollama" and script_status.get("ready"))
         or script_status.get("fallback_ready")
@@ -224,10 +236,7 @@ def production_options():
         qwen_ready = setup.local_service_safe()
     catalog = build_production_catalog(
         qwen_ready=qwen_ready,
-        gemini_cli_ready=bool(
-            settings.gemini_cli_enabled
-            and any(profile.get("status") == "available" for profile in profiles)
-        ),
+        gemini_cli_ready=bool(settings.gemini_cli_enabled and any(profile.get('status') == 'available' for profile in profiles)),
         antigravity_ready=bool(cloud_status.get("ready")),
         pexels_ready=bool(settings.pexels_api_key),
         piper_ready=bool(dependencies.get("piper_voice") or settings.piper_auto_download),
@@ -241,9 +250,10 @@ def production_options():
         qwen_tts_ready=qwen_tts.voice_status()["ready"],
     )
     preferences = load_preferences()
-    catalog['default_profile_id'] = 'cloud_stickman' if settings.script_provider == 'antigravity' else 'local_stickman'
+    defaults = {'antigravity': 'cloud_stickman', 'web_import': 'web_stickman'}
+    catalog['default_profile_id'] = defaults.get(settings.script_provider, 'local_stickman')
     if preferences:
-        catalog['default_profile_id'] = 'local_stickman' if preferences.script == 'local' else 'cloud_stickman'
+        catalog['default_profile_id'] = defaults.get(preferences.script, 'local_stickman')
         catalog['default_voice_id'] = 'qwen_narrator' if settings.tts_provider == 'qwen_tts' else 'thorsten'
     return catalog
 
@@ -337,6 +347,115 @@ def get_voice_preview(preview_id: str):
 @app.get("/api/jobs")
 def list_jobs():
     return db.list_jobs()
+
+
+def web_request(payload):
+    values = payload.model_dump()
+    config = normalize_production_config(values.get('production_config'), legacy_video_type=payload.video_type, legacy_script_provider=payload.script_generator)
+    require_active_production(config)
+    if config['script_provider'] != 'web_import':
+        raise ValueError('Wähle das Profil Web-KI · manuell kopieren und einfügen.')
+    validate_voice_language(config, payload.language)
+    return payload.model_copy(update={'production_config': ProductionConfig.model_validate(config), 'script_mode': 'story', 'video_type': 'stickman'})
+
+
+def current_web_story(job_id, payload):
+    current = require_job(job_id)
+    if current['production_config']['script_provider'] != 'web_import':
+        raise HTTPException(422, 'Dieser Auftrag nutzt keinen manuellen Webimport.')
+    if (current['script_version'] != payload.expected_version or current['script']['content_hash'] != payload.expected_hash
+            or not current['script']['integrity_verified']):
+        raise HTTPException(409, 'Die Textversion hat sich geändert. Neu laden und den aktuellen Prompt verwenden.')
+    if current['status'] in {'render_queued', 'rendering', 'publish_queued', 'publishing'}:
+        raise HTTPException(409, 'Der Auftrag wird bereits bearbeitet.')
+    request = JobCreate.model_validate({key: current[key] for key in ('topic', 'language', 'duration_seconds', 'aspect_ratio', 'production_config')})
+    return current, request
+
+
+@app.post('/api/jobs/web-prompt')
+def web_story_prompt(payload: web_import.WebStoryRequest):
+    try:
+        request = web_request(payload.request)
+        prompt, _ = web_import.story.story_prompt(request)
+        return {'prompt': web_import.prompt_text(prompt, web_import.story.StoryDraft.model_json_schema()), 'manual': True}
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+
+
+@app.post('/api/jobs/web-import', status_code=201)
+def import_web_story(payload: web_import.WebStoryRequest):
+    try:
+        request = web_request(payload.request)
+        if not request.generation_id:
+            raise ValueError('Für einen wiederholbaren Import fehlt die generation_id.')
+        identity = object_sha256({'request': request.model_dump(), 'response': payload.response})
+        job_id = str(uuid.uuid5(uuid.NAMESPACE_URL, 'video-pipeline:web-import:'+request.generation_id))
+        with _web_import_lock:
+            existing = db.get_job(job_id)
+            if existing:
+                if existing['script'].get('metadata', {}).get('web_input_hash') != identity:
+                    raise HTTPException(409, 'Diese Importkennung gehört zu einem anderen Entwurf. Lege einen neuen Auftrag an.')
+                return existing
+            script = web_import.validate_story(request, payload.response)
+            script['metadata'].update(manual_import=True, web_input_hash=identity)
+            return require_job(db.create_job(request.model_dump(), script, job_id=job_id))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+
+
+@app.post('/api/jobs/{job_id}/web-revision-prompt')
+def web_revision_prompt(job_id: str, payload: web_import.WebRevision):
+    current, request = current_web_story(job_id, payload)
+    prompt, _ = web_import.story.story_prompt(request, previous=current['script'], instructions=payload.instructions)
+    return {'prompt': web_import.prompt_text(prompt, web_import.story.StoryDraft.model_json_schema()), 'manual': True}
+
+
+@app.post('/api/jobs/{job_id}/web-revision-import')
+def import_web_revision(job_id: str, payload: web_import.WebRevision):
+    current, request = current_web_story(job_id, payload)
+    try:
+        revised = web_import.validate_story(request, payload.response, previous=current['script'], instructions=payload.instructions)
+        if script_hash(revised) == current['script']['content_hash'] and all(revised['metadata'].get(key) == current['script'].get('metadata', {}).get(key) for key in ('visual_summary', 'fact_check_notes')):
+            raise ValueError('Die Antwort enthält keine Änderung am Text oder an der Bildidee.')
+        revised['metadata'].update(manual_import=True, web_input_hash=current['script'].get('metadata', {}).get('web_input_hash'))
+        return db.update_script(job_id, payload.expected_version, revised)
+    except ValueError as exc:
+        raise HTTPException(409 if str(exc) in {'version_conflict', 'job_busy'} else 422, str(exc)) from None
+
+
+@app.post('/api/jobs/{job_id}/web-board-prompt')
+def web_board_prompt(job_id: str, payload: web_import.WebBoard):
+    current, request = current_web_story(job_id, payload)
+    try:
+        instruction = web_import.story.storyboard_instruction(request, current['script'])
+        prompt = web_import.planner._prompt(request, current['script'], instruction)
+        db.approve_script(job_id, payload.expected_version, payload.expected_hash)
+        return {'prompt': web_import.prompt_text(prompt, web_import.planner._response_schema()), 'manual': True,
+                'expected_version': payload.expected_version, 'expected_hash': payload.expected_hash}
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from None
+
+
+@app.post('/api/jobs/{job_id}/web-board-import')
+def import_web_board(job_id: str, payload: web_import.WebBoard):
+    existing = require_job(job_id)
+    metadata = existing['script'].get('metadata', {})
+    response_hash = object_sha256(payload.response)
+    if (existing['production_config']['script_provider'] == 'web_import' and existing['script']['integrity_verified']
+            and metadata.get('approved_story_version') == payload.expected_version
+            and metadata.get('approved_story_hash') == payload.expected_hash
+            and metadata.get('manual_board_hash') == response_hash
+            and existing['approved_script_hash'] == existing['render_script_hash'] == existing['script']['content_hash']):
+        return existing
+    current, request = current_web_story(job_id, payload)
+    if current['approved_script_version'] != payload.expected_version or current['approved_script_hash'] != payload.expected_hash:
+        raise HTTPException(409, 'Gib zuerst den aktuellen Text frei und kopiere seinen Zeichenprompt.')
+    try:
+        plan = web_import.validate_board(request, current['script'], payload.response)
+        plan['metadata']['manual_board_hash'] = response_hash
+        return db.queue_story_render(job_id, payload.expected_version, payload.expected_hash, plan)
+    except ValueError as exc:
+        raise HTTPException(409 if str(exc) in {'version_conflict', 'hash_conflict', 'script_integrity_error', 'job_busy'} else 422, str(exc)) from None
 
 
 @app.post("/api/jobs", status_code=201)

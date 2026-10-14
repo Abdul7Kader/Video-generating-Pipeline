@@ -62,13 +62,14 @@ class QwenVoiceTests(unittest.TestCase):
             (model / "speech_tokenizer/model.safetensors").unlink()
             self.assertFalse(qwen_tts.voice_status()["ready"])
 
+    # Worker protocol/timeout fixtures need a fixed budget; the resource-block test below verifies denial.
     def test_worker_uses_stdin_and_fixed_isolated_executable(self):
         output = self.root / "test.wav"
         narration = 'Mila sagt: "$() & python ../outside".'
         def run(request):
             self.assertEqual(request["text"], narration)
             self.write_audio(request["output"])
-        with patch("backend.qwen_tts.settings", self.settings), patch("backend.qwen_tts.voice_status", return_value={"ready": True}), patch("backend.qwen_tts._run_worker", side_effect=run):
+        with patch("backend.qwen_tts.settings", self.settings), patch("backend.qwen_tts.voice_status", return_value={"ready": True}), patch("backend.qwen_tts._run_worker", side_effect=run), patch("backend.device.device_info", return_value={}), patch("backend.device.recommendation", return_value={"qwen_suitable":True}):
             self.assertEqual(qwen_tts.synthesize(narration, output, "de", 1), ("qwen_tts", 1))
         self.assertTrue(output.is_file())
         self.assertFalse((self.root / "test.qwen-raw.wav").exists())
@@ -78,7 +79,7 @@ class QwenVoiceTests(unittest.TestCase):
         output.touch()
         raw = self.root / "failed.qwen-raw.wav"
         raw.touch()
-        with patch("backend.qwen_tts.settings", self.settings), patch("backend.qwen_tts.voice_status", return_value={"ready": True}), patch("backend.qwen_tts._run_worker", side_effect=subprocess.TimeoutExpired("worker", 60)):
+        with patch("backend.qwen_tts.settings", self.settings), patch("backend.qwen_tts.voice_status", return_value={"ready": True}), patch("backend.qwen_tts._run_worker", side_effect=subprocess.TimeoutExpired("worker", 60)), patch("backend.device.device_info", return_value={}), patch("backend.device.recommendation", return_value={"qwen_suitable":True}):
             with self.assertRaises(RuntimeError):
                 qwen_tts.synthesize("Mila liest ein Buch.", output, "de", 1)
         self.assertFalse(output.exists())

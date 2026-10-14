@@ -345,10 +345,13 @@ def task_status(request: Request):
 
 
 @router.get('/accounts')
-def accounts(request: Request, provider: Literal['local', 'antigravity', 'all'] = 'all',
+def accounts(request: Request, provider: Literal['local', 'antigravity', 'web_import', 'all'] = 'all',
              model: Annotated[str | None, Query(max_length=87, pattern=r'^gemini-[a-z0-9][a-z0-9.-]{0,79}$')] = None):
     require_local(request)
     from .antigravity import antigravity_status
+    if provider == 'web_import':
+        return {'web_import': {'ready': True, 'code': 'ready', 'message': 'Manuell: Prompt in deiner Web-KI verwenden und JSON-Antwort hier einfügen.',
+                              'next_step': 'Sprechertext und anschließend Zeichenplan importieren. Anmeldung und Limits gelten auf der gewählten Webseite.'}}
     if provider == 'antigravity':
         return {'antigravity': antigravity_status(model=model, refresh=True)}
     installed = ollama_models()

@@ -184,3 +184,13 @@ abgewiesen; beschädigte abgeleitete Cache-Dateien werden neu erzeugt. Diese Mes
 prüft keine Aussprache und ersetzt keine Hörabnahme. Keine neue Aussprache-Engine
 oder ASR integriert. Für die abschließende Abnahme von Schritt 10 bleiben echte
 Hör-/Filmproben mit verschiedenen Texten erforderlich.
+
+## Manueller Webweg (Schritt 13)
+
+Das Produktionsprofil **Web-KI · manuell kopieren und einfügen** braucht keinen
+installierten Skriptdienst. Prompt/Antwort für den Fließtext übertragen, lesen und
+Änderungswünsche per neuem Prompt überarbeiten lassen. **Text freigeben & Zeichenprompt
+öffnen** bindet den zweiten Import an genau diese Textversion. Erst die gültige
+Zeichenantwort startet das lokale Video. Worte, Motive, Regie, Kontinuität und
+Freigaben werden wie beim automatischen Weg geprüft. Keine Kontrolle einzelner
+Szenen und keine automatische Bedienung externer Webseiten. [Kurzanleitung](family-paths.md).

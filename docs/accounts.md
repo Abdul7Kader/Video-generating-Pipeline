@@ -37,7 +37,10 @@ Ordner mit dem Ausgabeschema; die reguläre Anmeldung sollte ebenfalls nicht in
 einem privaten Dokument-/Projektordner begonnen werden. Für Antigravity werden die jeweiligen Skript-/Bildplanprompts
 an Google übertragen. Ollama, Stimme und Rendering bleiben lokal.
 
-Gemini-Webimport und zusätzliche Free-Tier-API-Adapter sind **Schritt 12/13**.
+Schritte **12/13** ergänzen die Credit-Sperre des automatischen Antigravity-Wegs
+und den vollständigen manuellen Webimport für Text, Überarbeitung und Zeichenplan.
+[Einrichtung und Nachweise](family-paths.md). Gemini CLI wird wegen der aktuellen
+Consumer-Abkündigung nicht als Gratisalternative angeboten.
 Eine Anmeldung auf einer Webseite verbindet diese nicht mit der Pipeline.
 Ein echter Test mit dem kostenlosen Familienkonto erfolgt durch dessen Inhaber;
 der vorhandene Zugang auf diesem Rechner belegt keinen bestimmten Kontotarif.
@@ -51,3 +54,7 @@ Offizielle Quellen:
 - [Kontingentanzeige](https://antigravity.google/docs/cli/commands/usage/)
 - [Credit-Einstellung](https://www.antigravity.google/docs/cli/credits/)
 - [Remotion-Lizenz und Firmengröße](https://www.remotion.dev/docs/license/pricing)
+
+Vor jedem Antigravity-Aufruf muss `useG1Credits` in der dokumentierten CLI-Konfiguration
+aus sein. Bei eingeschalteten/nicht prüfbaren Zusatzcredits stoppt die Pipeline und
+ändert keine Kontoeinstellung. Tarif und verbleibendes Basiskontingent bleiben Herstellerangaben.

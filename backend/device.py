@@ -33,7 +33,7 @@ class MachinePreferences(BaseModel):
     model_config = ConfigDict(extra='forbid')
     model: ModelName
     voice: Literal['piper', 'qwen_tts'] = 'piper'
-    script: Literal['local', 'antigravity'] = 'local'
+    script: Literal['local', 'antigravity', 'web_import'] = 'local'
     antigravity_model: str | None = Field(default=None, max_length=87, pattern=r'^gemini-[a-z0-9][a-z0-9.-]{0,79}$')
     hardware: ManualHardware | None = None
 
@@ -115,7 +115,7 @@ def load_preferences():
 def apply_preferences(settings, preferences, *, adapt=False):
     detected = os.cpu_count()
     cores = min(detected,preferences.hardware.cpu_threads) if detected and preferences.hardware else (detected or (preferences.hardware.cpu_threads if preferences.hardware else 2))
-    values = {'script_provider': 'ollama' if preferences.script == 'local' else 'antigravity',
+    values = {'script_provider': 'ollama' if preferences.script == 'local' else preferences.script,
               'ollama_base_url': 'http://127.0.0.1:11434',
               'ollama_model': preferences.model, 'tts_provider': preferences.voice,
               'render_concurrency': 1 if cores < 8 else 2, 'qwen_tts_threads': max(1, min(8, cores // 2)),

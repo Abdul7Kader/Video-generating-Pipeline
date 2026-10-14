@@ -5,6 +5,12 @@ from typing import Any
 
 PROFILE_SPECS: tuple[dict[str, Any], ...] = (
     {
+        'id': 'web_stickman', 'label': 'Web-KI · manuell kopieren und einfügen',
+        'description': 'Prompts und geprüfte Antworten für Sprechertext und Zeichnungen übertragen; Stimme und Video lokal.',
+        'config': {'profile_id': 'web_stickman', 'video_type': 'stickman', 'script_provider': 'web_import',
+                   'media_provider': 'procedural_stickman', 'voice_provider': 'piper', 'editor': 'remotion'},
+    },
+    {
         "id": "cloud_stickman",
         "label": "Cloud-Qualität · Strichmännchen",
         "description": "Antigravity plant gezeichnete Geschichten: Figuren, Mimik, Schauplätze und Requisiten; lokale Erzählerstimme und Remotion.",
@@ -112,14 +118,14 @@ PROFILE_SPECS: tuple[dict[str, Any], ...] = (
 
 
 PROVIDER_IDS = {
-    "script": {"qwen", "gemini_cli", "antigravity"},
+    "script": {"qwen", "gemini_cli", "antigravity", "web_import"},
     "media": {"procedural_stickman", "pexels_stock", "generated_media", "moneyprinter_media", "podcast_layout"},
     "voice": {"piper", "qwen_tts", "gemini_tts", "moneyprinter_voice"},
     "editor": {"remotion", "moneyprinter", "podcast_editor"},
 }
 
 IMPLEMENTED_PROVIDER_IDS = {
-    "script": {"qwen", "gemini_cli", "antigravity"},
+    "script": {"qwen", "gemini_cli", "antigravity", "web_import"},
     "media": {"procedural_stickman", "pexels_stock"},
     "voice": {"piper", "qwen_tts", "gemini_tts"},
     "editor": {"remotion", "moneyprinter"},
@@ -154,6 +160,7 @@ def build_production_catalog(
         "script": [
             _provider("qwen", "Qwen 3.5 · lokal", qwen_ready, "Ollama oder das konfigurierte Qwen-Modell ist nicht erreichbar."),
             _provider("gemini_cli", "Gemini CLI", gemini_cli_ready, "Kein unterstütztes und verfügbares Gemini-CLI-Profil ist aktiviert."),
+            _provider('web_import', 'Web-KI · manueller Import', True),
             _provider("antigravity", "Antigravity", antigravity_ready, antigravity_reason),
         ],
         "media": [

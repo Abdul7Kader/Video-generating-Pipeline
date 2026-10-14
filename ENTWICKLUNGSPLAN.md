@@ -8,7 +8,11 @@ Mehrthemenprüfung mit vier Filmen und allgemeinen Pipelinekorrekturen abgeschlo
 aktueller npm-Produktionsaudit nach Nutzerfreigabe: 0 bekannte Schwachstellen.
 Die persönliche Sicht-/Hörfreigabe bleibt offen. Schritt 11 ist als Kontenübersicht
 mit regulärer Herstelleranmeldung und begrenztem kostenlosem Einstieg implementiert.
-Ein eigener Free-Tier-Familienkonto-Test und die Adapter von 12/13 bleiben offen.
+Schritte 12/13 technisch umgesetzt: Antigravity-Credit-Sperre und vollständiger
+manueller Webimport für Text/Überarbeitung/Zeichenplan. 264 Backend- und 18 UI-Tests,
+echter Provideraufruf und ein importiertes 25-s-Video geprüft. Externe Abnahme mit
+eigenem Free-Tier-Familienkonto und schwächerem Rechner bleibt offen.
+[Anleitung und Grenzen](docs/family-paths.md).
 Nachweise: [Mehrthemenprüfung](docs/acceptance-10.md), [Konten](docs/accounts.md).
 
 Bestehende Grundlagen aus 2–9:

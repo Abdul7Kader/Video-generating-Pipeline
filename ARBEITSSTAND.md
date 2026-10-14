@@ -6,7 +6,42 @@ Nummerierte Übersicht: [ENTWICKLUNGSPLAN.md](ENTWICKLUNGSPLAN.md).
 Detaillierter Plan: [tasks/plan.md](tasks/plan.md); Checkliste: [tasks/todo.md](tasks/todo.md).
 Schritte 1–10 schließen die Originalversion ab. Schritte 11–13 betreffen anschließend die Familienversion.
 
-## Aktuell: Schritt 10 und 11
+## Aktuelle Etappe: Schritte 12 und 13
+
+Technisch umgesetzt: automatischer Antigravity-Zugang mit eigenem berechtigtem
+Google-Konto, Credit-Sperre vor jedem Aufruf und begrenztem Herstellerkontingent;
+Pro ist optional. Der aktuelle Google-Consumer-Abkündigungshinweis hat Vorrang vor
+widersprechenden allgemeinen Gemini-CLI-Anleitungen. Gemini CLI wird nicht als
+Familien-Gratiszugang angeboten. Keine Tarif-/Kontoschalter überschrieben.
+
+Webimport vollständig: Prompt und Antwort für Fließtext, KI-Änderungswünsche und
+Zeichenplan übertragen. Textfreigabe bleibt an Version/Hash gebunden; Bildplan und
+Renderanspruch atomar gespeichert. Wörter bleiben unverändert. Schema-, Motiv-,
+Sprachanker-, Medien- und Kontinuitätsgates erhalten; keine Szenen-Einzelfreigabe.
+Neue Scriptoption unter Einstellungen, klare manuelle UI und Fortschritt während
+lokaler Prüfungen. Keine Browserautomation, keine Kontingentumgehung.
+
+Sicherheit: Zusatzcredits an/nicht prüfbar blockieren die CLI; keine fremden
+API-/Agentenvariablen vererbt. Loopback-, Origin- und Hostprüfung jetzt auf der
+gesamten Pipeline, auch Lese-/Importendpunkten. Bounded JSON, kein Modellcode,
+keine fremden Medienpfade, keine neuen Ports/Firewallregeln oder Pakete.
+
+Geprüft: Provider-/Negativtests, 264 Backend-Tests (1 regulärer Skip), 18 UI-Tests,
+Syntax/Diff; danach 21 gezielte Import-/Qwen- und 6 Startertests bestanden. Echter Antigravity-Test mit dem bestätigten Flash-High-Modell und
+neuem Umgebungsfilter erfolgreich. Genau ein notwendiger Webimport-Film: Auftrag
+`d8bdb271-6a21-51bb-8083-f941dad22f27`, v3, 25,02 s, Full HD, H.264/AAC,
+Qualitätsgate bestanden, Clipping 0, längste innere Pause 0,24 s. Browserimport,
+Überarbeitung, Fehlermeldungen und Player ohne Konsolenfehler geprüft. Testfixture,
+keine behauptete neue Web-KI-/Gratis-Familienkontoantwort.
+
+Offen bleibt die externe Abnahme mit dem eigenen kostenlosen Familienkonto,
+einer ausgewählten Web-KI und einem schwächeren physischen Rechner. Der vorhandene
+Nutzerzugang bestätigt keinen Kontotarif. [Einrichtung, Quellen, API und Nachweise](docs/family-paths.md).
+Code/Dokumentation geprüft und unter Abdul7Kader gesichert; Branch
+`codex/gemini-notebooklm-integration`. Laufende UI auf 127.0.0.1:8080,
+ursprünglicher Antigravity-/Piper-Standard erhalten. Keine weiteren Testvideos.
+
+## Vorherige Etappe: Schritt 10 und 11
 
 Schritt 11 ist als Kontenübersicht unter Einstellungen implementiert: reguläre
 Google-Anmeldung, begrenzter kostenloser Einstieg, optionale Abos, Modellprüfung
