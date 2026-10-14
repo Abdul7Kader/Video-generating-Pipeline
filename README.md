@@ -9,9 +9,12 @@ ohne Pro-Abos (Schritte 11–13). [Arbeitsstand](ARBEITSSTAND.md),
 halten Prioritäten und Bearbeitungsstatus fest.
 
 Kurze Werkzeugübersicht mit Anmeldung/Abo: [Technologiestech.md](Technologiestech.md).
+Aktuelle Anmeldung, kostenloses Google-Basiskontingent und optionale Abos:
+[Konten und Anmeldungen](docs/accounts.md), direkt unter ⚙ Einstellungen.
 Skripte erhalten eine begrenzte Textprüfung vor dem Speichern; Details und Grenzen:
 [Skript- und Freigabeablauf](docs/story-workflow.md). Während der Entwicklung werden
-keine routinemäßigen Testvideos in der UI erzeugt; die echte Videoabnahme folgt später.
+keine routinemäßigen Testvideos in der UI erzeugt. Die technische Mehrthemenprüfung
+ist [dokumentiert](docs/acceptance-10.md); die persönliche Sicht-/Hörfreigabe bleibt offen.
 
 Bildpläne prüfen eine begrenzte Gruppe erzählter Tiere, Gegenstände und Handlungen.
 Hände und gehaltene Gegenstände teilen einen Kontaktpunkt; abgelegte Gegenstände

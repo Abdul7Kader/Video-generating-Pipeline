@@ -2,7 +2,16 @@
 
 Stand: 2026-10-14. Vom Nutzer gewünschte Reihenfolge: zuerst die Originalversion fertigstellen, erst danach die Familienversion ohne Pro-Abos. Vorhandene Funktionen werden geprüft und verbessert; andere Videoarten bleiben ausgeblendet.
 
-Arbeitsstand: Schritte 2–9 technisch umgesetzt und automatisiert geprüft.
+Arbeitsstand: Schritte 1–9 technisch umgesetzt; Schritt 10 als technische
+Mehrthemenprüfung mit vier Filmen und allgemeinen Pipelinekorrekturen abgeschlossen.
+249 Backend-Tests (1 Skip), 35 Renderer- und 16 JS-Tests sowie TypeScript bestanden;
+aktueller npm-Produktionsaudit nach Nutzerfreigabe: 0 bekannte Schwachstellen.
+Die persönliche Sicht-/Hörfreigabe bleibt offen. Schritt 11 ist als Kontenübersicht
+mit regulärer Herstelleranmeldung und begrenztem kostenlosem Einstieg implementiert.
+Ein eigener Free-Tier-Familienkonto-Test und die Adapter von 12/13 bleiben offen.
+Nachweise: [Mehrthemenprüfung](docs/acceptance-10.md), [Konten](docs/accounts.md).
+
+Bestehende Grundlagen aus 2–9:
 Bildabdeckung für eine begrenzte Motivgruppe und Textanker/Ziele, gemeinsame
 Kontaktpunkte, Besitzwechsel und dauerhafte Tisch-/Koordinatenablage implementiert.
 Aktionen bleiben in ihrem Sprachfenster; Figuren- und Gegenstandszustände werden

@@ -16,7 +16,7 @@ Bearbeitungsstand: [ARBEITSSTAND.md](../ARBEITSSTAND.md) und [STATUS.md](../STAT
 - Ausführung durch die Anwendung ohne Codex oder einen steuernden Coding-Agenten. Für die Originalversion vorhandenen Anbieterzugang prüfen; keine unangekündigten Modellwechsel oder kostenpflichtigen Aktivierungen.
 - Schutzbedarf: Skripte, Videos, Kontozugänge und Host-Ressourcen. Browser-/Modellausgaben sind untrusted. Serverseitige Schema-, Pfad-, Herkunfts- und Ressourcenprüfungen; keine Shellbefehle aus Modellausgaben.
 - UI und eigene Dienste nur auf Loopback; keine Firewallfreigaben, Tunnel oder globalen Schutzänderungen. Zugangsdaten nur im offiziellen Anmeldedialog bzw. geschütztem lokalen Speicher, nicht in Logs oder Git.
-- Aktuelle Schwachstellenabfrage per `npm audit` wurde durch automatische Freigabeprüfung wegen externer Metadatenübermittlung blockiert. Vor erneuter Abfrage explizite Nutzerfreigabe einholen; kein positiver aktueller Auditnachweis behaupten.
+- Aktueller Produktionsaudit am 14.10.2026 nach ausdrücklicher Nutzerfreigabe: `npm audit --omit=dev --ignore-scripts --registry=https://registry.npmjs.org --json`, 0 bekannte Schwachstellen. Der frühere Metadaten-Blocker ist erledigt; keine Paketupdates oder Installationsskripte.
 - Neue ausdrückliche Nutzervorgabe: keine routinemäßigen Testvideos über die UI. Echte Videoproben nur bei zwingendem Prüfbedarf einer konkreten Änderung; ansonsten spätere Nutzerabnahme bzw. Schritt 10. Automatisierte Tests zuerst; keine Live-Abnahme vortäuschen.
 
 ## Originalversion: Schritte 1–10
@@ -102,6 +102,10 @@ Prozentwerte. 238 Backend-Tests (1 übersprungen), 16 JS-Tests, JS-Syntax und
 Browser normal/390 px geprüft. Kein Video und kein neuer Produktionsauftrag.
 
 ### 10. Originalversion mit mehreren Videos abnehmen und sichern
+Technische Mehrthemenprüfung abgeschlossen: vier Clips und allgemeine Fixes,
+249 Backend-/35 Renderer-/16 JS-Prüfungen, TypeScript, UI/Download und freigegebener
+npm-Produktionsaudit. [Nachweis und Grenzen](../docs/acceptance-10.md).
+Menschliche Sicht-/Hörfreigabe ist weiterhin ein offener Abnahmepunkt.
 Repräsentative Beispiele statt eines Einzelfixes verwenden: Tieradoption, Lernen, Gegenstandshandlung und eine einfache soziale Geschichte. Einrichtungs- und Produktionsfehler ebenfalls prüfen.
 - Abnahme: alle Beispiele zeigen wesentliche erzählte Akteure und Handlungen; Skriptfreigaben, Stimme, Audiofluss und Download stimmen. Grenzen und offene Risiken sind dokumentiert; Originalversion ist vor Start der Familienetappe abgeschlossen.
 - Prüfung: Backend-/Renderer-Tests, TypeScript-Prüfung, Browserablauf, reale Film-/Hörsichtung und Sicherheits-Negativfälle. Nur bei neuer Grundlage weitere Tests wiederholen.
@@ -112,6 +116,9 @@ Prüfpunkt nach 8–10: Originalversion erfüllt alle Abnahmen; Testergebnisse u
 ## Familienversion: erst danach, Schritte 11–13
 
 ### 11. Konten und kostenlose Anmeldewege erklären
+Implementiert und geprüft als Kontenübersicht mit Herstelleranmeldung,
+Verbindungsprüfung, kostenlosem Basiskontingent und optionalen Abos.
+[Quellen und Voraussetzungen](../docs/accounts.md); eigener Familienkonto-Test offen.
 Die zu diesem Zeitpunkt offiziell unterstützten kostenlosen Gemini-/Antigravity-Zugänge prüfen und unter Einstellungen klar darstellen: normales Konto, optionales Abo, Modellzugang und Limits.
 - Abnahme: kostenlose Konten werden nicht pauschal wegen eines fehlenden Pro-Abos ausgeschlossen; Herstelleranmeldung und Verbindungsprüfung sind verständlich. Keine Zugangsdaten in Logs, Browser-URLs oder Git.
 - Prüfung: offizielle Dokumentation, gezielte Einstellungs-/Provider-Tests und regulärer Anmeldetest durch den Kontoinhaber.

@@ -2,6 +2,47 @@
 
 Letzte Aktualisierung: 2026-10-14
 
+## Aktuelle Etappe: Schritt 10 und 11
+
+Kontenübersicht, reguläre Herstelleranmeldung und Hinweise zu kostenlosen
+Kontingenten/optionalen Abos unter Einstellungen eingebaut; Quellenstand und
+Datenschutzgrenzen in [docs/accounts.md](docs/accounts.md). Kein neuer API-/Webadapter,
+kein zusätzliches Abo und kein automatischer Modell-/Kontowechsel.
+
+Gemeinsame Pipelinekorrekturen: Zeichenplan-Validierungsfehler erreichen die
+begrenzte KI-Korrektur mit Feldregeln ohne abgewiesene Eingaben. Regal als eigenes
+Motiv, Bewegungsprüfung für erzähltes Verlassen, tatsächliche Höhenentwicklung über
+Schnitte, korrekter Boxgriff/Vordergrund und freies Gesicht beim Lesen. Renderer `ink-story-v9`.
+Auftrittsanker tolerieren ausschließlich Float-Rauschen bis 10⁻⁹ s;
+echte Sichtbarkeitsverletzungen bleiben gesperrt. Gruppenlektüre erhält einen Besitzer.
+Ein nachgewiesener alter Server ohne Listener nahm weiter Jobs an: nach geprüfter
+Leerlauf-/Instanzidentität beendet. Ein Stop unterbindet nun weitere Worker-Aufträge;
+Neustart wartet auf eine noch laufende registrierte Instanz.
+
+Getestet: 249 Backend-Tests (1 regulär übersprungen), 35 Renderer- und 16 JS-Tests,
+TypeScript und JS-Syntax. Aktueller npm-Audit nach ausdrücklicher Zustimmung:
+0 bekannte Produktionsschwachstellen. Frühere Audit-Blocker unten sind historisch
+und seit dieser Freigabe erledigt. Keine Installationsskripte oder Paketupdates.
+
+Echte Mehrthemen-Filmprüfung abgeschlossen: Katze Version 5 erfolgreich, 33,75 s,
+H.264/AAC, Audiopeak -1,5 dBFS, Clipping 0, längste innere Pause 0,15 s.
+Gezielte Filmframes sowie Player und identischer Download geprüft. Ursprung ist
+ein echter KI-Plan mit dokumentierten Testplan-Korrekturen, kein Nachweis einer
+fehlerfreien automatischen Katzenplanung. Lernen Version 3 (19,11 s),
+Buchübergabe Version 2 (16,09 s) und soziale Geschichte Version 3 (16,45 s)
+durch die automatische Bildplanung erzeugt und geprüft. Lernplan für den
+Rendererfix unverändert wiederverwendet; ursprünglicher Film bleibt erhalten.
+Alle vier Gates bestanden, Clipping jeweils 0, längste innere Pausen 0,15–0,23 s.
+Stop/Start tatsächlich mit vollständigem Prozessende geprüft; kein zweiter Worker.
+Bericht und Grenzen: [docs/acceptance-10.md](docs/acceptance-10.md).
+Menschliche Aussprache-/Natürlichkeitsabnahme und Free-Tier-Familienkonto-Test offen.
+
+Sicherheit: nur Loopback, bestehende Tool-/Schema-/Versions-/Origin-/Host-Sperren
+erhalten; keine Firewall-, Credit- oder Kontoeinstellungen geändert. Modelloutputs
+erhalten keine Werkzeuge/Systemrechte. Abnahmeberichte und Medien bleiben ignoriert.
+
+Die folgenden Etappen dokumentieren ihren damaligen Stand.
+
 ## Aktuelle Etappe vom 2026-10-14: Schritt 8 und 9
 
 Implementiert: Sprachpolitik `continuous-v2` kürzt lange Stille in deren Mitte und

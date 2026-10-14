@@ -6,6 +6,39 @@ Nummerierte Übersicht: [ENTWICKLUNGSPLAN.md](ENTWICKLUNGSPLAN.md).
 Detaillierter Plan: [tasks/plan.md](tasks/plan.md); Checkliste: [tasks/todo.md](tasks/todo.md).
 Schritte 1–10 schließen die Originalversion ab. Schritte 11–13 betreffen anschließend die Familienversion.
 
+## Aktuell: Schritt 10 und 11
+
+Schritt 11 ist als Kontenübersicht unter Einstellungen implementiert: reguläre
+Google-Anmeldung, begrenzter kostenloser Einstieg, optionale Abos, Modellprüfung
+und lokale Alternativen. Quellen und Grenzen: [docs/accounts.md](docs/accounts.md).
+Ein eigener Free-Tier-Familienkonto-Test und die Adapter von 12/13 bleiben offen.
+
+Schritt 10 technisch abgeschlossen: 249 Backend-Tests (1 regulärer Skip), 35 Renderer-Tests, 16 JS-Tests
+und TypeScript bestanden. Der npm-Produktionsaudit wurde nach ausdrücklicher
+Nutzerfreigabe erneut ausgeführt: 0 bekannte Schwachstellen. Keine Pakete geändert.
+Allgemeine Fixes betreffen Zeichenplan-Korrekturen, wörtliche Regale, erzählte
+Abgänge, Höhenwechsel, Boxgriff, Gesichtsfreiraum beim Lesen und Vordergrundzeichnung (`ink-story-v9`).
+Eine alte, bereits gestoppte Serverinstanz hatte weiterhin Jobs angenommen.
+Sie wurde nach Identitäts-/Leerlaufprüfung beendet; Start und Stop verhindern
+nun Weiterarbeiten einer herunterfahrenden Instanz bzw. vorzeitigen Neustart.
+
+Echte Mehrthemen-Prüfung mit dem bestätigten Antigravity-Modell High und
+Piper abgeschlossen: Katze Version 5 (33,75 s), Lernen Version 3 (19,11 s),
+Buchübergabe Version 2 (16,09 s), soziale Geschichte Version 3 (16,45 s).
+Alle Medien-/Audiogates bestanden; gezielte Filmframes und UI geprüft.
+Gemeinsame Lektüre hält nur einen Dokumentbesitzer. Ein Rundungsfehler am gesprochenen
+Auftritt wurde allgemein korrigiert. Stop/Start mit vollständigem Prozessende geprüft.
+Die Katzenprobe verwendet den echten
+KI-Plan mit explizit dokumentierter Testplan-Korrektur; sie beweist allein keine
+automatische Planungsgarantie. Menschliche Hör-/Filmabnahme bleibt offen.
+Nachweise lokal/ignoriert: `data/acceptance-10/`; keine Veröffentlichung.
+Bericht: [docs/acceptance-10.md](docs/acceptance-10.md). Nächster Prüfpunkt ist
+die menschliche Sicht-/Hörfreigabe; Schritt 12/13 bleibt ein späterer Auftrag.
+Git-Branch: `codex/gemini-notebooklm-integration`; verifizierter Autor/Committer
+Abdul7Kader mit GitHub-Noreply-Adresse. Geprüfte Änderungen werden zum Abschluss gepusht.
+
+## Historischer Stand bis Schritt 9
+
 Dokumentationsstand: Schritte 2–9 technisch umgesetzt; echte Hör-/Filmabnahme bleibt Schritt 10. Schritt 6 begrenzt Aktionen auf verfügbare Sprachfenster und lässt Gesten auslaufen; Laufwege mit altem `end_x` bekommen einen erkannten gesprochenen Bewegungsanker. Schritt 7 prüft wiederkehrende Figuren-/Objektmerkmale, übergibt Besitz über stabile Gegenstands-IDs bzw. eindeutige Typen und erhält Ablage- und Ruhe-/Schlafzustände. Der Renderer übernimmt tatsächliche Endpositionen im selben Schauplatz einschließlich Haltegriff und Bewegungsphase. Renderer-Version `ink-story-v6` verhindert alte Asset-Zuordnungen.
 
 Prüfstand 6–7: 234 Backend-Tests ausgeführt, einer regulär übersprungen; 31 Renderer-Tests, TypeScript, Backend-Syntax und Diff-Prüfung. Acht PNG-Standbilder vor/nach Schnitten aus vier Abschnitten in `data/continuity-proof/` (16:9/9:16) visuell kontrolliert. Früherer Stand 4–5: 224 Backend-/28 Renderer-Tests und zehn PNGs unter `data/contact-proof/`. Kein Testvideo, kein echtes Audio, keine KI-Inferenz und kein neuer Produktionsauftrag. Redaktionelle und echte Videoabnahme bleiben offen.

@@ -38,9 +38,9 @@ Erledigung von 2–7 ist keine Behauptung einer bestandenen Live-/Qualitätsabna
 - [x] Bestätigtes Gemini 3.8 Flash (High) lokal als aktives Skriptmodell speichern und zurücklesen
 - [x] Änderungswünsche vor versehentlicher Freigabe schützen
 - [x] Bildplan, Freigabe und Renderauftrag atomar speichern; Render-Wiederholung ohne neue KI-Planung
-- [ ] Vollständiger Echtlauf mit ausdrücklich gewähltem verfügbarem Skriptmodell
+- [x] Vollständiger Echtlauf mit ausdrücklich gewähltem verfügbarem Skriptmodell; native Lern-/Übergabe-/Sozialplanung und Film geprüft
 
-- [ ] 1. Tatsächlichen Skriptanbieterzugang prüfen und verständlich anzeigen
+- [x] 1. Tatsächlichen Skriptanbieterzugang prüfen und verständlich anzeigen; Anmeldung/Modellangebot und echte High-Skripte nachgewiesen
 - [x] 2. Fließtext-/Überarbeitungs-/Freigabeablauf technisch abschließen und automatisiert prüfen
 - [x] 3. Skriptqualität durch Kontext, Wortbudget und Textprüfungen verbessern; Themen-/Längenfixtures prüfen
 - [x] 4. Begrenzte Motivgruppe und zentrale erkannte Handlungen sichtbar abdecken, automatisiert prüfen
@@ -51,12 +51,18 @@ Erledigung von 2–7 ist keine Behauptung einer bestandenen Live-/Qualitätsabna
 - [x] Prüfpunkt 5–7 technisch: Kontakt, Aktionstakte und Schnittzustände testen; Film-/Audioabnahme bleibt später
 - [x] 8. Stimmqualität und Sprachfluss technisch verbessern; zwei kurze echte Hörproben, Aussprache-/Geschmacksabnahme in 10
 - [x] 9. Verständliche UI, aktive Einrichtung und ehrliche Fortschrittsanzeige; Browser normal/390 px geprüft
-- [ ] 10. Originalversion mit mehreren Videos abnehmen, dokumentieren, prüfen und sichern/pushen
+- [x] 10. Technische Mehrthemenprüfung, allgemeine Fixes, Dokumentation und Sicherung/Push; menschliche Sicht-/Hörfreigabe bleibt offen
 - [ ] Prüfpunkt 8–10: Originalversion abgeschlossen; Grenzen und Prüfergebnisse dokumentiert
 
 Erst nach Abschluss von 10:
 
-- [ ] 11. Konten und offiziell unterstützte kostenlose Anmeldewege unter Einstellungen erklären
+Stand 10–11: vier kurze Filme geprüft; 249 Backend-Tests (1 Skip), 35 Renderer-
+und 16 JS-Tests, TypeScript, UI/Download und npm-Produktionsaudit (0 bekannte
+Schwachstellen nach Nutzerfreigabe). [Abnahmebericht](../docs/acceptance-10.md).
+Schritt 11 als Informations-/Anmeldebereich auf ausdrücklichen Auftrag umgesetzt;
+12/13 und echter Free-Tier-Familienkonto-Test bleiben offen.
+
+- [x] 11. Konten und offiziell unterstützte kostenlose Anmeldewege unter Einstellungen erklären; eigener Familienkonto-Test bleibt offen
 - [ ] 12. Kostenlosen automatischen Skriptweg mit eigenem Familienzugang ergänzen
 - [ ] 13. Webversion als validierten Prompt-/Ergebnisimport ergänzen; zulässige Automation gesondert bewerten
 - [ ] Abschlussprüfpunkt: echter Familienablauf ohne Pro-Pflicht oder versteckte Kosten; Review und autorisierter Push
