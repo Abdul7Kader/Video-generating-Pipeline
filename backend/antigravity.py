@@ -27,6 +27,8 @@ _ERROR_MESSAGES = {
     "quota_or_capacity": "Antigravity ist wegen Kontingent- oder Kapazitätsgrenzen vorübergehend nicht verfügbar.",
     "unavailable": "Antigravity konnte den Skriptauftrag nicht abschließen.",
     "model_unavailable": "Du bist angemeldet, aber das gewählte Modell wird für dieses Konto nicht angeboten.",
+    "credits_enabled": "Antigravity erlaubt derzeit Zusatzcredits. Schalte in 'agy' unter /config 'Use G1 Credits' aus. Die Pipeline ändert keine Kontoeinstellungen und startet bis dahin keine Skripterzeugung.",
+    "billing_unknown": "Die Antigravity-Credit-Einstellung konnte nicht sicher geprüft werden. Prüfe die Herstellerkonfiguration oder nutze den manuellen Webimport.",
 }
 
 
@@ -51,6 +53,32 @@ def _executable() -> str:
     if not executable:
         raise AntigravityError("missing")
     return executable
+
+
+def credit_guard() -> dict[str, str | bool]:
+    """Check the documented CLI setting without modifying global account state."""
+    path = Path.home() / '.gemini' / 'antigravity-cli' / 'settings.json'
+    try:
+        if not path.exists():
+            return {'extra_credits_allowed': False, 'credit_setting_source': 'manufacturer_default'}
+        if path.stat().st_size > 65536:
+            raise ValueError()
+        value = json.loads(path.read_text(encoding='utf-8-sig'))
+        credits = value.get('useG1Credits', False)
+        if not isinstance(credits, bool):
+            raise ValueError()
+        if credits:
+            raise AntigravityError('credits_enabled')
+        return {'extra_credits_allowed': False, 'credit_setting_source': 'manufacturer_settings'}
+    except (OSError, ValueError, AttributeError, RecursionError):
+        raise AntigravityError('billing_unknown') from None
+
+
+def _safe_environment():
+    # Keep the manufacturer's own login, excluding API/billing keys and unrelated secrets.
+    allowed = {'PATH','PATHEXT','SYSTEMROOT','WINDIR','COMSPEC','APPDATA','LOCALAPPDATA','USERPROFILE',
+               'HOME','TEMP','TMP','TMPDIR','LANG','LC_ALL','TZ','HOMEDRIVE','HOMEPATH','SYSTEMDRIVE'}
+    return {key: value for key, value in os.environ.items() if key.upper() in allowed}
 
 
 def _classify_failure(diagnostic: str) -> str:
@@ -82,6 +110,7 @@ def _metrics(result: dict[str, Any]) -> dict[str, Any]:
 
 def _invoke_cli(prompt: str, schema: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     executable = _executable()
+    billing = credit_guard()
     # The CLI can leave a child holding its working directory briefly on Windows.
     # Cleanup must not replace a valid response or the sanitized provider error.
     # Only the bounded JSON schema is written here; prompts stay on stdin.
@@ -106,6 +135,7 @@ def _invoke_cli(prompt: str, schema: dict[str, Any]) -> tuple[dict[str, Any], di
             process = subprocess.Popen(
                 command,
                 cwd=str(workspace),
+                env=_safe_environment(),
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -165,7 +195,7 @@ def _invoke_cli(prompt: str, schema: dict[str, Any]) -> tuple[dict[str, Any], di
     structured = result.get("structured_output")
     if not isinstance(structured, dict):
         raise AntigravityError("invalid_response")
-    return structured, _metrics(result)
+    return structured, {**_metrics(result), **billing, 'billing_policy': 'baseline-only'}
 
 
 def generate_structured(prompt: str, schema: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -231,6 +261,10 @@ def antigravity_status(*, model: str | None = None, refresh: bool = False) -> di
         status['installed'] = False
         return failed("missing", "Installiere die offizielle Antigravity-CLI und starte die Pipeline danach neu.")
     status['installed'] = True
+    try:
+        status.update(credit_guard(), credit_policy_checked=True)
+    except AntigravityError as exc:
+        return failed(exc.code, 'Schalte Use G1 Credits in der Hersteller-CLI aus. Die Pipeline überschreibt die Einstellung nicht; Webimport ist eine Alternative.')
     with _STATUS_LOCK:
         cached = _STATUS_CACHE
         if not refresh and cached and cached[:2] == (executable, model) and time.monotonic() - cached[2] < 30:
@@ -242,6 +276,7 @@ def antigravity_status(*, model: str | None = None, refresh: bool = False) -> di
                 result = subprocess.run(
                     [executable, "--log-file", os.devnull, "models"],
                     cwd=workspace,
+                    env=_safe_environment(),
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,

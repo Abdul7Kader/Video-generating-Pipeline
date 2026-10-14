@@ -10,6 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from backend import antigravity
 from backend.antigravity import AntigravityError, _invoke_cli, _classify_failure, antigravity_status, generate_structured
 
 
@@ -77,6 +78,11 @@ def success_stream(output: dict) -> str:
 
 
 class AntigravityAdapterTests(unittest.TestCase):
+    def setUp(self):
+        guard=patch('backend.antigravity.credit_guard',return_value={'extra_credits_allowed':False,'credit_setting_source':'manufacturer_settings'})
+        guard.start()
+        self.addCleanup(guard.stop)
+
     def test_status_distinguishes_login_connection_quota_and_timeout_without_leaking_diagnostics(self):
         for diagnostic, code, authenticated in [('unauthenticated private-token', 'auth_required', False),
                                                 ('connection refused private-token', 'unavailable', None),
@@ -321,6 +327,40 @@ class AntigravityAdapterTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(len(results), 2)
         self.assertEqual(results[0], results[1])
+
+
+class AntigravityCreditGuardTests(unittest.TestCase):
+    def test_credit_guard_reads_manufacturer_default_and_explicit_false_without_writing(self):
+        with tempfile.TemporaryDirectory() as folder, patch('backend.antigravity.Path.home',return_value=Path(folder)):
+            self.assertEqual(antigravity.credit_guard()['credit_setting_source'],'manufacturer_default')
+            path=Path(folder)/'.gemini/antigravity-cli/settings.json'
+            path.parent.mkdir(parents=True)
+            text='{"useG1Credits":false,"other":"private-test-value"}'
+            path.write_text(text)
+            self.assertFalse(antigravity.credit_guard()['extra_credits_allowed'])
+            self.assertEqual(path.read_text(),text)
+
+    def test_enabled_unknown_and_oversized_credit_settings_stop_before_any_cli_call(self):
+        for text,code in [('{"useG1Credits":true}','credits_enabled'),('{"useG1Credits":"false"}','billing_unknown'),('private-test-invalid','billing_unknown'),('x'*65537,'billing_unknown')]:
+            with self.subTest(code=code),tempfile.TemporaryDirectory() as folder,patch('backend.antigravity.Path.home',return_value=Path(folder)),patch('backend.antigravity._executable',return_value='agy'),patch('backend.antigravity.subprocess.Popen') as process:
+                path=Path(folder)/'.gemini/antigravity-cli/settings.json';path.parent.mkdir(parents=True);path.write_text(text)
+                with self.assertRaises(antigravity.AntigravityError) as failure:
+                    antigravity._invoke_cli('prompt',{})
+                self.assertEqual(failure.exception.code,code)
+                self.assertNotIn('private-test-invalid',str(failure.exception))
+                process.assert_not_called()
+                self.assertEqual(path.read_text(),text)
+
+    def test_script_cli_does_not_inherit_api_keys_or_agent_environment(self):
+        from tests.test_antigravity import FakeProcess,adapter_settings
+        process=FakeProcess(json.dumps({'event':'result','result':{'status':'SUCCESS','structured_output':{'ok':True}}}))
+        with patch('backend.antigravity.settings',adapter_settings()),patch('backend.antigravity.shutil.which',return_value='agy'),patch('backend.antigravity.credit_guard',return_value={'extra_credits_allowed':False}),patch('backend.antigravity.subprocess.Popen',return_value=process) as start,patch.dict(os.environ,{'GEMINI_API_KEY':'private-test-key','OPENAI_API_KEY':'private-other','AGY_CONFIG_FILE':'private-path','NODE_OPTIONS':'private-hook'}):
+            _,metrics=antigravity._invoke_cli('private-input',{'type':'object'})
+        for key in ['GEMINI_API_KEY','OPENAI_API_KEY','AGY_CONFIG_FILE','NODE_OPTIONS']:
+            self.assertNotIn(key,start.call_args.kwargs['env'])
+        self.assertEqual(metrics['billing_policy'],'baseline-only')
+        self.assertFalse(metrics['extra_credits_allowed'])
+
 
 
 if __name__ == "__main__":
