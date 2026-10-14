@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-RENDERER_VERSION = "ink-story-v6"
+RENDERER_VERSION = "ink-story-v8"
 PORTABLE_PROPS = {'phone', 'book', 'basket', 'rock', 'spear', 'food', 'water', 'bowl', 'carrier', 'document'}
 Pose = Literal["stand", "walk", "run", "point", "think", "shrug", "sit", "sleep", "work", "gather", "carry", "celebrate", "talk", "pick", "place", "read", "pet", "feed", "sniff"]
 Expression = Literal["neutral", "happy", "sad", "worried", "angry", "surprised", "tired", "determined"]
@@ -65,7 +65,7 @@ class Character(DrawingModel):
 
 class Prop(DrawingModel):
     id: str | None = Field(default=None, pattern=r'^[a-zA-Z0-9_-]{1,32}$', description='Stable object identity across shots; required for multiple portable objects of the same kind.')
-    kind: Literal["clock", "laptop", "desk", "chair", "bed", "phone", "book", "tree", "bush", "fire", "spear", "basket", "rock", "sun", "moon", "cloud", "house", "food", "water", "gear", "lightbulb", "arrow", "question", "check", "cross", "heart", "chart", "carrier", "pet_bed", "bowl", "litter_box", "cat_tree", "document"]
+    kind: Literal["clock", "laptop", "desk", "chair", "bed", "phone", "book", "tree", "bush", "fire", "spear", "basket", "rock", "sun", "moon", "cloud", "house", "food", "water", "gear", "lightbulb", "arrow", "question", "check", "cross", "heart", "chart", "carrier", "pet_bed", "bowl", "litter_box", "cat_tree", "shelf", "document"]
     x: float = Field(default=65, ge=5, le=95)
     y: float = Field(default=76, ge=15, le=84)
     scale: float = Field(default=1, ge=0.3, le=2)

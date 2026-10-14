@@ -6,7 +6,7 @@ import math
 import re
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError
 
 from . import planner
 from .antigravity import AntigravityError, generate_structured
@@ -70,6 +70,11 @@ No scene headings, timestamps, camera directions, bullet lists or repeated intro
 Use vivid specific examples and connected prose. No filler or unrequested promotional call to action.
 Use short, naturally spoken sentences, clear references and consistent names. Explain unfamiliar terms simply.
 Prefer observable actions and concrete objects that can be illustrated; do not replace the subject with metaphors.
+Keep invented details within the drawing vocabulary: people, cats/dogs; books, documents, phones,
+laptops, desks/chairs, shelves, beds, pet equipment and simple room/outdoor settings.
+Prefer supported visible actions: walking, running, sitting/resting, sniffing, picking/carrying/placing,
+reading, typing, pointing/talking, celebrating, petting and feeding. Do not invent extra precise
+actions such as climbing, embracing or cheek rubbing when the topic does not require them.
 Avoid unsupported numbers and factual certainty; list claims needing verification in fact_check_notes.
 visual_summary describes in flowing prose how the story could look: the actual central subjects,
 their interactions and visible changes, not just a presenter, metaphor or a collection of icons.
@@ -152,7 +157,7 @@ shorten, expand or add an introduction. Shot lengths follow speech; no fixed fiv
 Keep title and description. Build literal visible actions and their consequences, with a consistent cast.
 Central subjects must actually be drawn. A cat is a character with species=cat, not a human or icon.
 When an animal is mentioned, show that same animal; show petting, approaching, sniffing and transport.
-Use carrier, pet_bed, bowl, litter_box and cat_tree for pet equipment, not similar human furniture.
+Draw shelf for a shelf or Regal. Use cat_tree only when a Kratzbaum is named. Pet equipment uses carrier, pet_bed, bowl or litter_box, never substitutes for other named furniture.
 Follow the drawing schema strictly. Check all speech anchors and object/character references.
 Show literal books, phones, laptops and documents when narrated. Reading requires read targeting
 the book/document/phone, typing requires work targeting the laptop. Picking, carrying and placing
@@ -173,8 +178,13 @@ USER CHANGE REQUEST (not spoken): {approved_script.get('metadata', {}).get('visu
     for attempt in range(2):
         try:
             plan = planner.generate_script(request, previous=approved_script, instructions=instruction)
-        except ValueError:
-            issues = ['Der Zeichenplan ist ungültig. Prüfe stabile Figuren-/Gegenstands-IDs und Merkmale, gehaltene Objekte nach Schnitten, vorheriges Ablegen, Verweise und exakte Textanker.']
+        except ValueError as exc:
+            if isinstance(exc, ValidationError):
+                detail = '; '.join('.'.join(map(str,item['loc']))+': '+item['msg'][:240]
+                                   for item in exc.errors(include_input=False,include_context=False,include_url=False)[:6])
+            else:
+                detail = str(exc)[:1200]
+            issues = ['Der Zeichenplan ist ungültig. Korrigiere diese geprüften Regeln: '+detail[:1200]]
             instruction += '\n' + issues[0]
             continue
         issues = visual_coverage_issues(plan['scenes'], request.topic)

@@ -34,6 +34,18 @@ async def request(method, path, value=None, headers=None):
 
 
 class SettingsApiTests(unittest.IsolatedAsyncioTestCase):
+    async def test_personal_cloud_access_needs_no_subscription_claim_and_leaks_no_cli_identity(self):
+        config=SimpleNamespace(antigravity_enabled=True,antigravity_command='agy',antigravity_model='gemini-3.8-flash-high')
+        result=SimpleNamespace(returncode=0,stdout='private-test-session\ngemini-3.8-flash-high\tGemini Flash\n',stderr='')
+        with patch('backend.antigravity.settings',config),patch('backend.antigravity._STATUS_CACHE',None),patch('backend.antigravity.shutil.which',return_value='agy'),patch('backend.antigravity.subprocess.run',return_value=result):
+            status,value=await request('GET','/api/settings/accounts?provider=antigravity')
+        self.assertEqual(status,200)
+        self.assertTrue(value['antigravity']['ready'])
+        self.assertTrue(value['antigravity']['account_required'])
+        self.assertFalse(value['antigravity']['subscription_required'])
+        self.assertEqual(value['antigravity']['billing'],'not_checked')
+        self.assertNotIn('private-test-session',json.dumps(value))
+
     async def test_local_access_needs_a_running_model_and_does_not_contact_cloud(self):
         with patch('backend.setup.settings', SimpleNamespace(ollama_model='qwen3.5:4b')), patch('backend.setup.ollama_executable', return_value='ollama'), patch('backend.setup.ollama_models', return_value=None), patch('backend.antigravity.antigravity_status') as cloud:
             status, value = await request('GET', '/api/settings/accounts?provider=local')

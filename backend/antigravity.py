@@ -54,10 +54,10 @@ def _executable() -> str:
 
 
 def _classify_failure(diagnostic: str) -> str:
-    text = diagnostic.casefold()
-    if any(marker in text for marker in ("not logged", "sign in", "authentication required", "unauthenticated", "unauthorized", "login required")):
+    text = diagnostic.casefold().replace('_', ' ')
+    if any(marker in text for marker in ("not logged", "sign in", "authentication required", "auth required", "authentication failed", "unauthenticated", "unauthorized", "login required")):
         return "auth_required"
-    if any(marker in text for marker in ("quota", "rate limit", "resource exhausted", "capacity")):
+    if any(marker in text for marker in ("quota", "rate limit", "resource exhausted", "capacity", "too many requests")) or re.search(r'\b429\b', text):
         return "quota_or_capacity"
     if "timeout" in text or "timed out" in text:
         return "timeout"
@@ -191,12 +191,19 @@ def generate_structured(prompt: str, schema: dict[str, Any]) -> tuple[dict[str, 
 
     if not leader:
         try:
-            return copy.deepcopy(in_flight.result(timeout=settings.antigravity_timeout_seconds + 30))
+            return copy.deepcopy(in_flight.result(timeout=2 * (settings.antigravity_timeout_seconds + 15) + 30))
         except FutureTimeoutError as exc:
             raise AntigravityError("timeout") from exc
 
     try:
-        result = _invoke_cli(prompt, schema)
+        try:
+            result = _invoke_cli(prompt, schema)
+        except AntigravityError as exc:
+            if exc.code != 'unavailable':
+                raise
+            # One retry for a general provider failure; never retry quota, auth or policy errors.
+            output, metrics = _invoke_cli(prompt, schema)
+            result = (output, {**metrics, 'provider_attempts': 2, 'provider_retry_reason': exc.code})
         in_flight.set_result(copy.deepcopy(result))
         return result
     except BaseException as exc:
@@ -213,6 +220,7 @@ def antigravity_status(*, model: str | None = None, refresh: bool = False) -> di
     model = model or settings.antigravity_model
     status = {"ready": False, "provider": "antigravity", "model": model,
               "installed": None, "authenticated": None, "available_models": [],
+              "account_required": True, "subscription_required": False,
               "quota": "not_checked", "billing": "not_checked"}
     def failed(code, next_step):
         return {**status, "code": code, "message": str(AntigravityError(code)), "next_step": next_step}

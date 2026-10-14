@@ -10,7 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from backend.antigravity import AntigravityError, _invoke_cli, antigravity_status, generate_structured
+from backend.antigravity import AntigravityError, _invoke_cli, _classify_failure, antigravity_status, generate_structured
 
 
 SCHEMA = {
@@ -127,6 +127,9 @@ class AntigravityAdapterTests(unittest.TestCase):
              patch("backend.antigravity.subprocess.run", return_value=SimpleNamespace(returncode=0, stdout=models)) as run:
             status = antigravity_status()
         self.assertTrue(status["ready"])
+        self.assertTrue(status['account_required'])
+        self.assertFalse(status['subscription_required'])
+        self.assertEqual(status['billing'],'not_checked')
         self.assertEqual(status["model"], "gemini-3.1-pro-high")
         self.assertIn("models", run.call_args.args[0])
         self.assertIn("--log-file", run.call_args.args[0])
@@ -270,6 +273,23 @@ class AntigravityAdapterTests(unittest.TestCase):
                 _invoke_cli("topic", SCHEMA)
         self.assertEqual(raised.exception.code, "unavailable")
         self.assertNotIn("secret-user-path", str(raised.exception))
+
+    def test_general_provider_failure_retries_once_and_records_only_its_category(self):
+        with patch('backend.antigravity.settings',adapter_settings()),patch('backend.antigravity._invoke_cli',side_effect=[AntigravityError('unavailable'),({'answer':'ok'},{'model':'chosen'})]) as invoke:
+            output,metrics=generate_structured('bounded retry',SCHEMA)
+        self.assertEqual(output,{'answer':'ok'})
+        self.assertEqual(invoke.call_count,2)
+        self.assertEqual(metrics['provider_attempts'],2)
+        self.assertEqual(metrics['provider_retry_reason'],'unavailable')
+
+    def test_retry_budget_never_retries_auth_quota_timeout_invalid_output_or_policy_errors(self):
+        for code in ('auth_required','quota_or_capacity','timeout','invalid_response','policy_violation','missing','model_unavailable','unavailable'):
+            with self.subTest(code=code),patch('backend.antigravity.settings',adapter_settings()),patch('backend.antigravity._invoke_cli',side_effect=AntigravityError(code)) as invoke:
+                with self.assertRaises(AntigravityError):generate_structured('bounded failure',SCHEMA)
+                self.assertEqual(invoke.call_count,2 if code=='unavailable' else 1)
+        for diagnostic in ('RESOURCE_EXHAUSTED','HTTP 429','too many requests','RATE_LIMIT_EXCEEDED'):
+            self.assertEqual(_classify_failure(diagnostic),'quota_or_capacity')
+        self.assertEqual(_classify_failure('AUTH_REQUIRED'),'auth_required')
 
     def test_identical_concurrent_requests_share_one_cli_run(self):
         entered = threading.Event()

@@ -14,6 +14,7 @@ OBJECTS = {
     'pet_bed': r'\b(?:katzenbett|kuschelbett|katzenkörbchen|pet bed)\b',
     'bowl': r'\b(?:napf|näpfe|näpfen|futternapf|wassernapf|bowl[s]?)\b',
     'litter_box': r'\b(?:katzenklo|katzentoilette|litter box)\b',
+    'shelf': r'\b(?:holzregal|regal[e]?|shelf|shelves)\b',
     'cat_tree': r'\b(?:kratzbaum|cat tree)\b',
     'book': r'\b(?:buch|bücher[n]?|book[s]?)\b',
     'phone': r'\b(?:telefon|handy|smartphone[s]?|phone[s]?)\b',
@@ -67,6 +68,19 @@ def _action_issues(scene, central, previous_text=''):
     issues = []
     for sentence in re.finditer(r'[^.!?]+', text):
         fragment = sentence.group()
+        departure = re.search(r'\b(?:verlassen|verlässt)\s+(?:die beiden\s+)?(?:das|den|die)\s+(?:Tierheim|Raum|Zimmer|Haus|Ort)\b', fragment, re.I)
+        if departure:
+            word = len(text[:sentence.start()+departure.start()].split())
+            sentence_end = len(text[:sentence.end()].split())
+            def departs(actor, cue, start, end):
+                if cue.get('pose') not in {'walk','run'} or not word <= start < sentence_end or cue.get('move_to') is None:
+                    return False
+                try:
+                    return not actor.get('exit_on') or anchor_index(text,actor['exit_on']) > start
+                except ValueError:
+                    return False
+            if not any(departs(*cue) for cue in cues):
+                issues.append(f"{scene.get('scene_id','?')}: Das erzählte Verlassen braucht eine sichtbare walk/run-Aktion mit Ziel am passenden Textanker; Tragen allein bewegt die Figur nicht.")
         for pose, pattern in ACTIONS.items():
             for action in re.finditer(pattern, fragment, re.I):
                 tail = fragment[action.end():]

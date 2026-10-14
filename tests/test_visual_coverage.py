@@ -5,6 +5,24 @@ from backend.visual_coverage import visual_coverage_issues
 
 
 class CoverageTests(unittest.TestCase):
+    def test_departure_needs_actual_movement_after_its_spoken_anchor(self):
+        actor={'id':'mila','x':50,'cues':[{'on':'Mila trägt','pose':'carry','target_prop':0}]}
+        scene={'narration':'Mila trägt die Transportbox. Gemeinsam verlassen die beiden das Tierheim.','stickman':{'characters':[actor],'props':[{'kind':'carrier'}]}}
+        self.assertTrue(any('Verlassen' in issue for issue in visual_coverage_issues([scene])))
+        actor['cues'].append({'on':'verlassen die beiden','pose':'walk','move_to':15})
+        self.assertFalse(visual_coverage_issues([scene]))
+        actor['exit_on']='Mila trägt'
+        self.assertTrue(any('Verlassen' in issue for issue in visual_coverage_issues([scene])))
+        scene['narration']='Die beiden verlassen sich aufeinander.'
+        actor['cues']=[];actor.pop('exit_on')
+        self.assertFalse(visual_coverage_issues([scene]))
+
+    def test_named_shelf_cannot_be_replaced_by_pet_furniture(self):
+        scene={'narration':'Die Katze sitzt auf einem Holzregal.','stickman':{'characters':[{'id':'cat','species':'cat'}],'props':[{'kind':'cat_tree'}]}}
+        self.assertTrue(any('shelf' in issue for issue in visual_coverage_issues([scene])))
+        scene['stickman']['props'][0]['kind']='shelf'
+        self.assertFalse(visual_coverage_issues([scene]))
+
     def test_cat_cannot_be_replaced_by_its_bed_or_a_heart(self):
         scene = {'scene_id': 'adopt', 'narration': 'Die Katze kommt nach Hause.', 'stickman': {'characters': [{'id': 'lead'}], 'props': [{'kind': 'pet_bed'}, {'kind': 'heart'}]}}
         self.assertTrue(visual_coverage_issues([scene]))

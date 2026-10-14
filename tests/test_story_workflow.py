@@ -8,7 +8,8 @@ from fastapi import HTTPException
 from backend import main, story
 from backend.db import Database
 from backend.plan import finalize_scene_plan
-from backend.schemas import JobCreate, ProductionConfig, ScriptRevision, VersionAction
+from backend.schemas import JobCreate, ProductionConfig, ScriptRevision, VersionAction, Scene
+from pydantic import ValidationError
 
 
 class StoryTests(unittest.TestCase):
@@ -39,12 +40,36 @@ class StoryTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_storyboard_retry_receives_bounded_validation_rules_without_rejected_values(self):
+        try:
+            Scene.model_validate({'narration':'ok','visual':'ok','stickman':{'characters':[{'id':'private-test-value!'}]}})
+        except ValidationError as error:
+            failure=error
+        with patch('backend.story.planner.generate_script',side_effect=[failure,copy.deepcopy(self.plan)]) as generate:
+            story.generate_storyboard(self.request,self.current['script'])
+        feedback=generate.call_args_list[1].kwargs['instructions']
+        self.assertIn('characters.0.id',feedback)
+        self.assertNotIn('private-test-value!',feedback)
+
     def test_creation_stores_one_hashed_narration_without_fake_drawings(self):
         self.assertEqual(len(self.draft['scenes']), 1)
         self.assertEqual(story.spoken_story(self.draft), self.text)
         self.assertEqual(self.draft['metadata']['workflow'], 'story_draft')
         self.assertNotIn('stickman', self.draft['scenes'][0])
         self.assertTrue(self.current['script']['integrity_verified'])
+
+    def test_antigravity_drawing_validation_reaches_storyboard_repair_without_fallback(self):
+        valid = dict(copy.deepcopy(self.plan), audience='Erwachsene', tone='ruhig')
+        invalid = copy.deepcopy(valid)
+        invalid['scenes'][0]['stickman']['characters'][0]['id'] = 'private-test-value!'
+        with patch('backend.planner.generate_structured', side_effect=[(invalid, {}), (valid, {})]) as generate, \
+             patch('backend.planner._post_ollama', side_effect=AssertionError('No provider switch')):
+            result = story.generate_storyboard(self.request, self.current['script'])
+        self.assertEqual(generate.call_count, 2)
+        feedback = generate.call_args_list[1].args[0]
+        self.assertIn('characters.0.id', feedback)
+        self.assertNotIn('private-test-value!', feedback)
+        self.assertEqual(story.spoken_story(result), self.text)
 
     def test_storyboard_retries_missing_animal_and_does_not_rewrite_approved_words(self):
         missing = copy.deepcopy(self.plan)

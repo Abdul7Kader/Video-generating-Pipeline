@@ -145,7 +145,7 @@ class PlannerTests(unittest.TestCase):
         configured = settings(script_provider="ollama", antigravity_fallback_to_qwen=False)
         with patch("backend.planner.settings", configured), \
              patch("backend.planner.generate_structured", return_value=({"answer": "not a script"}, {})):
-            with self.assertRaisesRegex(ScriptProviderUnavailable, "schema-konforme"):
+            with self.assertRaises(ValueError):
                 generate_script(antigravity_request())
 
     def test_editorial_guard_rejects_unfilled_placeholders(self):

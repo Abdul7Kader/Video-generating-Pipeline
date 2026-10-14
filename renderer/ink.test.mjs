@@ -18,6 +18,46 @@ compiled.paths = Module._nodeModulePaths(filename.replace(/[/\\][^/\\]+$/, ''));
 compiled.require = createRequire(import.meta.url);
 compiled._compile(code, filename);
 const {DrawingStage, actorMotion, actorState, directedProp, entryProgress, interactionCharacters, continuousScenes} = compiled.exports;
+
+test('walking leaves an elevated surface and the next cut keeps the achieved ground height',()=>{
+  for(const [w,h] of [[1000,600],[600,900]]){
+    const scenes=[
+      {start:0,duration:2,stickman:{setting:'room',props:[],characters:[{id:'cat',species:'cat',x:65,y:55,pose:'sit'}]}},
+      {start:2,duration:2,stickman:{setting:'room',props:[],characters:[{id:'cat',species:'cat',x:65,y:83,pose:'stand',motion_cues:[{at:.3,pose:'walk',move_to:40,duration:.6}]}]}},
+      {start:4,duration:2,stickman:{setting:'room',props:[],characters:[{id:'cat',species:'cat',x:40,y:70,pose:'sit'}]}}
+    ];
+    const before=JSON.stringify(scenes),directed=continuousScenes(scenes,w,h);
+    const cat=directed[1].stickman.characters[0];
+    assert.equal(actorState(cat,0,2).y,55);
+    assert.ok(actorState(cat,.6,2).y>55&&actorState(cat,.6,2).y<83);
+    assert.equal(actorState(cat,1.2,2).y,83);
+    assert.equal(actorState(directed[2].stickman.characters[0],1,2).y,83);
+    assert.equal(JSON.stringify(scenes),before);
+  }
+});
+
+test('a held carrier stays in front of the actor and returns behind after placement',()=>{
+  const draw=(character,frame)=>renderToStaticMarkup(React.createElement(DrawingStage,{board:{characters:[{id:'lead',x:50,y:82,...character}],props:[{kind:'carrier',x:55,y:82}]},frame,fps:30,duration:3}));
+  const held=draw({initial_prop:0},30);
+  assert.ok(held.indexOf('data-prop="carrier"')>held.indexOf('data-character="lead"'));
+  assert.equal(held.match(/data-prop="carrier"/g).length,1);
+  const placed=draw({initial_prop:0,motion_cues:[{at:0,pose:'place',target_prop:0,duration:.5}]},30);
+  assert.ok(placed.indexOf('data-prop="carrier"')<placed.indexOf('data-character="lead"'));
+});
+
+test('a carrier is held by its actual handle below the face during movement in both formats',()=>{
+  for(const [w,h,portrait] of [[1000,600,false],[600,900,true]]){
+    const board={characters:[{id:'holder',x:40,y:82,initial_prop:0,motion_cues:[{at:0,pose:'walk',move_to:65,duration:.8}]}],props:[{kind:'carrier',x:50,y:82,scale:.8}]};
+    for(const time of [.2,.5,1]){
+      const prop=directedProp(board.props[0],0,board,time,3,w,h);
+      const svg=renderToStaticMarkup(React.createElement(DrawingStage,{board,frame:time*30,fps:30,duration:3,portrait}));
+      const hand=svg.match(/data-hand-x="([^"]+)" data-hand-y="([^"]+)"/);
+      assert.ok(hand);
+      assert.ok(Math.abs(Number(hand[2])-(prop.y*h/100-107*.8*h/600))<.001);
+      assert.ok(prop.y*h/100-89*.8*h/600>82*h/100-150*h/600);
+    }
+  }
+});
 const board = {
   setting:'camp', framing:'split', camera_move:'static',
   characters:[{id:'modern',x:25,y:78,pose:'work',outfit:'office',expression:'tired'},
@@ -59,7 +99,7 @@ test('directed object disappears at its exit cue', () => {
   assert.match(draw(value,120),/data-prop="phone"[^>]*opacity="0"/);
 });
 test('every vocabulary prop draws and unknown assets fail clearly', () => {
-  const kinds = ['clock','laptop','desk','chair','bed','phone','book','tree','bush','fire','spear','basket','rock','sun','moon','cloud','house','food','water','gear','lightbulb','arrow','question','check','cross','heart','chart','carrier','pet_bed','bowl','litter_box','cat_tree','document'];
+  const kinds = ['clock','laptop','desk','chair','bed','phone','book','tree','bush','fire','spear','basket','rock','sun','moon','cloud','house','food','water','gear','lightbulb','arrow','question','check','cross','heart','chart','carrier','pet_bed','bowl','litter_box','cat_tree','shelf','document'];
   for (const kind of kinds) assert.match(draw({characters:[],props:[{kind,x:50,y:70}]}),new RegExp(`data-prop="${kind}"`));
   assert.throws(()=>draw({characters:[],props:[{kind:'unknown',x:50,y:70}]}),/Unbekannte/);
 });

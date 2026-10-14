@@ -11,6 +11,7 @@ import urllib.parse
 import urllib.request
 from concurrent.futures import Future, TimeoutError as FutureTimeoutError
 from typing import Any
+from pydantic import ValidationError
 
 from .antigravity import AntigravityError, antigravity_status, generate_structured
 from .config import settings
@@ -70,7 +71,7 @@ STYLE_DIRECTIONS = {
         "by a heart, bed or basket. Keep the same animal id and species throughout the story. "
         "Show the animal in every shot narrating its presence or interaction. For petting use a human "
         "pet cue with target_character set to the animal id; the animal can sit, walk, run, sniff or sleep. "
-        "Show literal pet equipment: carrier, pet_bed, bowl, litter_box and cat_tree, rather than human furniture. "
+        "Draw the actual named object: shelf for a wooden shelf or Regal; cat_tree only for a Kratzbaum. Pet beds use pet_bed; never substitute pet equipment for named human furniture. "
         "Place a petting human within arm reach of the animal's head. For entering a carrier, "
         "show the animal walking toward its opening, then use exit_on at a later spoken phrase "
         "to put it inside. At home reveal the same animal and show it sniffing, exploring or resting. "
@@ -78,6 +79,7 @@ STYLE_DIRECTIONS = {
         "on must quote an exact consecutive phrase from that scene's narration, in spoken order. "
         "Use duration=0.35..0.9 seconds and speed=1.35..1.8 for lively actions, not slow motion. "
         "Walking cues use move_to near the destination object, then another cue performs the narrated action. "
+        "Carry retains an object but does not walk. For leaving a place, walk toward its exit after pickup; the held object follows automatically. "
         "target_prop is the zero-based props index: pick/read/carry holds that actual object; place returns it; "
         "pick/read/carry/place need a portable target: book, phone, document, basket, carrier, bowl, food, water, rock or spear. "
         "Use place_x and place_y together only on place to define a new resting position; null preserves the current surface. "
@@ -343,6 +345,9 @@ def _extract_json(text: str, draft_model=ScriptDraft) -> dict[str, Any]:
             elif not str(scene.get("asset_query", "")).strip():
                 raise ValueError("Stock-Szene enthält keinen konkreten Suchbegriff")
         draft = draft_model.model_validate(raw)
+    except ValidationError:
+        # Keep field locations available for bounded, input-free storyboard repair.
+        raise
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
         raise ValueError(f"Ungültiges strukturiertes Skript: {exc}") from exc
     return draft.model_dump()
@@ -640,10 +645,7 @@ def generate_script(
     elif provider == "antigravity":
         try:
             raw_script, metrics = generate_structured(f"{_system_prompt()}\n\n{prompt}", _response_schema())
-            try:
-                script = _extract_json(json.dumps(raw_script, ensure_ascii=False))
-            except ValueError as exc:
-                raise AntigravityError("invalid_response") from exc
+            script = _extract_json(json.dumps(raw_script, ensure_ascii=False))
         except AntigravityError as exc:
             if not settings.antigravity_fallback_to_qwen:
                 raise ScriptProviderUnavailable(str(exc)) from exc
