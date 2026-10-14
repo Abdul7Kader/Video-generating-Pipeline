@@ -21,6 +21,12 @@ def asset_settings(**overrides):
 
 
 class AssetTests(unittest.TestCase):
+    def test_invalid_drawing_reports_field_locations_without_rejected_input(self):
+        issues=render_plan_readiness([{'scene_id':'test','visual_type':'stickman','stickman':{'characters':[{'id':'private-value!'}]}}])
+        self.assertEqual(len(issues),1)
+        self.assertIn('characters.0.id',issues[0])
+        self.assertNotIn('private-value!',issues[0])
+
     def test_readiness_blocks_missing_provider_and_generated_media(self):
         scenes = [
             {"scene_id": "scene-stock", "visual_type": "stock_video", "asset_query": "rewetted peatland"},

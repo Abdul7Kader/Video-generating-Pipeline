@@ -78,7 +78,7 @@ def require_job(job_id: str):
 
 
 async def render_worker(stop: asyncio.Event) -> None:
-    while not stop.is_set():
+    while not stop.is_set() and not app.state.shutdown_requested.is_set():
         job = db.claim_render()
         if job:
             try:
@@ -127,6 +127,7 @@ async def render_worker(stop: asyncio.Event) -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    app.state.shutdown_requested.clear()
     settings.jobs_dir.mkdir(parents=True, exist_ok=True)
     settings.voices_dir.mkdir(parents=True, exist_ok=True)
     db.initialize()
@@ -147,6 +148,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Video Pipeline", version="1.0.0", lifespan=lifespan, docs_url="/api/docs", redoc_url=None)
+app.state.shutdown_requested = threading.Event()
 app.include_router(setup.router)
 
 

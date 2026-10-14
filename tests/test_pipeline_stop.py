@@ -8,9 +8,11 @@ import tempfile
 import threading
 import time
 import unittest
+import asyncio
+from unittest.mock import patch
 from pathlib import Path
 
-from start_pipeline import _watch_for_stop
+from start_pipeline import _watch_for_stop, _managed_instance_alive
 from stop_pipeline import _pid_alive, stop_managed
 
 
@@ -31,9 +33,10 @@ class PipelineStopTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             request = Path(directory) / "stop-request"
             server = Server()
+            stop_claiming = threading.Event()
             watcher = threading.Thread(
                 target=_watch_for_stop, args=(server, request, "test-token"),
-                kwargs={"interval": 0.01}, daemon=True,
+                kwargs={"interval": 0.01, 'on_stop':stop_claiming.set}, daemon=True,
             )
             watcher.start()
             request.write_text("wrong-token", encoding="utf-8")
@@ -42,6 +45,24 @@ class PipelineStopTests(unittest.TestCase):
             request.write_text("test-token", encoding="utf-8")
             watcher.join(timeout=1)
             self.assertTrue(server.should_exit)
+            self.assertTrue(stop_claiming.is_set())
+
+    def test_live_managed_instance_blocks_restart_even_without_a_listener(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            path=root/f'pipeline-8123-{os.getpid()}.json'
+            path.write_text(json.dumps({'pid':os.getpid(),'port':8123,'token':'a'*32}),encoding='utf-8')
+            self.assertTrue(_managed_instance_alive(root,8123))
+            self.assertFalse(_managed_instance_alive(root,8124))
+
+    def test_stopped_worker_cannot_claim_another_job(self):
+        from backend import main
+        shutdown=threading.Event()
+        shutdown.set()
+        with patch.object(main.app.state,'shutdown_requested',shutdown), patch.object(main.db,'claim_render') as render, patch.object(main.db,'claim_publication') as publish:
+            asyncio.run(main.render_worker(asyncio.Event()))
+        render.assert_not_called()
+        publish.assert_not_called()
 
     def test_stop_targets_only_matching_managed_instance(self):
         with tempfile.TemporaryDirectory() as directory:

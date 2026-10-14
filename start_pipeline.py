@@ -5,6 +5,7 @@ from __future__ import annotations
 import http.client
 import json
 import os
+import re
 import secrets
 import socket
 import sys
@@ -59,15 +60,36 @@ def _open_when_ready(port: int, url: str) -> None:
         time.sleep(0.5)
 
 
-def _watch_for_stop(server, request_path: Path, token: str, *, interval: float = 0.25) -> None:
+def _managed_instance_alive(control_dir: Path, port: int) -> bool:
+    from stop_pipeline import _pid_alive
+    for path in control_dir.glob(f"pipeline-{port}-*.json"):
+        match = re.fullmatch(r'pipeline-(\d+)-(\d+)\.json', path.name)
+        try:
+            record = json.loads(path.read_text(encoding='utf-8'))
+            if (match and isinstance(record, dict) and record.get('port') == port
+                    and record.get('pid') == int(match[2])
+                    and isinstance(record.get('token'), str)
+                    and re.fullmatch(r'[0-9a-f]{32}', record['token'])
+                    and _pid_alive(int(match[2]))):
+                return True
+        except (OSError, ValueError):
+            continue
+    return False
+
+
+def _watch_for_stop(server, request_path: Path, token: str, *, interval: float = 0.25, on_stop=None) -> None:
     while not server.should_exit:
         try:
             if request_path.read_text(encoding="utf-8") == token:
+                if on_stop:
+                    on_stop()
                 server.should_exit = True
                 return
         except FileNotFoundError:
             pass
         time.sleep(interval)
+    if on_stop:
+        on_stop()
 
 
 def main() -> int:
@@ -94,6 +116,9 @@ def main() -> int:
     if _port_in_use(port):
         print(f"Port {port} ist durch einen anderen Dienst belegt.", file=sys.stderr)
         return 1
+    if _managed_instance_alive(CONTROL_DIR, port):
+        print("Die vorherige Pipelineinstanz beendet noch laufende Arbeit. Bitte ihren Abschluss abwarten, bevor du neu startest.", file=sys.stderr)
+        return 1
 
     print(f"Starte die Pipeline lokal unter {url}")
     print("Zum Beenden Strg+C drücken oder stop.cmd / stop.sh im Projektordner ausführen.")
@@ -104,8 +129,9 @@ def main() -> int:
     request_path = CONTROL_DIR / f"stop-{token}.request"
     state_path.write_text(json.dumps({"pid": os.getpid(), "port": port, "token": token}), encoding="utf-8")
     try:
-        server = uvicorn.Server(uvicorn.Config("backend.main:app", host="127.0.0.1", port=port))
-        threading.Thread(target=_watch_for_stop, args=(server, request_path, token), daemon=True).start()
+        from backend.main import app
+        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port))
+        threading.Thread(target=_watch_for_stop, args=(server, request_path, token), kwargs={'on_stop':app.state.shutdown_requested.set}, daemon=True).start()
         server.run()
     finally:
         state_path.unlink(missing_ok=True)

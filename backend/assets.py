@@ -8,6 +8,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
+from pydantic import ValidationError
 
 from .config import settings
 from .plan import file_sha256, object_sha256
@@ -53,8 +54,9 @@ def render_plan_readiness(scenes: list[dict[str, Any]]) -> list[str]:
             try:
                 board = StickmanBoard.model_validate(scene.get("stickman"))
                 board.validate_narration(str(scene.get("narration", "")))
-            except ValueError:
-                issues.append(f"{scene_id}: Ausführbarer Zeichenplan fehlt oder ist ungültig. Bitte Zeichenregie ergänzen oder Skript neu erzeugen.")
+            except ValueError as exc:
+                fields = ', '.join('.'.join(map(str,item['loc'])) for item in exc.errors(include_input=False,include_context=False,include_url=False)[:6]) if isinstance(exc, ValidationError) else ''
+                issues.append(f"{scene_id}: Ausführbarer Zeichenplan fehlt oder ist ungültig. Bitte Zeichenregie ergänzen oder Skript neu erzeugen." + (f" Betroffene Felder: {fields[:400]}." if fields else ''))
             continue
         if visual_type in {"stock_image", "stock_video"}:
             if not settings.pexels_api_key:

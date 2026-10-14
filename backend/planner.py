@@ -82,6 +82,7 @@ STYLE_DIRECTIONS = {
         "Carry retains an object but does not walk. For leaving a place, walk toward its exit after pickup; the held object follows automatically. "
         "target_prop is the zero-based props index: pick/read/carry holds that actual object; place returns it; "
         "pick/read/carry/place need a portable target: book, phone, document, basket, carrier, bowl, food, water, rock or spear. "
+        "Read also holds its target. For two people reading the same paper, assign read to ONE holder only; the second person faces or points at that same document without taking ownership. Never give both actors read/carry/pick of the same object at once. "
         "Use place_x and place_y together only on place to define a new resting position; null preserves the current surface. "
         "For placing onto a table, set place_surface to its desk prop index; this aligns the object bottom to the tabletop. "
         "Objects keep their resting position after release. Only one human can hold an object at a time; place before another picks it up. "
