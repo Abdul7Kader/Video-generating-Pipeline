@@ -22,6 +22,20 @@ def write_audio(path, samples, rate=16000):
 
 
 class SpeechMotionTests(unittest.TestCase):
+    def test_an_action_at_its_spoken_entry_survives_fraction_roundoff(self):
+        duration=8.899909297052154
+        entry=.6337112622826908
+        self.assertGreater(entry/duration*duration,entry)
+        scene={'narration':'Ben geht.', 'stickman':{'characters':[{'id':'ben','enter_on':'geht.','cues':[{'on':'geht.','pose':'walk','move_to':50,'duration':.5}]}], 'props':[]}}
+        words=[{'word':'Ben','start':0,'end':.3},{'word':'geht.','start':entry,'end':.9}]
+        result=direct_scene(scene,words,duration)
+        self.assertEqual(result['stickman']['characters'][0]['motion_cues'][0]['at'],entry)
+        actor=scene['stickman']['characters'][0]
+        actor.pop('enter_on')
+        actor['enter']=.1
+        with self.assertRaisesRegex(ValueError,'nicht sichtbar'):
+            direct_scene(scene,words,duration)
+
     def test_production_rejects_audio_from_an_unselected_provider(self):
         from backend.rendering import prepare_scene_audio
         with tempfile.TemporaryDirectory() as root, patch('backend.rendering._voice_fingerprint',return_value='fixed'), patch('backend.rendering.synthesize',return_value=('piper',1)), patch('backend.rendering.compact_speech') as compact:

@@ -198,8 +198,9 @@ def direct_scene(scene: dict, words: list[dict], duration: float) -> dict:
                 targets.append(board['props'][cue['place_surface']])
             if cue.get('target_character'):
                 targets.extend(actor for actor in board['characters'] if actor['id'] == cue['target_character'])
-            if any((target.get('enter') or 0)*duration > cue['at'] or
-                   target.get('exit') is not None and target['exit']*duration < cue['at']+cue['duration'] for target in targets):
+            # Fractions round-trip through duration; ignore only sub-nanosecond numeric noise.
+            if any((target.get('enter') or 0)*duration > cue['at']+1e-9 or
+                   target.get('exit') is not None and target['exit']*duration+1e-9 < cue['at']+cue['duration'] for target in targets):
                 raise ValueError('Ein Interaktionsziel ist während der gesprochenen Aktion nicht sichtbar. Bitte Auftritt und Abgang korrigieren.')
     result['words'] = words
     result['timing_method'] = TIMING_METHOD
