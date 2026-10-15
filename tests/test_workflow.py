@@ -285,7 +285,7 @@ class WorkflowTests(unittest.TestCase):
                 stop.set()
 
             with patch.object(main_module, "settings", isolated), patch.object(main_module, "db", self.db), \
-                 patch.object(main_module, "render_job", side_effect=fake_render), \
+                 patch("backend.operations.Operation.run", side_effect=lambda kind,payload: fake_render(payload["job"],job_dir_override=Path(payload["directory"]) if payload["directory"] else None)), \
                  patch.object(main_module, "unload_script_model"), \
                  patch.object(self.db, "finish_render_variants", side_effect=finish):
                 await asyncio.wait_for(main_module.render_worker(stop), timeout=5)

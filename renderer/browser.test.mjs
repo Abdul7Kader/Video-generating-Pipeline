@@ -41,6 +41,13 @@ test('reports a missing Windows browser without a network request', () => {
   assert.throws(() => resolveBrowserExecutable({platform: 'win32', env: {}, exists: () => false}),
     /Chrome oder Edge.*lokal/);
 });
+
+test('Windows cannot delegate rendering to WSL, network binaries or a debug endpoint', () => {
+  for (const browser of ['C:\\Windows\\System32\\wsl.exe', '\\\\wsl.localhost\\Ubuntu\\chrome.exe',
+    '/usr/bin/chromium', 'http://127.0.0.1:9222', '\\\\server\\share\\chrome.exe']) {
+    assert.throws(() => resolveBrowserExecutable({platform:'win32', env:{REMOTION_BROWSER_EXECUTABLE:browser}, exists:()=>true}), /nativer.*WSL/);
+  }
+});
 import {guardedBrowserExecutable} from './browser.mjs';
 
 test('macOS desktop registers each detached drawing browser and refuses a missing guard', () => {

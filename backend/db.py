@@ -516,9 +516,9 @@ class Database:
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             row = conn.execute(
-                "SELECT script_version,render_version,render_script_hash FROM jobs WHERE id=?", (job_id,)
+                "SELECT script_version,render_version,render_script_hash,status FROM jobs WHERE id=?", (job_id,)
             ).fetchone()
-            if not row or row["script_version"] != version or row["render_version"] != version:
+            if not row or row['status'] in {'cancelling', 'cancelled'} or row["script_version"] != version or row["render_version"] != version:
                 conn.rollback()
                 return
             actual_hash = self._verified_script_hash(conn, job_id, version)
@@ -659,8 +659,52 @@ class Database:
     def fail_render(self, job_id: str, message: str) -> None:
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute('SELECT status FROM jobs WHERE id=?', (job_id,)).fetchone()
+            if row and row['status'] in {'cancelling', 'cancelled'}:
+                return
             conn.execute("UPDATE jobs SET status='render_failed',error=?,updated_at=? WHERE id=?", (message[:2000], utcnow(), job_id))
             self._event(conn, job_id, "render_failed", "Videoproduktion fehlgeschlagen.", {"error": message[:500]})
+            conn.commit()
+
+    def begin_planning(self, job_id, expected):
+        with self._write_lock, self.connect() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            row = conn.execute('SELECT status,script_version FROM jobs WHERE id=?', (job_id,)).fetchone()
+            if not row:
+                raise KeyError(job_id)
+            if row['script_version'] != expected or row['status'] in {'render_planning', 'render_queued', 'rendering', 'cancelling', 'publish_queued', 'publishing'}:
+                raise ValueError('job_busy')
+            conn.execute("UPDATE jobs SET status='render_planning',error=NULL,updated_at=? WHERE id=?", (utcnow(), job_id))
+            self._event(conn, job_id, 'planning_started', 'Zeichenplanung gestartet; sie kann abgebrochen werden.')
+            conn.commit()
+
+    def planning_failed(self, job_id, message):
+        with self._write_lock, self.connect() as conn:
+            conn.execute("UPDATE jobs SET status='script_review',error=?,updated_at=? WHERE id=? AND status='render_planning'", (str(message)[:2000], utcnow(), job_id))
+            conn.commit()
+
+    def cancel_production(self, job_id, *, running):
+        with self._write_lock, self.connect() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            row = conn.execute('SELECT status FROM jobs WHERE id=?', (job_id,)).fetchone()
+            if not row:
+                raise KeyError(job_id)
+            if row['status'] not in {'render_planning', 'render_queued', 'rendering', 'cancelling', 'cancelled'}:
+                raise ValueError('Dieser Auftrag hat keine laufende Videoerstellung. Fertige Videos bleiben erhalten.')
+            if row['status'] not in {'cancelling', 'cancelled'}:
+                status = 'cancelling' if running else 'cancelled'
+                conn.execute('UPDATE jobs SET status=?,error=NULL,updated_at=? WHERE id=?', (status, utcnow(), job_id))
+                self._event(conn, job_id, 'production_cancel_requested' if running else 'production_cancelled',
+                            'Erstellung wird beendet.' if running else 'Erstellung abgebrochen. Gespeicherte Dateien bleiben erhalten.')
+            conn.commit()
+        return self.get_job(job_id)
+
+    def finish_cancel(self, job_id):
+        with self._write_lock, self.connect() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            changed = conn.execute("UPDATE jobs SET status='cancelled',updated_at=? WHERE id=? AND status='cancelling'", (utcnow(), job_id)).rowcount
+            if changed:
+                self._event(conn, job_id, 'production_cancelled', 'Eigene Produktionsprozesse beendet. Skript und Dateien bleiben erhalten.')
             conn.commit()
 
     def _refresh_publication_job_state(self, conn: sqlite3.Connection, job_id: str) -> str:
@@ -887,6 +931,10 @@ class Database:
     def recover_interrupted(self, *, resume_rendering: bool = True) -> None:
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
+            interrupted = conn.execute("SELECT id FROM jobs WHERE status IN ('cancelling','render_planning')").fetchall()
+            for item in interrupted:
+                conn.execute("UPDATE jobs SET status='cancelled',updated_at=? WHERE id=?", (utcnow(), item['id']))
+                self._event(conn, item['id'], 'production_cancelled', 'Unterbrochene Planung oder Abbruch abgeschlossen; kein automatischer Neustart.')
             rows = conn.execute("SELECT id FROM jobs WHERE status='rendering'").fetchall()
             for row in rows:
                 if resume_rendering:

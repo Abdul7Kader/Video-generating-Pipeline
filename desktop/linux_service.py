@@ -60,6 +60,9 @@ class ProcessGroup:
     def wait(self, process):
         return process.wait()
 
+    def poll(self, process):
+        return process.poll()
+
     def close(self):
         for unit, process in self.processes:
             # EOF is a private parent-death signal to the service host.

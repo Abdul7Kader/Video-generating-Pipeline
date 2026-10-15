@@ -33,6 +33,7 @@ from .speech import compact_speech, speech_metrics, VOICE_POLICY
 from .story import generate_story, generate_storyboard, spoken_story
 from .visual_coverage import visual_coverage_issues
 from . import qwen_tts
+from .operations import operations, OperationCancelled
 from .plan import object_sha256
 from . import setup
 from .device import load_preferences
@@ -87,22 +88,21 @@ async def render_worker(stop: asyncio.Event) -> None:
             job = db.claim_render()
         if job:
             try:
-                await asyncio.to_thread(unload_script_model)
-                outputs = {}
-                tts_mode = ""
-                for ratio in job["aspect_ratios"]:
-                    variant_dir = None
-                    if ratio != job["aspect_ratio"]:
-                        variant_dir = settings.jobs_dir / job["id"] / f"v{job['render_version']}" / "formats" / ratio.replace(":", "x")
-                    variant_job = {**job, "aspect_ratio": ratio, "script": copy.deepcopy(job["script"])}
-                    output, tts_mode = await asyncio.to_thread(
-                        render_job, variant_job, job_dir_override=variant_dir
-                    )
-                    outputs[ratio] = {
-                        "path": str(Path(output).relative_to(settings.jobs_dir)),
-                        "sha256": await asyncio.to_thread(file_sha256, Path(output)),
-                    }
-                db.finish_render_variants(job["id"], int(job["render_version"]), outputs, tts_mode)
+                with operations.start(job['id'], db) as operation:
+                    await asyncio.to_thread(unload_script_model)
+                    outputs, tts_mode = {}, ''
+                    for ratio in job['aspect_ratios']:
+                        variant_dir = None if ratio == job['aspect_ratio'] else settings.jobs_dir / job['id'] / f"v{job['render_version']}" / 'formats' / ratio.replace(':', 'x')
+                        variant_job = {**job, 'aspect_ratio': ratio, 'script': copy.deepcopy(job['script'])}
+                        output, tts_mode = await asyncio.to_thread(operation.run, 'render',
+                            {'job': variant_job, 'directory': str(variant_dir) if variant_dir else None})
+                        outputs[ratio] = {'path': str(Path(output).relative_to(settings.jobs_dir)),
+                                          'sha256': await asyncio.to_thread(file_sha256, Path(output))}
+                    with operations.lock:
+                        operation.check()
+                        db.finish_render_variants(job['id'], int(job['render_version']), outputs, tts_mode)
+            except OperationCancelled:
+                pass
             except Exception as exc:
                 logger.exception("Render failed for %s", job["id"])
                 db.fail_render(job["id"], str(exc))
@@ -357,6 +357,15 @@ def get_voice_preview(preview_id: str):
 @app.get("/api/jobs")
 def list_jobs():
     return db.list_jobs()
+
+
+@app.post('/api/jobs/{job_id}/cancel')
+def cancel_job(job_id: str):
+    require_job(job_id)
+    try:
+        return operations.cancel(job_id, db)
+    except ValueError as error:
+        raise HTTPException(409, str(error)) from error
 
 
 def web_request(payload):
@@ -735,7 +744,7 @@ def approve_story_and_render(job_id: str, payload: VersionAction):
     current_approval = current['script_version'] == payload.expected_version and script['content_hash'] == payload.expected_hash
     approved_story = metadata.get('workflow') == 'storyboard' and (original_approval or current_approval) and current['render_script_hash'] == script['content_hash'] and current['approved_script_hash'] == script['content_hash']
     if approved_story:
-        if current['status'] == 'render_failed':
+        if current['status'] in {'render_failed', 'cancelled'}:
             return queue_render(job_id, VersionAction(expected_version=current['script_version'], expected_hash=script['content_hash']))
         if current['status'] in {'render_queued', 'rendering', 'video_review', 'ready_to_publish', 'publish_queued', 'publishing', 'published', 'published_partial', 'publish_failed'}:
             return current
@@ -748,16 +757,24 @@ def approve_story_and_render(job_id: str, payload: VersionAction):
     try:
         require_active_production(current['production_config'])
         request = JobCreate.model_validate({key: current[key] for key in ('topic', 'language', 'duration_seconds', 'aspect_ratio', 'production_config')})
-        plan = generate_storyboard(request, script)
-        if spoken_story(plan) != spoken_story(script):
-            raise ValueError('Die Bildplanung darf den freigegebenen Sprechertext nicht verändern.')
-        issues = production_plan_readiness(current['production_config'], plan['scenes']) + render_plan_readiness(plan['scenes']) + visual_coverage_issues(plan['scenes'], current['topic'])
-        if issues:
-            raise ValueError(' '.join(issues))
-        return db.queue_story_render(job_id, payload.expected_version, payload.expected_hash, plan)
+        with operations.start(job_id, db) as operation:
+            db.begin_planning(job_id, payload.expected_version)
+            plan = operation.run('plan', {'request': request.model_dump(), 'script': script})
+            if spoken_story(plan) != spoken_story(script):
+                raise ValueError('Die Bildplanung darf den freigegebenen Sprechertext nicht verändern.')
+            issues = production_plan_readiness(current['production_config'], plan['scenes']) + render_plan_readiness(plan['scenes']) + visual_coverage_issues(plan['scenes'], current['topic'])
+            if issues:
+                raise ValueError(' '.join(issues))
+            with operations.lock:
+                operation.check()
+                return db.queue_story_render(job_id, payload.expected_version, payload.expected_hash, plan)
+    except OperationCancelled as exc:
+        raise HTTPException(409, str(exc)) from exc
     except ScriptProviderUnavailable as exc:
+        db.planning_failed(job_id, exc)
         raise HTTPException(503, str(exc)) from exc
-    except ValueError as exc:
+    except (ValueError, RuntimeError) as exc:
+        db.planning_failed(job_id, exc)
         raise HTTPException(409 if str(exc) in {'version_conflict', 'hash_conflict', 'script_integrity_error', 'job_busy'} else 502, str(exc)) from exc
     finally:
         _story_plan_slot.release()

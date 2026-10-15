@@ -14,6 +14,11 @@ from pydantic import ValidationError
 
 class StoryTests(unittest.TestCase):
     def setUp(self):
+        # Keep provider mocks in this process across the new worker boundary.
+        worker = patch('backend.operations.Operation.run', side_effect=lambda kind, payload:
+            story.generate_storyboard(JobCreate.model_validate(payload['request']), payload['script']))
+        worker.start()
+        self.addCleanup(worker.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.db = Database(Path(self.temp.name) / 'test.sqlite3')
         self.db.initialize()
@@ -177,7 +182,7 @@ class StoryTests(unittest.TestCase):
     def test_stale_approval_and_changed_words_are_blocked_before_render(self):
         wrong = copy.deepcopy(self.plan)
         wrong['scenes'][0]['narration'] = 'Andere Worte.'
-        with patch('backend.main.db', self.db), patch('backend.main.generate_storyboard', return_value=wrong), patch('backend.main.require_active_production'):
+        with patch('backend.main.db', self.db), patch('backend.operations.Operation.run', return_value=wrong), patch('backend.main.require_active_production'):
             with self.assertRaises(HTTPException) as raised:
                 main.approve_story_and_render(self.id, self.action)
             self.assertEqual(raised.exception.status_code, 502)
@@ -193,7 +198,7 @@ class StoryTests(unittest.TestCase):
             changed['scenes'][0]['narration'] += ' Eine neue Aussage.'
             self.db.update_script(self.id, 1, changed)
             return self.plan
-        with patch('backend.main.db', self.db), patch('backend.main.generate_storyboard', side_effect=edit), patch('backend.main.require_active_production'), self.assertRaises(HTTPException) as result:
+        with patch('backend.main.db', self.db), patch('backend.operations.Operation.run', side_effect=edit), patch('backend.main.require_active_production'), self.assertRaises(HTTPException) as result:
             main.approve_story_and_render(self.id, self.action)
         self.assertEqual(result.exception.status_code, 409)
         self.assertEqual(self.db.get_job(self.id)['status'], 'script_review')
@@ -213,7 +218,7 @@ class StoryTests(unittest.TestCase):
             if kind == 'render_queued':
                 raise ValueError('queue storage failed')
             return event(conn, job_id, kind, message, metadata)
-        with patch('backend.main.db', self.db), patch('backend.main.require_active_production'), patch('backend.main.generate_storyboard', return_value=copy.deepcopy(self.plan)), patch.object(self.db, '_event', side_effect=fail_queue):
+        with patch('backend.main.db', self.db), patch('backend.main.require_active_production'), patch('backend.operations.Operation.run', return_value=copy.deepcopy(self.plan)), patch.object(self.db, '_event', side_effect=fail_queue):
             with self.assertRaises(HTTPException):
                 main.approve_story_and_render(self.id, self.action)
         job = self.db.get_job(self.id)
@@ -222,11 +227,11 @@ class StoryTests(unittest.TestCase):
         self.assertIsNone(job['approved_script_hash'])
         with self.db.connect() as conn:
             self.assertEqual(conn.execute('SELECT count(*) FROM script_versions WHERE job_id=?', (self.id,)).fetchone()[0], 1)
-        with patch('backend.main.db', self.db), patch('backend.main.require_active_production'), patch('backend.main.generate_storyboard', return_value=copy.deepcopy(self.plan)):
+        with patch('backend.main.db', self.db), patch('backend.main.require_active_production'), patch('backend.operations.Operation.run', return_value=copy.deepcopy(self.plan)):
             self.assertEqual(main.approve_story_and_render(self.id, self.action)['status'], 'render_queued')
 
     def test_render_retry_reuses_approved_plan_without_another_ai_call(self):
-        with patch('backend.main.db', self.db), patch('backend.main.require_active_production'), patch('backend.main.generate_storyboard', return_value=copy.deepcopy(self.plan)) as generate:
+        with patch('backend.main.db', self.db), patch('backend.main.require_active_production'), patch('backend.operations.Operation.run', return_value=copy.deepcopy(self.plan)) as generate:
             queued = main.approve_story_and_render(self.id, self.action)
             self.db.fail_render(self.id, 'interrupted render')
             repeated = main.approve_story_and_render(self.id, self.action)

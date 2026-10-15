@@ -6,6 +6,26 @@ Nummerierte Übersicht: [ENTWICKLUNGSPLAN.md](ENTWICKLUNGSPLAN.md).
 Detaillierter Plan: [tasks/plan.md](tasks/plan.md); Checkliste: [tasks/todo.md](tasks/todo.md).
 Schritte 1–10 schließen die Originalversion ab. Schritte 11–13 betreffen anschließend die Familienversion.
 
+## Aktueller Auftrag vom 16.10.2026: Abbruch und Discord-Verteilung
+
+Auftrag und Grenzen: [docs/review-distribution.md](docs/review-distribution.md).
+Desktopabschluss ist lokal als e33143e gesichert; Push weiterhin am Ende.
+Abbruch je Auftrag für Zeichenplanung und Rendern implementiert: separater nativer
+Worker, eigene Prozessgruppe, sichtbare Zustände, Abbruchknopf schon bei Planung,
+Schutz gegen verspätete Erfolge/Fehler. Keine Dateien automatisch gelöscht.
+Windows-Renderer akzeptiert ausschließlich native lokale Chrome-/Edge-Dateien;
+WSL, UNC-Pfade und bestehende Debug-Endpunkte sind ausgeschlossen.
+292 Backend-Tests (10 Skips) und 39 gezielte Workflow-/Abbruchtests bestanden;
+zusätzliche Protokoll-/Browser-/UI-Negativtests bestanden. Ein alter Provider-Mock
+hatte bei der Workerumstellung unbeabsichtigt eine echte KI-Anfrage gestartet;
+sofort nur den eigenen Prüflauf gestoppt, Mockgrenze korrigiert. Kein Testfilm.
+Der Nutzer hat den laufenden Feuer-Versuch ausdrücklich abgebrochen: eigener
+Desktopwächter beendet, acht eigene Prozesse entfernt, null Überreste; Auftrag
+ a5860ef0-a674-5cc2-ab8d-c6d8006ca54b als cancelled gespeichert. Dateien erhalten.
+Nächster Schritt: geschützte Kontoeinrichtung/Videoordner, danach Discord-Gateway,
+Freigabe-/Änderungs-/Ablehnungsablauf und offizielle soziale Zieladapter. Keine
+Anmeldung oder echte externe Veröffentlichung ohne eingerichtete Zielkonten.
+
 ## Aktuelle Ergänzung: Desktop für Windows, Linux und macOS
 
 Doppelklick startet UI und eigene Pipeline; Fenster schließen oder die passende

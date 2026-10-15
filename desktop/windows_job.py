@@ -115,6 +115,14 @@ class ProcessGroup:
             raise ctypes.WinError(ctypes.get_last_error())
         return code.value
 
+    def poll(self, process):
+        state = self.kernel.WaitForSingleObject(process, 0)
+        if state == 258:
+            return None
+        if state != 0:
+            raise ctypes.WinError(ctypes.get_last_error())
+        return self.wait(process)
+
     def close(self):
         if not self.job:
             return

@@ -26,7 +26,7 @@ class DesktopControl:
     def status(self):
         with self.manager.lock:
             requests, setup = self.manager.production_requests, self.manager.busy
-        jobs = sum(job['status'] in {'rendering', 'publishing'} for job in self.db.list_jobs())
+        jobs = sum(job['status'] in {'render_planning', 'rendering', 'cancelling', 'publishing'} for job in self.db.list_jobs())
         return {'busy': bool(requests or setup or jobs), 'requests': requests,
                 'setup': bool(setup), 'jobs': jobs, 'draining': self.draining}
 

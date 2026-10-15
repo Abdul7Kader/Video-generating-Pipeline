@@ -8,6 +8,7 @@ import plistlib
 import shutil
 import shlex
 import socket
+import select
 import subprocess
 import sys
 import tempfile
@@ -92,6 +93,12 @@ class ProcessGroup:
             raise RuntimeError('Ungültiger macOS-Abschlussstatus.')
         process['result'] = result['exit_code']
         return process['result']
+
+    def poll(self, process):
+        if process['result'] is not None:
+            return process['result']
+        readable, _, _ = select.select([process['connection']], [], [], 0)
+        return self.wait(process) if readable else None
 
     def close(self):
         for entry in self.groups:

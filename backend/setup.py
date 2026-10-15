@@ -96,6 +96,9 @@ def local_service_safe():
 def browser_available():
     configured = os.getenv('REMOTION_BROWSER_EXECUTABLE')
     if configured:
+        if os.name == 'nt' and (not Path(configured).is_absolute() or configured.startswith(('\\\\', '//'))
+                or Path(configured).name.lower() not in {'chrome.exe', 'msedge.exe', 'chromium.exe'}):
+            return False
         return Path(configured).is_file()
     if os.name == 'nt':
         roots = [os.getenv('PROGRAMFILES', 'C:/Program Files'), os.getenv('PROGRAMFILES(X86)', 'C:/Program Files (x86)'), os.getenv('LOCALAPPDATA', '')]
