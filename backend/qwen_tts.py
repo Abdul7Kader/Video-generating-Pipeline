@@ -58,7 +58,8 @@ def _run_worker(request: dict) -> None:
     # Windows venv launchers spawn another Python process; killing only the
     # launcher would leave inference running after a timeout.
     options = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {"start_new_session": True}
-    with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    from .process_control import owned_command
+    with subprocess.Popen(owned_command(command), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                           text=True, encoding="utf-8", env=_safe_environment(), **options) as process:
         try:
             _, errors = process.communicate(json.dumps(request), timeout=settings.qwen_tts_timeout_seconds)

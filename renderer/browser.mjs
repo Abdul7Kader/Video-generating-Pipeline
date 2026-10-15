@@ -1,6 +1,14 @@
 import {existsSync} from 'node:fs';
 import {win32, posix} from 'node:path';
 
+export function guardedBrowserExecutable(browser, {platform = process.platform, env = process.env, exists = existsSync} = {}) {
+  if (platform !== 'darwin' || !env.PIPELINE_PROCESS_REGISTRY) return browser;
+  const wrapper = env.PIPELINE_BROWSER_WRAPPER;
+  if (!wrapper || !exists(wrapper)) throw new Error('Die macOS-Prozessüberwachung für den Zeichenbrowser fehlt. Starte die Desktop-Anwendung erneut.');
+  env.PIPELINE_REAL_BROWSER = browser;
+  return wrapper;
+}
+
 export function resolveBrowserExecutable({platform = process.platform, env = process.env, exists = existsSync} = {}) {
   const configured = env.REMOTION_BROWSER_EXECUTABLE;
   if (configured) {

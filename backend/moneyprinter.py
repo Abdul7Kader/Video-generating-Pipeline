@@ -13,6 +13,7 @@ from uuid import UUID
 
 from .plan import file_sha256, object_sha256
 from .quality import probe_media
+from .process_control import CONTROL_KEYS, owned_command
 
 
 _SAFE_ENVIRONMENT_KEYS = {
@@ -30,6 +31,7 @@ _SAFE_ENVIRONMENT_KEYS = {
     "USERPROFILE",
     "WINDIR",
 }
+_SAFE_ENVIRONMENT_KEYS.update(CONTROL_KEYS)
 _MAX_STDOUT_BYTES = 2 * 1024 * 1024
 
 
@@ -150,7 +152,7 @@ def _run_process(command: list[str], root: Path, timeout_seconds: int) -> tuple[
         process_options["start_new_session"] = True
     with tempfile.TemporaryFile() as stdout:
         process = subprocess.Popen(
-            command,
+            owned_command(command),
             cwd=root,
             env=_safe_environment(),
             stdout=stdout,

@@ -26,6 +26,7 @@ from .device import ROOT, ModelName, MachinePreferences, ManualHardware, device_
 from .moneyprinter import _safe_environment, _terminate_process_tree
 from .quality import find_ffmpeg, find_ffprobe
 from .qwen_tts import voice_status
+from .process_control import owned_command
 
 router = APIRouter(prefix='/api/settings')
 TOKEN = secrets.token_urlsafe(32)
@@ -150,7 +151,7 @@ class SetupManager:
                 path=Path(folder,name)
                 path.write_text('',encoding='utf-8')
                 env[key]=str(path)
-            with subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **options) as process:
+            with subprocess.Popen(owned_command(command), cwd=cwd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **options) as process:
                 self.process = process
                 try:
                     process.wait(timeout=timeout)
@@ -178,7 +179,7 @@ class SetupManager:
                    OLLAMA_MODELS=str(ROOT / 'data' / 'ollama' / 'models'),
                    OLLAMA_NUM_PARALLEL='1', OLLAMA_MAX_LOADED_MODELS='1', OLLAMA_MAX_QUEUE='4')
         options = {'creationflags': subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW} if os.name == 'nt' else {'start_new_session': True}
-        self.service = subprocess.Popen([executable, 'serve'], cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **options)
+        self.service = subprocess.Popen(owned_command([executable, 'serve']), cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **options)
         for _ in range(40):
             if ollama_models() is not None:
                 return

@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {createReadStream, statSync} from 'node:fs';
 import http from 'node:http';
-import {resolveBrowserExecutable} from './browser.mjs';
+import {resolveBrowserExecutable, guardedBrowserExecutable} from './browser.mjs';
 import {enforceLoopbackListeners} from './loopback.mjs';
 
 enforceLoopbackListeners();
@@ -12,7 +12,7 @@ enforceLoopbackListeners();
 const [propsFile, outputLocation, concurrencyArg = '2', audioFile] = process.argv.slice(2);
 if (!propsFile || !outputLocation) throw new Error('Usage: node render.mjs PROPS_JSON OUTPUT_MP4 [CONCURRENCY] [AUDIO_WAV]');
 const inputProps = JSON.parse(await readFile(propsFile, 'utf8'));
-const browserExecutable = resolveBrowserExecutable();
+const browserExecutable = guardedBrowserExecutable(resolveBrowserExecutable());
 let audioServer;
 const mediaFiles = new Map();
 if (audioFile) mediaFiles.set('/audio.wav', {path: audioFile, contentType: 'audio/wav'});

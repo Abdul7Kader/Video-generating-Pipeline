@@ -41,3 +41,12 @@ test('reports a missing Windows browser without a network request', () => {
   assert.throws(() => resolveBrowserExecutable({platform: 'win32', env: {}, exists: () => false}),
     /Chrome oder Edge.*lokal/);
 });
+import {guardedBrowserExecutable} from './browser.mjs';
+
+test('macOS desktop registers each detached drawing browser and refuses a missing guard', () => {
+  const env = {PIPELINE_PROCESS_REGISTRY: '/private/session', PIPELINE_BROWSER_WRAPPER: '/private/browser-wrapper'};
+  assert.equal(guardedBrowserExecutable('/Applications/Chrome', {platform:'darwin', env, exists:()=>true}), '/private/browser-wrapper');
+  assert.equal(env.PIPELINE_REAL_BROWSER, '/Applications/Chrome');
+  assert.throws(() => guardedBrowserExecutable('/Applications/Chrome', {platform:'darwin', env, exists:()=>false}), /Prozessüberwachung/);
+  assert.equal(guardedBrowserExecutable('/usr/bin/chromium', {platform:'linux', env}), '/usr/bin/chromium');
+});
