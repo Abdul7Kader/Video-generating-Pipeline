@@ -111,6 +111,15 @@ class Database:
                 );
                 CREATE INDEX IF NOT EXISTS idx_publication_targets_status
                 ON publication_targets(status, updated_at);
+                CREATE TABLE IF NOT EXISTS discord_reviews (
+                    id TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+                    kind TEXT NOT NULL, version INTEGER NOT NULL, fingerprint TEXT NOT NULL,
+                    guild_id TEXT NOT NULL, channel_id TEXT NOT NULL, message_id TEXT,
+                    targets_json TEXT NOT NULL, options_json TEXT NOT NULL DEFAULT '{}',
+                    state TEXT NOT NULL, instructions TEXT, actor_id TEXT, error TEXT,
+                    created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_discord_reviews_state ON discord_reviews(state,updated_at);
                 """
             )
             script_columns = {row["name"] for row in conn.execute("PRAGMA table_info(script_versions)").fetchall()}
@@ -722,6 +731,8 @@ class Database:
             status = "publish_queued"
         elif any(value in {"failed", "unknown"} for value in statuses):
             status = "publish_failed"
+        elif 'awaiting_user' in statuses:
+            status = 'publish_pending'
         elif "published" in statuses:
             status = "published" if all(value in {"published", "ready"} for value in statuses) else "published_partial"
         else:
@@ -881,14 +892,14 @@ class Database:
                 job["publication_output"] = output
         return job
 
-    def finish_publication(self, job_id: str, platform: str, remote_id: str, remote_url: str | None) -> None:
+    def finish_publication(self, job_id: str, platform: str, remote_id: str, remote_url: str | None, *, awaiting_user=False, notice=None) -> None:
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             now = utcnow()
             updated = conn.execute(
-                """UPDATE publication_targets SET status='published',remote_id=?,remote_url=?,
-                error=NULL,updated_at=? WHERE job_id=? AND platform=? AND status='publishing'""",
-                (remote_id, remote_url, now, job_id, platform),
+                """UPDATE publication_targets SET status=?,remote_id=?,remote_url=?,
+                error=?,updated_at=? WHERE job_id=? AND platform=? AND status='publishing'""",
+                ('awaiting_user' if awaiting_user else 'published',remote_id, remote_url, notice, now, job_id, platform),
             )
             if updated.rowcount != 1:
                 raise ValueError("publication_not_claimed")
@@ -898,30 +909,50 @@ class Database:
             self._event(
                 conn,
                 job_id,
-                "published",
-                f"Freigegebener Inhalt wurde auf {platform} veröffentlicht.",
+                'publish_pending' if awaiting_user else 'published',
+                notice if awaiting_user else f"Freigegebener Inhalt wurde auf {platform} veröffentlicht.",
                 {"platform": platform, "remote_id": remote_id, "remote_url": remote_url},
             )
             conn.commit()
 
-    def fail_publication(self, job_id: str, platform: str, message: str) -> None:
+    def fail_publication(self, job_id: str, platform: str, message: str, *, unknown=False, remote_id=None) -> None:
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             now = utcnow()
             conn.execute(
-                """UPDATE publication_targets SET status='failed',error=?,updated_at=?
+                """UPDATE publication_targets SET status=?,error=?,updated_at=?,remote_id=COALESCE(?,remote_id)
                 WHERE job_id=? AND platform=? AND status='publishing'""",
-                (message[:2000], now, job_id, platform),
+                ('unknown' if unknown else 'failed',message[:2000], now, remote_id, job_id, platform),
             )
             conn.execute("UPDATE jobs SET error=? WHERE id=?", (f"{platform}: {message}"[:2000], job_id))
             self._refresh_publication_job_state(conn, job_id)
             self._event(
                 conn,
                 job_id,
-                "publish_failed",
-                f"Veröffentlichung auf {platform} fehlgeschlagen und wird nicht automatisch wiederholt.",
+                'publish_unknown' if unknown else 'publish_failed',
+                f"Veröffentlichung auf {platform} nicht bestätigt; externen Status prüfen. Keine automatische Wiederholung." if unknown else f"Veröffentlichung auf {platform} fehlgeschlagen und wird nicht automatisch wiederholt.",
                 {"platform": platform, "error": message[:500]},
             )
+            conn.commit()
+
+    def pending_confirmation(self, job_id=None):
+        with self.connect() as conn:
+            row = conn.execute("""SELECT job_id,remote_id FROM publication_targets
+                WHERE platform='tiktok' AND status='awaiting_user' AND (? IS NULL OR job_id=?)
+                ORDER BY updated_at LIMIT 1""",(job_id,job_id)).fetchone()
+            return dict(row) if row else None
+
+    def confirm_tiktok(self, job_id, remote_id, *, complete=False, failed=False):
+        with self._write_lock,self.connect() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            state = 'published' if complete else 'failed' if failed else 'awaiting_user'
+            changed = conn.execute("""UPDATE publication_targets SET status=?,updated_at=?,error=?
+                WHERE job_id=? AND platform='tiktok' AND status='awaiting_user' AND remote_id=?""",
+                (state,utcnow(),'TikTok hat die Übergabe abgelehnt; in der App prüfen.' if failed else None if complete else 'In TikTok endgültig veröffentlichen.',job_id,remote_id)).rowcount
+            if changed and (complete or failed):
+                self._refresh_publication_job_state(conn,job_id)
+                self._event(conn,job_id,'published' if complete else 'publish_failed',
+                    'TikTok hat die endgültige Veröffentlichung bestätigt.' if complete else 'TikTok hat die Übergabe als fehlgeschlagen gemeldet.')
             conn.commit()
 
     def claim_publish(self) -> dict[str, Any] | None:

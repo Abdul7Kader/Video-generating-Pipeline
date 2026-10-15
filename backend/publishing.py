@@ -1,17 +1,31 @@
 from __future__ import annotations
 
 from pathlib import Path
+from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
 
 from .config import settings
 
 
+class PublicationError(RuntimeError):
+    def __init__(self, message, *, uncertain=False, remote_id=None):
+        super().__init__(message)
+        self.uncertain, self.remote_id = uncertain, remote_id
+
+
+@dataclass(frozen=True)
+class PendingPublication:
+    remote_id: str
+    remote_url: str | None
+    message: str
+
+
 _PROFILES: tuple[dict[str, Any], ...] = (
     {"id": "download", "label": "Lokaler Download", "category": "local", "delivery_mode": "download", "preferred_aspect_ratio": "any", "media": "video"},
     {"id": "youtube", "label": "YouTube / Shorts", "category": "social_video", "delivery_mode": "automatic", "preferred_aspect_ratio": "16:9 oder 9:16", "media": "video"},
     {"id": "mastodon", "label": "Mastodon", "category": "social_video", "delivery_mode": "automatic", "preferred_aspect_ratio": "16:9 oder 1:1", "media": "video"},
-    {"id": "tiktok", "label": "TikTok", "category": "social_video", "delivery_mode": "automatic", "preferred_aspect_ratio": "9:16", "media": "video"},
+    {"id": "tiktok", "label": "TikTok · Entwurf zur App", "category": "social_video", "delivery_mode": "automatic", "preferred_aspect_ratio": "9:16", "media": "video"},
     {"id": "instagram_reels", "label": "Instagram Reels", "category": "social_video", "delivery_mode": "automatic", "preferred_aspect_ratio": "9:16", "media": "video"},
     {"id": "facebook_reels", "label": "Facebook Reels", "category": "social_video", "delivery_mode": "automatic", "preferred_aspect_ratio": "9:16", "media": "video"},
     {"id": "linkedin", "label": "LinkedIn", "category": "social_video", "delivery_mode": "automatic", "preferred_aspect_ratio": "16:9 oder 1:1", "media": "video"},
@@ -86,12 +100,20 @@ def configured_automatic_platforms(config: Any = settings) -> set[str]:
     if _mastodon_configured(config):
         enabled.add("mastodon")
     if config is settings:
-        from .integrations import load
+        from .integrations import load,path as integration_path
         from .credentials import credentials, CredentialError
         try:
             preferences = load()
+            if integration_path().exists():
+                enabled.discard('youtube')
             if preferences.youtube_enabled and preferences.youtube_client_id and credentials.get('youtube_refresh_token') and credentials.get('youtube_client_secret'):
                 enabled.add('youtube')
+            if preferences.facebook_enabled and preferences.facebook_page_id and credentials.get('facebook_token'):
+                enabled.add('facebook_reels')
+            if preferences.instagram_enabled and preferences.instagram_account_id and credentials.get('instagram_token'):
+                enabled.add('instagram_reels')
+            if preferences.tiktok_enabled and (credentials.get('tiktok_access_token') or (preferences.tiktok_client_id and credentials.get('tiktok_refresh_token') and credentials.get('tiktok_client_secret'))):
+                enabled.add('tiktok')
         except CredentialError:
             pass
     return enabled
@@ -108,7 +130,11 @@ def platform_catalog(config: Any = settings) -> list[dict[str, Any]]:
             item["setup_hint"] = "Öffentliches Podcast-Hosting mit RSS-Feed erforderlich"
         elif profile["delivery_mode"] == "distributor":
             item["setup_hint"] = "Musikdistributor erforderlich"
-        elif profile["delivery_mode"] == "automatic" and profile["id"] not in {"youtube", "mastodon"}:
+        elif profile['id'] == 'tiktok' and profile['id'] in enabled:
+            item['setup_hint'] = 'Offizielle Entwurfsübergabe; endgültig in TikTok veröffentlichen'
+        elif profile['id'] in {'facebook_reels','instagram_reels','tiktok'} and profile['id'] not in enabled:
+            item['setup_hint'] = 'API-Zugang, Konto-ID und Anbieterberechtigungen unter Einstellungen einrichten'
+        elif profile["delivery_mode"] == "automatic" and profile["id"] not in enabled:
             item["setup_hint"] = "Offizielle Entwickler-App und OAuth-Adapter noch einzurichten"
         elif profile["id"] in {"youtube", "mastodon"} and profile["id"] not in enabled:
             item["setup_hint"] = "Zugangsdaten fehlen oder Adapter ist deaktiviert"
@@ -118,7 +144,7 @@ def platform_catalog(config: Any = settings) -> list[dict[str, Any]]:
     return result
 
 
-def publish_to_target(job: dict[str, Any], video_path, platform: str) -> tuple[str, str | None]:
+def publish_to_target(job: dict[str, Any], video_path, platform: str) -> tuple[str, str | None] | PendingPublication:
     if platform == "youtube":
         from .youtube import upload_video
 
@@ -128,4 +154,11 @@ def publish_to_target(job: dict[str, Any], video_path, platform: str) -> tuple[s
         from .mastodon import publish_video
 
         return publish_video(job, video_path)
+    if platform in {'facebook_reels','instagram_reels','tiktok'}:
+        from .social import publish_facebook, publish_instagram, upload_tiktok_draft
+        from .credentials import CredentialError
+        try:
+            return {'facebook_reels':publish_facebook,'instagram_reels':publish_instagram,'tiktok':upload_tiktok_draft}[platform](job,Path(video_path))
+        except CredentialError as error:
+            raise PublicationError(str(error)) from None
     raise RuntimeError(f"Für {platform} ist kein automatischer Veröffentlichungsadapter aktiv.")

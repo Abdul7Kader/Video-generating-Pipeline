@@ -20,7 +20,7 @@ globalThis.IntegrationSettings = {
       if (!section.isConnected) return;
       const text = (name, label, hint = '') => `<label>${escape(label)}<input data-integration="${name}" value="${escape(preferences[name])}" autocomplete="off">${hint ? `<small>${escape(hint)}</small>` : ''}</label>`;
       const flag = (name, label) => `<label class="check"><input type="checkbox" data-integration="${name}" ${preferences[name] ? 'checked' : ''}> ${escape(label)}</label>`;
-      const secret = (name, label) => `<label>${escape(label)}<input type="password" data-credential="${name}" autocomplete="new-password" maxlength="1200" placeholder="${state.secrets_present[name] ? 'Gespeichert – leer lassen, um ihn zu behalten' : 'Noch nicht gespeichert'}" ${state.vault_ready ? '' : 'disabled'}></label>`;
+      const secret = (name, label) => `<label>${escape(label)}<input type="password" data-credential="${name}" autocomplete="new-password" maxlength="1200" placeholder="${state.secrets_present[name] ? 'Gespeichert – leer lassen, um ihn zu behalten' : 'Noch nicht gespeichert'}" ${state.vault_ready ? '' : 'disabled'}></label><button type="button" class="ghost" data-clear-credential="${name}" ${state.secrets_present[name] ? '' : 'disabled'}>Gespeicherten Zugang entfernen</button>`;
       const platform = (id, label, enabled, fields, guide, hint) => `<details class="setup-tool"><summary>${label}</summary><p>${hint}</p>${flag(enabled, 'API-Zugang für ' + label + ' aktivieren')}${fields}<p><a href="${guide}" target="_blank" rel="noopener noreferrer">Offizielle Einrichtung und Anmeldung ↗</a></p><label class="check"><input type="checkbox" data-publish-target="${id}" ${preferences.publish_targets.includes(id) ? 'checked' : ''}> Nach Freigabe auf ${label} veröffentlichen</label></details>`;
       section.innerHTML = `<h2>4 · Videos, Discord und Veröffentlichung</h2>
         <p>Erst ansehen, dann entscheiden. Die Freigabe gilt für die konkrete Videoversion und die darunter gewählten Ziele. Ein Anbieterzugang allein startet keinen Upload.</p>
@@ -34,11 +34,11 @@ globalThis.IntegrationSettings = {
         <label>Erlaubte Freigeber · Discord Nutzer-IDs, mit Komma getrennt<input id="discord-approvers" value="${escape(preferences.discord_approver_ids.join(', '))}" autocomplete="off"></label>
         <details><summary>Wo bekomme ich diese Angaben?</summary><p>Im Discord Developer Portal eine eigene Anwendung und einen Bot anlegen. Den Bot nur mit Kanal ansehen, Nachrichten senden, Dateien anhängen und Verlauf lesen einladen. In Discord den Entwicklermodus aktivieren; danach Server, Kanal und deinen Nutzer rechts anklicken und die jeweilige ID kopieren. Kein Discord-Passwort oder persönlicher Nutzertoken.</p><a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer">Discord Bot einrichten ↗</a></details>
         <label>Dateigrenze deines Discord-Servers in MB<input type="number" min="1" max="500" data-integration="discord_upload_mb" value="${preferences.discord_upload_mb}"></label><p>Standard: 10 MB. Nur entsprechend der tatsächlichen Servergrenze erhöhen. Zu große Dateien werden nicht ungeprüft übertragen.</p>
-        <h3>Wohin soll eine Freigabe veröffentlichen?</h3><p>Jeden gewünschten Kanal ausdrücklich auswählen. Fehlende App-Rechte oder Anbieterprüfungen werden als Einrichtungsbedarf angezeigt. Ein Pro-Abo oder Einnahmen werden nicht zugesichert.</p>
-        ${platform('youtube', 'YouTube / Shorts', 'youtube_enabled', text('youtube_client_id', 'Google OAuth Client-ID') + secret('youtube_client_secret', 'Google OAuth Client-Secret') + '<button type="button" id="youtube-connect" class="ghost">Mit YouTube verbinden …</button><p id="youtube-connect-status" role="status"></p><label>Sichtbarkeit<select data-integration="youtube_privacy">' + ['private','unlisted','public'].map(value => `<option value="${value}" ${preferences.youtube_privacy === value ? 'selected' : ''}>${({private:'Privat',unlisted:'Nicht gelistet',public:'Öffentlich'})[value]}</option>`).join('') + '</select></label>', 'https://console.cloud.google.com/apis/credentials', 'Eine eigene Google-Entwickleranwendung mit YouTube Data API und OAuth-Desktopzugang ist nötig. Erst speichern, dann verbinden. Ungeprüfte Upload-Anwendungen können auf private Videos beschränkt sein.')}
+        <button type="button" id="discord-check" class="ghost">Bot prüfen und Einladungslink anzeigen</button><p id="discord-check-result" role="status"></p><h3>Wohin soll eine Freigabe veröffentlichen?</h3><p>Jeden gewünschten Kanal ausdrücklich auswählen. Fehlende App-Rechte oder Anbieterprüfungen werden als Einrichtungsbedarf angezeigt. Ein Pro-Abo oder Einnahmen werden nicht zugesichert.</p>
+        ${platform('youtube', 'YouTube / Shorts', 'youtube_enabled', text('youtube_client_id', 'Google OAuth Client-ID') + secret('youtube_client_secret', 'Google OAuth Client-Secret') + '<button type="button" id="youtube-connect" class="ghost">Mit YouTube verbinden …</button><button type="button" class="ghost" data-clear-credential="youtube_refresh_token">YouTube-Anmeldung entfernen</button><p id="youtube-connect-status" role="status"></p><label>Sichtbarkeit<select data-integration="youtube_privacy">' + ['private','unlisted','public'].map(value => `<option value="${value}" ${preferences.youtube_privacy === value ? 'selected' : ''}>${({private:'Privat',unlisted:'Nicht gelistet',public:'Öffentlich'})[value]}</option>`).join('') + '</select></label>', 'https://console.cloud.google.com/apis/credentials', 'Eine eigene Google-Entwickleranwendung mit YouTube Data API und OAuth-Desktopzugang ist nötig. Erst speichern, dann verbinden. Ungeprüfte Upload-Anwendungen können auf private Videos beschränkt sein.')}
         ${platform('facebook_reels', 'Facebook Reels', 'facebook_enabled', text('facebook_page_id', 'Facebook Seiten-ID') + secret('facebook_token', 'Seiten-Zugriffstoken'), 'https://developers.facebook.com/apps/', 'Veröffentlichung auf einer eigenen Facebook-Seite über die Reels-API. Eine Meta-Entwickleranwendung und passende Seitenberechtigungen sind nötig.')}
-        ${platform('instagram_reels', 'Instagram Reels', 'instagram_enabled', text('instagram_account_id', 'Instagram Professional Konto-ID') + secret('instagram_token', 'Instagram Zugriffstoken'), 'https://developers.facebook.com/docs/instagram-platform/', 'Ein unterstütztes professionelles Instagram-Konto, Entwickleranwendung und Veröffentlichungsrechte sind nötig. Lokale Videos werden hochgeladen; dein Rechner wird kein öffentlicher Videoserver.')}
-        ${platform('tiktok', 'TikTok', 'tiktok_enabled', text('tiktok_client_id', 'TikTok Client Key') + secret('tiktok_client_secret', 'TikTok Client Secret') + secret('tiktok_access_token', 'TikTok OAuth Zugriffstoken') + secret('tiktok_refresh_token', 'TikTok Refresh-Token'), 'https://developers.tiktok.com/', 'Die offizielle Content Posting API benötigt eine freigegebene Entwickleranwendung, passenden OAuth-Zugang und die vorgeschriebene Zustimmung je Video. Ungeprüfte Anwendungen dürfen nur privat posten; Login-Skripte umgehen diese Beschränkung nicht.')}
+        ${platform('instagram_reels', 'Instagram Reels', 'instagram_enabled', text('instagram_account_id', 'Instagram Professional Konto-ID') + '<label>Zugangstyp<select data-integration="instagram_login"><option value="instagram" ' + (preferences.instagram_login === 'instagram' ? 'selected' : '') + '>Instagram Login · professionelles Konto</option><option value="facebook" ' + (preferences.instagram_login === 'facebook' ? 'selected' : '') + '>Facebook Login · verknüpftes Konto</option></select></label>' + secret('instagram_token', 'Instagram Zugriffstoken'), 'https://developers.facebook.com/docs/instagram-platform/', 'Ein unterstütztes professionelles Instagram-Konto, Entwickleranwendung und Veröffentlichungsrechte sind nötig. Lokale Videos werden hochgeladen; dein Rechner wird kein öffentlicher Videoserver.')}
+        ${platform('tiktok', 'TikTok · Entwurf zur App', 'tiktok_enabled', text('tiktok_client_id', 'TikTok Client Key') + secret('tiktok_client_secret', 'TikTok Client Secret') + secret('tiktok_access_token', 'TikTok OAuth Zugriffstoken') + secret('tiktok_refresh_token', 'TikTok Refresh-Token'), 'https://developers.tiktok.com/', 'Die offizielle Upload-API benötigt eine Entwickleranwendung und OAuth-Zugang mit video.upload-Recht. Nach Freigabe geht das Video als Entwurf in deine TikTok-Benachrichtigungen. Dort Beschriftung, Sichtbarkeit und endgültige Veröffentlichung selbst bestätigen. Für diese private Pipeline wird kein Direct-Post-Zugang behauptet; Login-Skripte umgehen keine Anbieterprüfung.')}
         <p class="notice">${escape(state.vault_message)} Schlüssel werden nie wieder im Formular angezeigt. Ein leeres Schlüsselfeld behält den vorhandenen Zugang.</p>
         <button type="button" id="integration-save" class="secondary">Videoordner und Kanäle speichern</button>
         <p id="integration-message" role="status" aria-live="polite"></p>`;
@@ -68,6 +68,28 @@ globalThis.IntegrationSettings = {
         } catch (error) { message.textContent = error.message; }
         finally { event.target.disabled = false; }
       };
+      section.querySelectorAll('[data-clear-credential]').forEach(button => {button.onclick = async () => {
+        button.disabled = true;
+        try {
+          const result = await api('', 'PUT', {preferences, clear_secrets:[button.dataset.clearCredential]});
+          Object.assign(preferences, result.preferences);
+          const input = section.querySelector('[data-credential="' + button.dataset.clearCredential + '"]');
+          if (input) {input.value = '';input.placeholder = 'Noch nicht gespeichert';}
+          message.textContent = 'Gespeicherter Zugang entfernt. Beim Anbieter kannst du die App-Berechtigung zusätzlich widerrufen.';
+        } catch (error) {message.textContent = error.message;button.disabled = false;}
+      };});
+      section.querySelector('#discord-check').onclick = async event => {
+        event.target.disabled = true;
+        const host = section.querySelector('#discord-check-result');
+        host.textContent = 'Gespeicherten Bot und Kanal prüfen …';
+        try {
+          const result = await api('/discord-check','POST');
+          host.textContent = result.bot_name + (result.channel_ready ? ' · Zugriff auf den gewählten Server/Kanal bestätigt. ' : ' · Bot noch einladen oder Kanalrechte prüfen. ');
+          const link = document.createElement('a');
+          link.href = result.invite_url;link.target = '_blank';link.rel = 'noopener noreferrer';link.textContent = 'Eigenen Bot einladen ↗';host.append(link);
+        } catch (error) {host.textContent = error.message;}
+        finally {event.target.disabled = false;}
+      };
       section.querySelector('#youtube-connect').onclick = async () => {
         const host = section.querySelector('#youtube-connect-status');
         host.textContent = 'Reguläre Google-Anmeldung wird vorbereitet …';
@@ -79,6 +101,7 @@ globalThis.IntegrationSettings = {
             result = await api('/youtube-connect');
             host.textContent = result.message;
           }
+          if(result.status === 'connected')Object.assign(preferences,(await api()).preferences);
         }
         catch (error) { host.textContent = error.message; }
       };

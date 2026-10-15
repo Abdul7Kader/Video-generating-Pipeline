@@ -44,6 +44,8 @@ class DesktopControl:
         with self.manager.lock:
             requests, setup = self.manager.production_requests, self.manager.busy
         jobs = sum(job['status'] in {'render_planning', 'rendering', 'cancelling', 'publishing'} for job in self.db.list_jobs())
+        review = getattr(self.app.state,'discord_service',None)
+        jobs += int(bool(review and review.busy.is_set()))
         return {'busy': bool(requests or setup or jobs), 'requests': requests,
                 'setup': bool(setup), 'jobs': jobs, 'draining': self.draining}
 

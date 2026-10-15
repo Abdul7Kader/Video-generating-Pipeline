@@ -4,7 +4,7 @@ import sys
 import threading
 
 from .credentials import credentials
-from .integrations import load
+from .integrations import load,save,lock as configuration_lock
 
 lock = threading.Lock()
 state = {'status': 'idle', 'message': 'YouTube noch nicht über diese Einstellungen verbunden.'}
@@ -21,7 +21,9 @@ def status():
         return dict(state)
 
 
-def connect_youtube():
+def connect_youtube(*, blocked=lambda: False):
+    if blocked():
+        raise RuntimeError('Anmeldung nach Abschluss der laufenden Veröffentlichungen ändern.')
     preference = load()
     secret = credentials.get('youtube_client_secret')
     if not preference.youtube_client_id.endswith('.apps.googleusercontent.com') or not secret:
@@ -48,7 +50,18 @@ def connect_youtube():
                 access_type='offline', prompt='consent')
             if not result.refresh_token:
                 raise RuntimeError('Kein dauerhafter Zugang erhalten')
-            credentials.set('youtube_refresh_token', result.refresh_token)
+            with configuration_lock:
+                current = load()
+                if blocked() or current.youtube_client_id != preference.youtube_client_id or credentials.get('youtube_client_secret') != secret:
+                    raise RuntimeError('Kontokonfiguration wurde während der Anmeldung geändert.')
+                previous = credentials.get('youtube_refresh_token')
+                credentials.set('youtube_refresh_token',result.refresh_token)
+                try:
+                    current.connection_revision += 1
+                    save(current)
+                except Exception:
+                    credentials.set('youtube_refresh_token',previous)
+                    raise
             with lock:
                 state.update(status='connected', message='YouTube-Anmeldung gespeichert. Es wurde kein Video hochgeladen.')
         except Exception:

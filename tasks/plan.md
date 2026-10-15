@@ -1,5 +1,10 @@
 # Aktiver Entwicklungsplan: Strichmenschen-Videos
 
+Ergänzung 16.10.2026: Desktop und Einzelabbruch, native Kontotresore/Videoablage,
+Discord-Abnahme und offizielle Verteilung implementiert; tatsächliche Konten- und
+Uploadabnahme nach Einrichtung offen. TikTok nur Inbox mit finaler App-Freigabe.
+Aktueller Ablauf, Schutzbedarf und Prüfungen: [Abnahme und Verteilung](../docs/review-distribution.md).
+
 Stand: 2026-10-14. Nummerierter Entwicklungsplan auf Nutzerwunsch.
 Zuerst die Originalversion für den Nutzer fertigstellen, erst danach die Familienversion
 ohne Pro-Abos. Bereits vorhandene Funktionen gezielt prüfen und verbessern, nicht neu bauen.

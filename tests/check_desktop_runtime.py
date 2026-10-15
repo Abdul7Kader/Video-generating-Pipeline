@@ -44,10 +44,11 @@ def check(mode):
         owned = {report['electron']}
         for _ in range(12):
             owned |= {p['ProcessId'] for p in processes if p['ParentProcessId'] in owned}
-        sockets = powershell('Get-NetTCPConnection -State Listen | Select-Object LocalAddress,LocalPort,OwningProcess | ConvertTo-Json -Compress')
+        own_ids = ','.join(str(pid) for pid in sorted(owned))
+        sockets = powershell('Get-NetTCPConnection -State Listen -OwningProcess ' + own_ids + ' -ErrorAction SilentlyContinue | Select-Object LocalAddress,LocalPort,OwningProcess | ConvertTo-Json -Compress')
         listeners = [s for s in sockets if s['OwningProcess'] in owned]
         assert listeners and all(s['LocalAddress'] in {'127.0.0.1', '::1'} for s in listeners), listeners
-        udp = powershell('Get-NetUDPEndpoint | Select-Object LocalAddress,LocalPort,OwningProcess | ConvertTo-Json -Compress')
+        udp = powershell('try { Get-NetUDPEndpoint -OwningProcess ' + own_ids + ' -ErrorAction Stop | Select-Object LocalAddress,LocalPort,OwningProcess | ConvertTo-Json -Compress } catch { if ($_.CategoryInfo.Category -ne "ObjectNotFound") { throw } }; exit 0')
         owned_udp = [s for s in udp if s['OwningProcess'] in owned]
         assert all(s['LocalAddress'] in {'127.0.0.1', '::1'} for s in owned_udp), owned_udp
         report.update(listeners=listeners, udp=owned_udp, owned_pids=sorted(owned))

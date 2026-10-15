@@ -1,6 +1,11 @@
 # Entwicklungsplan für die Strichmännchen-Pipeline
 
-Stand: 2026-10-15. Vom Nutzer gewünschte Reihenfolge: zuerst die Originalversion fertigstellen, erst danach die Familienversion ohne Pro-Abos. Vorhandene Funktionen werden geprüft und verbessert; andere Videoarten bleiben ausgeblendet.
+Stand: 2026-10-16. Vom Nutzer gewünschte Reihenfolge: zuerst die Originalversion fertigstellen, erst danach die Familienversion ohne Pro-Abos. Vorhandene Funktionen werden geprüft und verbessert; andere Videoarten bleiben ausgeblendet.
+
+Aktuelle Ergänzung: Desktop-Start/Stopp, Einzelabbruch, geschützte Kontoeinrichtung,
+Videoordner und Discord-Abnahme technisch umgesetzt. Freigabe verteilt über
+offizielle Zieladapter; TikTok bleibt eine Inbox-Übergabe mit finalem Posten in der
+App. Live-Kontenabnahme offen. [Anleitung und Grenzen](docs/review-distribution.md).
 
 Arbeitsstand: Schritte 1–9 technisch umgesetzt; Schritt 10 als technische
 Mehrthemenprüfung mit vier Filmen und allgemeinen Pipelinekorrekturen abgeschlossen.

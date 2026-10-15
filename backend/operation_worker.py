@@ -19,6 +19,10 @@ def main():
         elif value['kind'] == 'render':
             from backend.rendering import render_job
             output = render_job(payload['job'], job_dir_override=Path(payload['directory']) if payload['directory'] else None)
+        elif value['kind'] == 'revise':
+            from backend.story import generate_story
+            from backend.schemas import JobCreate
+            output = generate_story(JobCreate.model_validate(payload['request']), previous=payload['script'], instructions=payload['instructions'])
         else:
             raise ValueError('Unbekannter Produktionsschritt')
         response = {'value': output}

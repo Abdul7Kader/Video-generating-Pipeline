@@ -1,6 +1,6 @@
 # Prioritäten für die Strichmännchen-Pipeline
 
-Aktualisiert: 2026-10-15. Nutzerentscheidung: erst die eigene Version fertigstellen; die Familienversion kommt ganz am Ende.
+Aktualisiert: 2026-10-16. Nutzerentscheidung: erst die eigene Version fertigstellen; die Familienversion kommt ganz am Ende.
 
 Nummerierte Übersicht: [ENTWICKLUNGSPLAN.md](ENTWICKLUNGSPLAN.md).
 Detaillierter Plan: [tasks/plan.md](tasks/plan.md); Checkliste: [tasks/todo.md](tasks/todo.md).
@@ -22,9 +22,30 @@ sofort nur den eigenen Prüflauf gestoppt, Mockgrenze korrigiert. Kein Testfilm.
 Der Nutzer hat den laufenden Feuer-Versuch ausdrücklich abgebrochen: eigener
 Desktopwächter beendet, acht eigene Prozesse entfernt, null Überreste; Auftrag
  a5860ef0-a674-5cc2-ab8d-c6d8006ca54b als cancelled gespeichert. Dateien erhalten.
-Nächster Schritt: geschützte Kontoeinrichtung/Videoordner, danach Discord-Gateway,
-Freigabe-/Änderungs-/Ablehnungsablauf und offizielle soziale Zieladapter. Keine
-Anmeldung oder echte externe Veröffentlichung ohne eingerichtete Zielkonten.
+Kontoeinrichtung/Videoordner und YouTube-OAuth sind als 0b721fe gesichert. Neu:
+Discord-Gateway und persistente Abnahme mit Datei-/Versions-/Kanal-/Nutzerbindung,
+Änderungswünsche mit erneuter Text- und Videoabnahme, Ablehnung ohne Löschung.
+Offizielle Adapter für YouTube, Facebook-Seiten-Reels und Instagram Professional;
+TikTok als offizielle Inbox-Übergabe mit endgültiger Bestätigung in TikTok.
+Zielstatus lokal und in Discord, keine automatische Wiederholung unklarer Uploads.
+Offline-Uploadpaket und zusätzliche hashgeprüfte Kopien, ohne fremde Dateien zu
+überschreiben. Neue Geheimnisse nur im nativen OS-Tresor; kein Klartextfallback.
+311 Backend-Tests (10 Skips), 60 JS-Tests und pip check bestanden. PyPI-Metadaten
+der sieben neuen/berührten Tresor-/Gatewaypakete ohne gemeldete Schwachstellen;
+Desktop-npm-Audit am 16.10.2026: 0 bekannte Befunde. Keine neuen Testfilme.
+Zwei Sandbox-Prüfläufe konnten ihre SQLite-Fixtures nicht öffnen; nur diese
+eigenen Läufe beendet und die Suite mit normalem Windows-Zugriff bestanden.
+Native Windows-Fensterprüfung bestanden: Einstellungen, private Ordnerauswahl,
+neues Abnahmepanel mit Fixture, Sandbox, Herkunftssperre, Zweitstart und Schließen.
+Eigener Listener ausschließlich 127.0.0.1:8080, keine eigenen UDP-Endpunkte,
+null eigene Prozessreste. Bericht: data/desktop/acceptance-normal-1792106097104567100/result.json.
+Optionale Aufnahme des geöffneten Einstellungsdialogs lieferte UnknownVizError;
+DOM-/Funktionsprüfung bestanden, Hauptfensterbild vorhanden. Frühere Prüfversuche
+scheiterten nur an Screenshot bzw. dem inzwischen korrigierten UDP-Prüfhelfer.
+Code, Dokumentation und Abschlussprüfungen fertig; Sicherung/Push unter Abdul7Kader
+und Wiederöffnen der nativen Anwendung zum Abschluss. Nächste fachliche Abnahme: Live-Discord, echte
+Konten-/OAuth-/Uploadabnahme nach Nutzereinrichtung offen. Meta/TikTok besitzen
+Tokenfelder und Herstelleranleitungen, noch keinen eigenen OAuth-Assistenten.
 
 ## Aktuelle Ergänzung: Desktop für Windows, Linux und macOS
 

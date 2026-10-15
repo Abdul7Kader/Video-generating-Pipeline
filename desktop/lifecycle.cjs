@@ -10,7 +10,7 @@ function localNavigation(value, origin) {
 function externalLink(value) {
   const hosts = new Set(['antigravity.google', 'www.antigravity.google', 'developers.google.com',
     'gemini.google.com', 'chatgpt.com', 'nodejs.org', 'www.python.org', 'pypi.org',
-    'discord.com', 'developers.facebook.com', 'console.cloud.google.com', 'developers.tiktok.com', 'www.tiktok.com', 'ffmpeg.org', 'www.google.com', 'ollama.com', 'www.remotion.dev', 'huggingface.co']);
+    'www.youtube.com', 'youtube.com', 'www.facebook.com', 'facebook.com', 'www.instagram.com', 'instagram.com', 'discord.com', 'developers.facebook.com', 'console.cloud.google.com', 'developers.tiktok.com', 'www.tiktok.com', 'ffmpeg.org', 'www.google.com', 'ollama.com', 'www.remotion.dev', 'huggingface.co']);
   try {
     const url = new URL(value);
     return url.protocol === 'https:' && !url.username && !url.password && !url.port && hosts.has(url.hostname);

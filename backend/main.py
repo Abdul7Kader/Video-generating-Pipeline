@@ -6,6 +6,7 @@ import json
 import logging
 import re
 import threading
+import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -25,7 +26,7 @@ from .moneyprinter import moneyprinter_status
 from .plan import file_sha256, finalize_scene_plan, script_hash
 from .planner import ScriptProviderUnavailable, generate_script, script_provider_status, unload_script_model
 from .production import build_production_catalog, normalize_production_config, production_plan_readiness, require_active_production
-from .publishing import configured_automatic_platforms, platform_catalog, publish_to_target
+from .publishing import configured_automatic_platforms, platform_catalog, publish_to_target, PublicationError, PendingPublication
 from .rendering import dependency_status, render_job, synthesize, normalize_narration_audio
 from .schemas import JobCreate, ProductionConfig, ProductionConfigUpdate, Scene, SceneUpdate, ScriptRevision, ScriptUpdate, VersionAction, VideoApproval, VoicePreview
 from .voices import VOICE_CHOICES, voice_choice, validate_voice_language, estimated_words_per_minute
@@ -81,6 +82,7 @@ def require_job(job_id: str):
 
 
 async def render_worker(stop: asyncio.Event) -> None:
+    next_confirmation = time.monotonic() + 60
     while not stop.is_set() and not app.state.shutdown_requested.is_set():
         with app.state.worker_claim_lock:
             if app.state.shutdown_requested.is_set():
@@ -108,6 +110,14 @@ async def render_worker(stop: asyncio.Event) -> None:
                         db.record_event(job['id'], 'video_archived', 'Fertige Videos zusätzlich im gewählten Videoordner gespeichert.', {'paths': paths})
                 except Exception:
                     db.record_event(job['id'], 'archive_failed', 'Videokopie fehlgeschlagen. Original im Projekt bleibt verfügbar; Ordner und freien Speicher prüfen.')
+                try:
+                    from .integrations import load as integration_preferences
+                    from .reviews import Reviews
+                    preference = integration_preferences()
+                    if preference.discord_enabled:
+                        Reviews(db).enqueue(job['id'],preference)
+                except Exception:
+                    db.record_event(job['id'],'discord_failed','Discord-Abnahme nicht eingereiht. Einstellungen prüfen; Video bleibt lokal verfügbar.')
             except OperationCancelled:
                 pass
             except Exception as exc:
@@ -126,14 +136,32 @@ async def render_worker(stop: asyncio.Event) -> None:
                 }
                 output = (settings.jobs_dir / selected_output["path"]).resolve()
                 if settings.jobs_dir not in output.parents or file_sha256(output) != publish_job["publication_target"]["approved_output_sha256"]:
-                    raise RuntimeError("Die freigegebene Videodatei wurde nach der Freigabe verändert; Upload gestoppt.")
-                remote_id, remote_url = await asyncio.to_thread(publish_to_target, publish_job, output, platform)
-                db.finish_publication(publish_job["id"], platform, remote_id, remote_url)
+                    raise PublicationError("Die freigegebene Videodatei wurde nach der Freigabe verändert; Upload gestoppt.")
+                receipt = await asyncio.to_thread(publish_to_target, publish_job, output, platform)
+                if isinstance(receipt,PendingPublication):
+                    db.finish_publication(publish_job['id'],platform,receipt.remote_id,receipt.remote_url,awaiting_user=True,notice=receipt.message)
+                else:
+                    remote_id,remote_url = receipt
+                    db.finish_publication(publish_job['id'],platform,remote_id,remote_url)
             except Exception as exc:
-                logger.exception("Publish failed for %s on %s", publish_job["id"], platform)
-                db.fail_publication(publish_job["id"], platform, str(exc))
+                logger.warning('Publication not confirmed for %s on %s',publish_job['id'],platform)
+                message = str(exc) if isinstance(exc,PublicationError) else 'Upload nicht bestätigt. Anmeldung und externen Zielstatus prüfen; keine automatische Wiederholung.'
+                db.fail_publication(publish_job['id'],platform,message,unknown=getattr(exc,'uncertain',True),remote_id=getattr(exc,'remote_id',None))
+            service = getattr(app.state,'discord_service',None)
+            if service:
+                await asyncio.to_thread(service.publish_status,publish_job['id'])
             continue
         if not job:
+            if time.monotonic() >= next_confirmation:
+                next_confirmation = time.monotonic() + 60
+                try:
+                    from .social import check_pending
+                    confirmed = await asyncio.to_thread(check_pending,db)
+                    service = getattr(app.state,'discord_service',None)
+                    if confirmed and service:
+                        await asyncio.to_thread(service.publish_status,confirmed['job_id'])
+                except Exception:
+                    pass  # Read-only confirmation failure never queues another upload.
             try:
                 await asyncio.wait_for(stop.wait(), timeout=1.5)
             except asyncio.TimeoutError:
@@ -148,6 +176,13 @@ async def lifespan(_: FastAPI):
     settings.voices_dir.mkdir(parents=True, exist_ok=True)
     db.initialize()
     db.recover_interrupted(resume_rendering=not getattr(app.state, 'desktop_mode', False))
+    from .discord_review import DiscordReviewService
+    discord_service = DiscordReviewService(db,approve_video,approve_story_and_render,
+        accepting=lambda: not app.state.shutdown_requested.is_set(),claim_lock=app.state.worker_claim_lock)
+    discord_service.reviews.recover()
+    app.state.discord_service = discord_service
+    app.state.integration_changes_blocked = lambda: any(job['status'] in {'publish_queued','publishing'} for job in db.list_jobs())
+    discord_service.start()
     setup.manager.blocked = lambda: any(job['status'] in {'render_queued','rendering','publish_queued','publishing'} for job in db.list_jobs())
     preferences = load_preferences()
     if preferences and preferences.script == 'local' and settings.ollama_model:
@@ -159,6 +194,7 @@ async def lifespan(_: FastAPI):
     worker = asyncio.create_task(render_worker(stop))
     yield
     stop.set()
+    await asyncio.to_thread(discord_service.close)
     await worker
     setup.manager.close()
 
@@ -389,6 +425,57 @@ def archive_job(job_id: str):
         return {'paths': paths}
     except (RuntimeError, OSError, KeyError):
         raise HTTPException(409, 'Nur fertige unveränderte Videos können kopiert werden. Prüfe Videoordner, Schreibrechte und freien Speicher; Originale bleiben erhalten.') from None
+
+
+@app.get('/api/jobs/{job_id}/discord-review')
+def review_status(job_id: str):
+    from .reviews import Reviews
+    job = require_job(job_id)
+    service = getattr(app.state,'discord_service',None)
+    return {'review':Reviews(db).latest(job_id),'connection':service.status if service else 'Discord-Abnahme startet mit der Anwendung.',
+            'local_path':str(settings.jobs_dir / job['output_path']) if job['output_path'] else None,'job_status':job['status']}
+
+
+@app.post('/api/jobs/{job_id}/discord-review')
+def send_review(job_id: str, payload: VersionAction):
+    from .integrations import load as integration_preferences
+    from .reviews import Reviews
+    current = require_job(job_id)
+    if current['render_version'] != payload.expected_version or current['output_sha256'] != payload.expected_hash:
+        raise HTTPException(409,'Die Videoversion hat sich geändert. Aktuelles Video neu laden.')
+    preference = integration_preferences()
+    if not preference.discord_enabled:
+        raise HTTPException(409,'Zuerst Discord unter Einstellungen einrichten und aktivieren.')
+    try:
+        return Reviews(db).enqueue(job_id,preference,force=True)
+    except ValueError as error:
+        raise HTTPException(409,str(error)) from None
+
+
+@app.post('/api/jobs/{job_id}/check-publication')
+def check_publication(job_id: str):
+    require_job(job_id)
+    from .social import check_pending
+    try:
+        result = check_pending(db,job_id)
+        service = getattr(app.state,'discord_service',None)
+        if result and service:
+            service.publish_status(job_id)
+        return result or {'status':'Keine offene eingerichtete TikTok-Bestätigung.'}
+    except PublicationError as error:
+        raise HTTPException(409,str(error)) from None
+
+
+@app.post('/api/jobs/{job_id}/export-package')
+def export_package(job_id: str, payload: VersionAction):
+    from .export_package import prepare_package
+    job = require_job(job_id)
+    if job['render_version'] != payload.expected_version or job['output_sha256'] != payload.expected_hash:
+        raise HTTPException(409,'Die Videoversion wurde geändert. Aktuelle Version neu laden.')
+    try:
+        return {'directory':prepare_package(job)}
+    except (RuntimeError,OSError) as error:
+        raise HTTPException(409,str(error) if isinstance(error,RuntimeError) else 'Uploadpaket konnte nicht gespeichert werden. Ordnerrechte und freien Speicher prüfen.') from None
 
 
 def web_request(payload):
@@ -901,6 +988,12 @@ async def import_external_video(
 
 @app.post("/api/jobs/{job_id}/approve-video")
 def approve_video(job_id: str, payload: VideoApproval):
+    from .integrations import lock as configuration_lock
+    with configuration_lock:
+        return _approve_video_locked(job_id,payload)
+
+
+def _approve_video_locked(job_id: str, payload: VideoApproval):
     job = require_job(job_id)
     if not job["output_path"]:
         raise HTTPException(409, "Video noch nicht erzeugt.")

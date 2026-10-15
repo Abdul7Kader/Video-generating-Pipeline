@@ -8,10 +8,12 @@ from .config import settings
 
 def upload_video(job: dict[str, Any], video_path: Path) -> str:
     """Upload exactly one approved render. Caller persists the returned video id."""
-    from .integrations import load
+    from .integrations import load,path as integration_path
     from .credentials import credentials as vault
     preferences = load()
     native = preferences.youtube_enabled
+    if not native and integration_path().exists():
+        raise RuntimeError('YouTube ist unter Einstellungen deaktiviert.')
     if not native and not settings.youtube_enabled:
         raise RuntimeError("YouTube-Upload ist deaktiviert")
     if not native and (not settings.youtube_client_secrets.exists() or not settings.youtube_token.exists()):

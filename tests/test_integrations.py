@@ -23,6 +23,31 @@ class MemoryCredentials:
 
 
 class IntegrationTests(unittest.TestCase):
+    def test_export_package_is_offline_verified_and_preserves_edited_files(self):
+        from backend import export_package, video_storage
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            source = root / 'jobs' / 'fixture' / 'v1' / 'video.mp4'
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b'finished-fixture')
+            digest = file_sha256(source)
+            job = {'id':'fixture','render_version':1,'output_sha256':digest,
+                'script':{'title':'Titel','description':'Beschreibung'},
+                'render_outputs':{'9:16':{'path':'fixture/v1/video.mp4','sha256':digest}}}
+            with patch.object(export_package,'settings',replace(settings,data_dir=root)),patch.object(export_package,'load',return_value=integrations.Preferences()):
+                directory = Path(export_package.prepare_package(job))
+                self.assertEqual((directory / 'video-9x16.mp4').read_bytes(),source.read_bytes())
+                self.assertEqual(export_package.prepare_package(job),str(directory))
+                (directory / 'Beschriftung.txt').write_text('Nutzeränderung',encoding='utf-8')
+                with self.assertRaisesRegex(RuntimeError,'Geänderte Texte'):
+                    export_package.prepare_package(job)
+            destination = root / 'partial.mp4'
+            with patch.object(video_storage.shutil,'copyfileobj',side_effect=OSError('fixture disk full')):
+                with self.assertRaises(OSError):
+                    video_storage.copy_verified(source,destination,digest)
+            self.assertFalse(destination.exists())
+            self.assertTrue(source.exists())
+
     def test_video_folder_keeps_original_and_never_overwrites_a_different_file(self):
         from backend import video_storage
         with tempfile.TemporaryDirectory() as name:
@@ -46,7 +71,7 @@ class IntegrationTests(unittest.TestCase):
         import time
         fake = MemoryCredentials()
         fake.set('youtube_client_secret', 'fixture-secret')
-        with patch.object(oauth, 'credentials', fake), patch.object(oauth, 'load', return_value=integrations.Preferences(youtube_client_id='fixture.apps.googleusercontent.com')), patch('google_auth_oauthlib.flow.InstalledAppFlow') as flow:
+        with patch.object(oauth, 'save'), patch.object(oauth, 'credentials', fake), patch.object(oauth, 'load', return_value=integrations.Preferences(youtube_client_id='fixture.apps.googleusercontent.com')), patch('google_auth_oauthlib.flow.InstalledAppFlow') as flow:
             flow.from_client_config.return_value.run_local_server.return_value = SimpleNamespace(refresh_token='fixture-refresh')
             oauth.connect_youtube()
             deadline = time.monotonic() + 2

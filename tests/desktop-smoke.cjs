@@ -69,8 +69,23 @@ function status(origin, headers) {
   dialog.showOpenDialog = async () => ({canceled:false, filePaths:[picked]});
   const folderResult = await window.webContents.executeJavaScript('(async()=>{const state=await(await fetch("/api/settings")).json();return (await fetch("/api/settings/integrations/folder",{method:"POST",headers:{"X-Setup-Token":state.token}})).json()})()');
   assert.equal(folderResult.directory, picked);
+  try {
+    fs.writeFileSync(path.join(folder, 'settings.png'), (await window.webContents.capturePage(undefined, {stayAwake:true})).toPNG());
+  } catch (error) {trace('Settings screenshot unavailable: ' + String(error));}
   await window.webContents.executeJavaScript('document.getElementById("settings-dialog").close()');
   trace('Integration settings and private native-folder round trip passed; no credentials/settings saved');
+  const reviewPanel = await window.webContents.executeJavaScript(`(async()=>{
+    const originalFetch = window.fetch;
+    window.fetch = async () => ({ok:true,json:async()=>({review:null,job_status:'video_review',connection:'Fixture: keine externe Verbindung',local_path:'Fixture/video.mp4'})});
+    try {
+      await ReviewControls.mount({id:'fixture',status:'video_review',output_path:'fixture.mp4',render_version:1,output_sha256:'fixture'});
+      return document.getElementById('discord-review-panel').innerText;
+    } finally {window.fetch=originalFetch;clearTimeout(ReviewControls.timer);document.getElementById('discord-review-panel')?.remove();}
+  })()`);
+  assert.match(reviewPanel, /Zur Discord-Abnahme senden/);
+  assert.match(reviewPanel, /Uploadpaket/);
+  assert.match(reviewPanel, /Original auf diesem Rechner/);
+  trace('Review panel rendered with fixture; no video, Discord message or upload created');
   const clipboardPermissions = await window.webContents.executeJavaScript(
     'Promise.all(["clipboard-write", "clipboard-read"].map(async name => ({name, state: (await navigator.permissions.query({name})).state})))');
   assert.equal(clipboardPermissions[0].state, 'granted');

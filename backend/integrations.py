@@ -20,6 +20,7 @@ Target = Literal['youtube', 'facebook_reels', 'instagram_reels', 'tiktok', 'mast
 
 class Preferences(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    connection_revision: int = Field(default=0, ge=0)
     archive_directory: str = Field(default='', max_length=600)
     discord_enabled: bool = False
     discord_guild_id: str = Field(default='', pattern=r'^([0-9]{15,22})?$')
@@ -34,6 +35,7 @@ class Preferences(BaseModel):
     facebook_page_id: str = Field(default='', pattern=r'^([0-9]{5,30})?$')
     instagram_enabled: bool = False
     instagram_account_id: str = Field(default='', pattern=r'^([0-9]{5,30})?$')
+    instagram_login: Literal['instagram','facebook'] = 'instagram'
     tiktok_enabled: bool = False
     tiktok_client_id: str = Field(default='', max_length=150)
     mastodon_enabled: bool = False
@@ -116,12 +118,22 @@ def youtube_status(request: Request):
     return status()
 
 
+@router.post('/discord-check')
+def discord_check(request: Request):
+    require_local(request)
+    from .discord_http import check, DiscordError
+    try:
+        return check(load())
+    except (DiscordError,CredentialError) as error:
+        raise HTTPException(409,str(error)) from None
+
+
 @router.post('/youtube-connect')
 def youtube_connect(request: Request):
     require_local(request)
     from .oauth import connect_youtube
     try:
-        return connect_youtube()
+        return connect_youtube(blocked=getattr(request.app.state,'integration_changes_blocked',lambda: False))
     except RuntimeError as error:
         raise HTTPException(409, str(error)) from None
 
@@ -155,6 +167,11 @@ async def update_preferences(request: Request):
         raise HTTPException(422, 'Prüfe Ordner, IDs und Zugangsdaten. Discord benötigt Server, Kanal und mindestens eine erlaubte Nutzer-ID.') from None
     with lock:
         try:
+            if getattr(request.app.state, 'integration_changes_blocked', lambda: False)():
+                raise HTTPException(409, 'Eine Freigabe wartet auf Veröffentlichung oder wird übertragen. Kanäle und Schlüssel danach ändern.')
+            current = load()
+            connection_fields = set(Preferences.model_fields) - {'archive_directory', 'discord_upload_mb', 'connection_revision'}
+            preferences.connection_revision = current.connection_revision + int(bool(changes) or any(getattr(current,name) != getattr(preferences,name) for name in connection_fields))
             previous = {name: credentials.get(name) for name in changes}
             applied = []
             try:

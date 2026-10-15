@@ -2,11 +2,31 @@
 from pathlib import Path
 import os
 import shutil
-import tempfile
 
 from .config import settings
 from .integrations import load
 from .plan import file_sha256
+
+
+def copy_verified(source, target, digest):
+    if target.is_symlink() or target.exists():
+        if target.is_symlink() or not target.is_file() or file_sha256(target) != digest:
+            raise RuntimeError('Eine andere vorhandene Datei wird nicht überschrieben.')
+        return
+    created = False
+    try:
+        with target.open('xb') as destination:
+            created = True
+            with source.open('rb') as content:
+                shutil.copyfileobj(content, destination)
+            destination.flush()
+            os.fsync(destination.fileno())
+        if file_sha256(target) != digest:
+            raise RuntimeError('Die Videokopie wurde nicht vollständig geschrieben.')
+    except Exception:
+        if created:
+            target.unlink(missing_ok=True)
+        raise
 
 
 def archive_video(job):
@@ -24,23 +44,6 @@ def archive_video(job):
             raise RuntimeError('Nur unveränderte fertige Videos können in den gewählten Videoordner kopiert werden.')
         name = f"{job['id']}-v{job['render_version']}-{ratio.replace(':', 'x')}.mp4"
         target = root / name
-        if target.is_symlink() or target.exists():
-            if target.is_symlink() or not target.is_file() or file_sha256(target) != item['sha256']:
-                raise RuntimeError('Im Videoordner existiert bereits eine andere Datei dieses Namens; sie wird nicht überschrieben.')
-            saved.append(str(target))
-            continue
-        with tempfile.NamedTemporaryFile(prefix='.video-', suffix='.pending', dir=root, delete=False) as handle:
-            temporary = Path(handle.name)
-        try:
-            shutil.copyfile(source, temporary)
-            if file_sha256(temporary) != item['sha256']:
-                raise RuntimeError('Die Videokopie wurde nicht vollständig geschrieben.')
-            # Exclusive creation prevents a race with a newly created destination.
-            with target.open('xb') as destination, temporary.open('rb') as content:
-                shutil.copyfileobj(content, destination)
-                destination.flush()
-                os.fsync(destination.fileno())
-            saved.append(str(target))
-        finally:
-            temporary.unlink(missing_ok=True)
+        copy_verified(source,target,item['sha256'])
+        saved.append(str(target))
     return saved

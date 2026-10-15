@@ -1,5 +1,14 @@
 # Aktueller Auftrag: Strichmenschen-Videos
 
+Ergänzung 16.10.2026 ([Details](../docs/review-distribution.md)):
+- [x] Einzelabbruch einschließlich nativer Unterprozesse und verspäteter Ergebnisse.
+- [x] Zusätzlicher Videoordner, OS-Tresor und YouTube-Anmeldung in Einstellungen.
+- [x] Discord-Abnahme: anschauen, freigeben, ändern, ablehnen; Version/Datei/Rechte prüfen.
+- [x] Offizielle YouTube-/Meta-Adapter, TikTok-Inbox und ehrliche Statusanzeige.
+- [x] Offline-Uploadpaket, Kopierschutz und simulierte API-/Negativprüfungen.
+- [ ] Reale Konten einrichten und Live-Discord/-Veröffentlichung abnehmen.
+- [ ] Native Mac-/schwache-Hardware-Abnahme und signierte Installationspakete.
+
 Stand: 2026-10-14. Nummern, Abnahmebedingungen, Abhängigkeiten und Prüfungen in `tasks/plan.md`.
 Vorhandene Implementierung ist Ausgangspunkt; offen bedeutet hier noch zu prüfen/verbessern und abzunehmen.
 

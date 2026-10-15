@@ -17,6 +17,11 @@ Werkzeuge der Strichmännchen-Pipeline. Alternativen werden ausdrücklich ausgew
 | FFmpeg / FFprobe | Audio verarbeiten, Videos kodieren und Mediendateien prüfen. | Kein Konto, kein Abo. |
 | Python + FastAPI + Uvicorn | Steuert Aufträge und stellt die lokale Webseite bereit. | Kein Konto, kein Abo. |
 | SQLite | Speichert Aufträge, Skriptversionen und Freigaben. | Kein Konto, kein Abo. |
+| keyring + Betriebssystem-Tresor | Neue API-Schlüssel und Anmeldetokens geschützt speichern. | Kein Abo; Windows-Tresor, Mac-Schlüsselbund oder Linux Secret Service nötig. |
+| Discord Bot API + WebSocket-Gateway | Videos zur Abnahme senden; Freigeben, Ändern, Ablehnen. | Discord-Konto, eigener Bot, Server-/Kanalrechte und erlaubte Nutzer-IDs. |
+| YouTube Data API + Google OAuth | Freigegebene Videos hochladen. | Google-Konto/Kanal, Entwicklerprojekt, OAuth-Desktopclient; Anbieterquoten gelten. |
+| Meta Graph APIs | Facebook-Seiten-Reels und Instagram-Reels veröffentlichen. | Entwickleranwendung, autorisierter Token und passende Konto-/Veröffentlichungsrechte; Instagram Professional. |
+| TikTok Content Posting API | Video als Entwurf in die TikTok-Inbox übertragen, Status prüfen. | Entwickleranwendung, OAuth-Zugang mit video.upload; endgültig in TikTok posten. |
 | HTML + CSS + JavaScript | Benutzeroberfläche mit Einstellungen und Videobedienung. | Kein Konto, kein Abo. |
 
 ElevenLabs wird aktuell nicht verwendet. Codex wird für die Entwicklung genutzt; die fertige Pipeline benötigt keinen Coding-Agenten.

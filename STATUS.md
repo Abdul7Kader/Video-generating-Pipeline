@@ -1,6 +1,28 @@
 # Entwicklungsstatus – Video Pipeline V2
 
-Letzte Aktualisierung: 2026-10-15
+Letzte Aktualisierung: 2026-10-16
+
+## Neu: Einzelabbruch, Discord-Abnahme und Plattformziele
+
+Technisch implementiert: einzelne Planung/Videoerstellung abbrechen, zusätzliche
+Videoablage und native Kontotresore, YouTube-Anmeldung, ausgehender Discord-Bot
+mit Freigabe/Ändern/Ablehnen. Änderungen verlangen erneut Text- und Videoabnahme.
+Offizielle Adapter: YouTube, Facebook-Seiten-Reels, Instagram Professional;
+TikTok als Entwurf zur endgültigen Veröffentlichung in TikTok. Statusabfragen
+erzeugen keinen erneuten Upload. Unklare Ergebnisse werden nicht blind wiederholt.
+Ohne API-Zugang kann ein verifiziertes Offline-Uploadpaket vorbereitet werden.
+Keine öffentliche Portfreigabe, keine WSL-Browser oder Übernahme fremder Prozesse.
+
+Geprüft: 311 Backend-Tests (10 Skips), 60 JS-Tests, pip check; Desktop-npm-Audit und
+PyPI-Metadaten der sieben Tresor-/Gatewaypakete ohne bekannte Befunde. Kein neuer
+Testfilm. Der angeforderte laufende Feuer-Versuch ist abgebrochen, Dateien erhalten.
+Live-Discord und reale Plattformkonten/-veröffentlichungen nach Nutzereinrichtung
+noch offen; Meta/TikTok noch ohne eigenen OAuth-Assistenten. Anleitung, Speicherorte
+und Grenzen: [Abnahme und Verteilung](docs/review-distribution.md).
+
+Native Windows-Fensterprüfung bestanden: Einstellungen, private Ordnerauswahl,
+Abnahmepanel, Zweitstart und Schließen; eigener Listener nur 127.0.0.1:8080,
+keine eigenen UDP-Endpunkte und null eigene Prozessreste nach Schließen.
 
 ## Aktuelle Ergänzung: Desktop für Windows, Linux und macOS
 
