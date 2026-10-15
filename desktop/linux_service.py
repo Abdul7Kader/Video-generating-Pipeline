@@ -34,7 +34,7 @@ class ProcessGroup:
         arguments = [str(self.run_tool), '--user', '--quiet', '--collect', '--wait', '--pipe',
                      '--service-type=exec', '--unit=' + unit,
                      '--property=KillMode=control-group', '--property=SendSIGKILL=yes',
-                     '--property=TimeoutStopSec=3s', '--property=Restart=no',
+                     '--property=TimeoutStopSec=8s', '--property=Restart=no',
                      *[value.replace('$', '$$') for value in host_command]]
         logs = Path(cwd) / 'data' / 'desktop'
         logs.mkdir(parents=True, exist_ok=True)

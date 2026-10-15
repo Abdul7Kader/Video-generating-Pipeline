@@ -8,11 +8,18 @@ import sys
 import tempfile
 import time
 import unittest
+import uuid
 
 
 @unittest.skipUnless(sys.platform.startswith('linux'), 'Linux user-service runtime')
 class LinuxDesktopTests(unittest.TestCase):
-    def check_tree(self, crash):
+    def test_clean_child_exit_preserves_success_while_parent_pipe_is_open(self):
+        from desktop.linux_service import ProcessGroup
+        with tempfile.TemporaryDirectory() as folder, ProcessGroup() as group:
+            child = group.start([sys.executable, '-c', 'pass'], cwd=Path(folder))
+            self.assertEqual(group.wait(child), 0)
+
+    def check_tree(self, crash, separate_scope=False):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             record = root / 'children.json'
@@ -23,12 +30,16 @@ class LinuxDesktopTests(unittest.TestCase):
                 f'open({str(record)!r}, "w").write(json.dumps([os.getpid(), p.pid]))\n'
                 'time.sleep(120)\n', encoding='utf-8')
             supervisor = root / 'supervisor.py'
+            command = [sys.executable, str(worker)]
+            if separate_scope:
+                command = ['/usr/bin/systemd-run', '--user', '--scope', '--quiet', '--collect',
+                           '--unit=video-pipeline-test-' + uuid.uuid4().hex + '.scope', *command]
             supervisor.write_text(
                 'import sys\n'
                 f'sys.path.insert(0, {str(Path(__file__).resolve().parents[1])!r})\n'
                 'from desktop.linux_service import ProcessGroup\n'
                 'with ProcessGroup() as group:\n'
-                f'    child = group.start([sys.executable, {str(worker)!r}], cwd={str(root)!r})\n'
+                f'    child = group.start({command!r}, cwd={str(root)!r})\n'
                 '    print("ready", flush=True)\n'
                 '    sys.stdin.readline()\n', encoding='utf-8')
             process = subprocess.Popen([sys.executable, str(supervisor)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
@@ -66,6 +77,12 @@ class LinuxDesktopTests(unittest.TestCase):
 
     def test_launcher_crash_removes_detached_descendants(self):
         self.check_tree(True)
+
+    def test_close_also_removes_children_moved_into_a_portal_scope(self):
+        self.check_tree(False, separate_scope=True)
+
+    def test_launcher_crash_also_removes_children_moved_into_a_portal_scope(self):
+        self.check_tree(True, separate_scope=True)
 
 
 if __name__ == '__main__':
