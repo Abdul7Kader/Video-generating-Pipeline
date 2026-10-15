@@ -13,6 +13,73 @@ from pathlib import Path
 from start_pipeline import CONTROL_DIR
 
 
+def _process_started_ns(pid: int) -> int | None:
+    if os.name == 'nt':
+        import ctypes
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+        kernel.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.GetProcessTimes.argtypes = (wintypes.HANDLE, *([ctypes.POINTER(wintypes.FILETIME)] * 4))
+        kernel.GetProcessTimes.restype = wintypes.BOOL
+        kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+        handle = kernel.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return None
+        times = [wintypes.FILETIME() for _ in range(4)]
+        try:
+            if not kernel.GetProcessTimes(handle, *(ctypes.byref(value) for value in times)):
+                return None
+            ticks = (times[0].dwHighDateTime << 32) | times[0].dwLowDateTime
+            return (ticks - 116444736000000000) * 100
+        finally:
+            kernel.CloseHandle(handle)
+    try:
+        if sys.platform.startswith('linux'):
+            fields = Path(f'/proc/{pid}/stat').read_text().rsplit(')',1)[1].split()
+            boot = next(int(line.split()[1]) for line in Path('/proc/stat').read_text().splitlines() if line.startswith('btime '))
+            return boot * 1000000000 + int(fields[19]) * 1000000000 // os.sysconf('SC_CLK_TCK')
+        if sys.platform == 'darwin':
+            from desktop.posix_registry import identity
+            value = identity(pid)
+            return value['birth'][0] * 1000000000 + value['birth'][1] * 1000 if value else None
+    except (OSError, ValueError, StopIteration):
+        return None
+    return None
+
+
+def _managed_record_alive(record: dict, state_path: Path) -> bool:
+    if not _pid_alive(record['pid']):
+        return False
+    if 'process_identity' in record:
+        actual_identity = _process_identity(record['pid'])
+        return actual_identity is None or actual_identity == record['process_identity']
+    actual = _process_started_ns(record['pid'])
+    expected = record.get('process_started_ns')
+    if actual is None:
+        return True  # Unknown ownership remains blocked; never silently take it over.
+    if expected is not None:
+        return type(expected) is int and actual == expected
+    # Legacy records predate the birth field. A newer process is conclusively
+    # unrelated; genuinely old live launchers still drain normally.
+    try:
+        return actual <= state_path.stat().st_mtime_ns
+    except FileNotFoundError:
+        return False
+
+
+def _process_identity(pid: int) -> str | None:
+    if sys.platform.startswith('linux'):
+        try:
+            fields = Path(f'/proc/{pid}/stat').read_text().rsplit(')',1)[1].split()
+            boot = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+            return f'linux:{boot}:{fields[19]}'
+        except OSError:
+            return None
+    started = _process_started_ns(pid)
+    return f'{sys.platform}:{started}' if started is not None else None
+
+
 def _pid_alive(pid: int) -> bool:
     if os.name == "nt":
         import ctypes
@@ -64,16 +131,16 @@ def stop_managed(control_dir: Path, *, port: int | None = None, timeout: float =
         ):
             continue
         request_path = control_dir / f"stop-{token}.request"
-        if not _pid_alive(pid):
+        if not _managed_record_alive(record, state_path):
             state_path.unlink(missing_ok=True)
             request_path.unlink(missing_ok=True)
             stale += 1
             continue
         request_path.write_text(token, encoding="utf-8")
         deadline = time.monotonic() + timeout
-        while state_path.exists() and _pid_alive(pid) and time.monotonic() < deadline:
+        while state_path.exists() and _managed_record_alive(record, state_path) and time.monotonic() < deadline:
             time.sleep(0.1)
-        if not state_path.exists() or not _pid_alive(pid):
+        if not state_path.exists() or not _managed_record_alive(record, state_path):
             state_path.unlink(missing_ok=True)
             request_path.unlink(missing_ok=True)
             stopped += 1

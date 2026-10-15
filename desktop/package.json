@@ -1,0 +1,9 @@
+{
+  "name": "video-pipeline-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop window for the existing local stickman video pipeline",
+  "main": "entry.cjs",
+  "scripts": {"test": "node --test lifecycle.test.cjs"},
+  "dependencies": {"electron": "44.7.2"}
+}

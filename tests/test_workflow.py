@@ -41,6 +41,18 @@ class WorkflowTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_desktop_interrupted_render_keeps_approval_without_automatic_restart(self):
+        self.db.approve_script(self.job_id, 1, self.script_hash)
+        self.db.queue_render(self.job_id, 1, self.script_hash)
+        self.db.claim_render()
+        self.db.recover_interrupted(resume_rendering=False)
+        job = self.db.get_job(self.job_id)
+        self.assertEqual(job['status'], 'render_failed')
+        self.assertEqual(job['approved_script_hash'], self.script_hash)
+        self.assertIsNone(self.db.claim_render())
+        self.db.queue_render(self.job_id, 1, self.script_hash)
+        self.assertIsNotNone(self.db.claim_render())
+
     def test_edit_invalidates_every_approval(self):
         self.db.approve_script(self.job_id, 1, self.script_hash)
         self.db.queue_render(self.job_id, 1, self.script_hash)

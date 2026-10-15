@@ -884,13 +884,18 @@ class Database:
     def fail_publish(self, job_id: str, message: str) -> None:
         self.fail_publication(job_id, "youtube", message)
 
-    def recover_interrupted(self) -> None:
+    def recover_interrupted(self, *, resume_rendering: bool = True) -> None:
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             rows = conn.execute("SELECT id FROM jobs WHERE status='rendering'").fetchall()
             for row in rows:
-                conn.execute("UPDATE jobs SET status='render_queued',updated_at=? WHERE id=?", (utcnow(), row["id"]))
-                self._event(conn, row["id"], "render_recovered", "Unterbrochener Auftrag erneut eingereiht.")
+                if resume_rendering:
+                    conn.execute("UPDATE jobs SET status='render_queued',updated_at=? WHERE id=?", (utcnow(), row["id"]))
+                    self._event(conn, row["id"], "render_recovered", "Unterbrochener Auftrag erneut eingereiht.")
+                else:
+                    message = 'Die Desktop-Anwendung wurde während der Erstellung beendet. Skript und Freigabe sind gespeichert; starte die Erstellung bei Bedarf erneut.'
+                    conn.execute("UPDATE jobs SET status='render_failed',error=?,updated_at=? WHERE id=?", (message, utcnow(), row['id']))
+                    self._event(conn, row['id'], 'render_interrupted', message)
             publishing = conn.execute(
                 "SELECT job_id,platform FROM publication_targets WHERE status='publishing'"
             ).fetchall()

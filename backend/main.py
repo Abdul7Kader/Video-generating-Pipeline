@@ -81,7 +81,10 @@ def require_job(job_id: str):
 
 async def render_worker(stop: asyncio.Event) -> None:
     while not stop.is_set() and not app.state.shutdown_requested.is_set():
-        job = db.claim_render()
+        with app.state.worker_claim_lock:
+            if app.state.shutdown_requested.is_set():
+                return
+            job = db.claim_render()
         if job:
             try:
                 await asyncio.to_thread(unload_script_model)
@@ -104,7 +107,10 @@ async def render_worker(stop: asyncio.Event) -> None:
                 logger.exception("Render failed for %s", job["id"])
                 db.fail_render(job["id"], str(exc))
             continue
-        publish_job = db.claim_publication()
+        with app.state.worker_claim_lock:
+            if app.state.shutdown_requested.is_set():
+                return
+            publish_job = db.claim_publication()
         if publish_job:
             platform = publish_job["publication_target"]["platform"]
             try:
@@ -129,11 +135,12 @@ async def render_worker(stop: asyncio.Event) -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    app.state.shutdown_requested.clear()
+    if not getattr(app.state, 'desktop_mode', False):
+        app.state.shutdown_requested.clear()
     settings.jobs_dir.mkdir(parents=True, exist_ok=True)
     settings.voices_dir.mkdir(parents=True, exist_ok=True)
     db.initialize()
-    db.recover_interrupted()
+    db.recover_interrupted(resume_rendering=not getattr(app.state, 'desktop_mode', False))
     setup.manager.blocked = lambda: any(job['status'] in {'render_queued','rendering','publish_queued','publishing'} for job in db.list_jobs())
     preferences = load_preferences()
     if preferences and preferences.script == 'local' and settings.ollama_model:
@@ -151,6 +158,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Video Pipeline", version="1.0.0", lifespan=lifespan, docs_url="/api/docs", redoc_url=None)
 app.state.shutdown_requested = threading.Event()
+app.state.worker_claim_lock = threading.Lock()
 app.include_router(setup.router)
 
 
@@ -172,6 +180,8 @@ async def security_headers(request: Request, call_next):
         if not length.isdecimal() or int(length) > 8192:
             return JSONResponse({'detail':'Die Einstellungsanfrage benötigt eine gültige Länge von höchstens 8192 Bytes.'}, status_code=413)
     with setup.manager.lock:
+        if request.method not in {'GET', 'HEAD', 'OPTIONS'} and app.state.shutdown_requested.is_set():
+            return JSONResponse({'detail': 'Die Anwendung wird beendet. Neue Arbeit wird nicht mehr gestartet.'}, status_code=503)
         blocked = production and setup.manager.busy
         if production and not blocked:
             setup.manager.production_requests += 1

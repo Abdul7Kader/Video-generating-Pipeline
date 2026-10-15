@@ -60,17 +60,18 @@ def _open_when_ready(port: int, url: str) -> None:
         time.sleep(0.5)
 
 
-def _managed_instance_alive(control_dir: Path, port: int) -> bool:
-    from stop_pipeline import _pid_alive
-    for path in control_dir.glob(f"pipeline-{port}-*.json"):
+def _managed_instance_alive(control_dir: Path, port: int | None) -> bool:
+    from stop_pipeline import _managed_record_alive
+    for path in control_dir.glob(f"pipeline-{port if port is not None else '*'}-*.json"):
         match = re.fullmatch(r'pipeline-(\d+)-(\d+)\.json', path.name)
         try:
             record = json.loads(path.read_text(encoding='utf-8'))
-            if (match and isinstance(record, dict) and record.get('port') == port
+            if (match and isinstance(record, dict) and record.get('port') == int(match[1])
+                    and (port is None or record['port'] == port)
                     and record.get('pid') == int(match[2])
                     and isinstance(record.get('token'), str)
                     and re.fullmatch(r'[0-9a-f]{32}', record['token'])
-                    and _pid_alive(int(match[2]))):
+                    and _managed_record_alive(record, path)):
                 return True
         except (OSError, ValueError):
             continue
@@ -92,7 +93,7 @@ def _watch_for_stop(server, request_path: Path, token: str, *, interval: float =
         on_stop()
 
 
-def main() -> int:
+def main(*, open_browser: bool = True, exclusive: bool = False, on_server=None) -> int:
     try:
         import uvicorn
         from dotenv import load_dotenv
@@ -106,10 +107,14 @@ def main() -> int:
         print(exc, file=sys.stderr)
         return 2
     url = f"http://127.0.0.1:{port}/"
+    if exclusive and (_port_in_use(port) or _managed_instance_alive(CONTROL_DIR, None)):
+        print(f"Port {port} wird bereits benutzt. Beende die separat gestartete Pipeline zuerst mit stop.cmd; fremde Dienste werden nicht übernommen.", file=sys.stderr)
+        return 1
     if _pipeline_ready(port):
         print(f"Pipeline bereits gestartet: {url}")
         try:
-            webbrowser.open(url)
+            if open_browser:
+                webbrowser.open(url)
         except webbrowser.Error:
             pass
         return 0
@@ -122,15 +127,25 @@ def main() -> int:
 
     print(f"Starte die Pipeline lokal unter {url}")
     print("Zum Beenden Strg+C drücken oder stop.cmd / stop.sh im Projektordner ausführen.")
-    threading.Thread(target=_open_when_ready, args=(port, url), daemon=True).start()
+    if open_browser:
+        threading.Thread(target=_open_when_ready, args=(port, url), daemon=True).start()
     CONTROL_DIR.mkdir(parents=True, exist_ok=True)
     token = secrets.token_hex(16)
     state_path = CONTROL_DIR / f"pipeline-{port}-{os.getpid()}.json"
     request_path = CONTROL_DIR / f"stop-{token}.request"
-    state_path.write_text(json.dumps({"pid": os.getpid(), "port": port, "token": token}), encoding="utf-8")
+    from stop_pipeline import _process_started_ns, _process_identity
+    birth = _process_started_ns(os.getpid())
+    if birth is None:
+        print('Die Identität des lokalen Starterprozesses konnte nicht geprüft werden.', file=sys.stderr)
+        return 1
+    state_path.write_text(json.dumps({"pid": os.getpid(), "port": port, "token": token,
+                                      "process_started_ns": birth,
+                                      "process_identity": _process_identity(os.getpid())}), encoding="utf-8")
     try:
         from backend.main import app
         server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, timeout_graceful_shutdown=30))
+        if on_server:
+            on_server(server, port)
         threading.Thread(target=_watch_for_stop, args=(server, request_path, token), kwargs={'on_stop':app.state.shutdown_requested.set}, daemon=True).start()
         server.run()
     finally:

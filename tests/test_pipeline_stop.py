@@ -54,6 +54,17 @@ class PipelineStopTests(unittest.TestCase):
             path.write_text(json.dumps({'pid':os.getpid(),'port':8123,'token':'a'*32}),encoding='utf-8')
             self.assertTrue(_managed_instance_alive(root,8123))
             self.assertFalse(_managed_instance_alive(root,8124))
+            self.assertTrue(_managed_instance_alive(root,None))
+
+    def test_reused_pid_cannot_block_or_receive_a_stop_request(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / f'pipeline-8123-{os.getpid()}.json'
+            path.write_text(json.dumps({'pid': os.getpid(), 'port':8123, 'token':'a'*32,
+                                        'process_started_ns':1}), encoding='utf-8')
+            self.assertFalse(_managed_instance_alive(root,8123))
+            self.assertEqual(stop_managed(root,port=8123,timeout=.01), (0,1,0))
+            self.assertFalse((root / ('stop-'+'a'*32+'.request')).exists())
 
     def test_stopped_worker_cannot_claim_another_job(self):
         from backend import main
