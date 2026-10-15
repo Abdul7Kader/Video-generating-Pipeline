@@ -4,6 +4,7 @@ Werkzeuge der Strichmännchen-Pipeline. Alternativen werden ausdrücklich ausgew
 
 | Tool / Technologie | Wofür wir es nutzen | Anmeldung / Abo |
 |---|---|---|
+| Electron + native Prozessverwaltung | Eigenes Programmfenster; gemeinsamer Start/Stopp. Windows: Job Objects, Linux: systemd + Subreaper, macOS: launchd + Prozessregistrierung (Mac-Abnahme offen). | Kein Konto, kein Abo; lokale Desktop-Laufzeit herunterladen. |
 | Antigravity + Gemini | Skripte überarbeiten und Szenarien planen; beim letzten Katzenvideo verwendet. | Eigenes berechtigtes Google-Konto nötig. Kostenloses begrenztes Basiskontingent, Pro-Abo optional; Zusatzcredits werden vor jedem Aufruf geprüft und müssen aus sein; Modelle und Limits hängen vom Konto ab. [Tarife](https://www.antigravity.google/docs/plans) |
 | Web-KI (z. B. Gemini-Webversion) | Manueller Prompt-/Antwortimport für Text, Überarbeitung und Zeichenplan. | Anmeldung beim gewählten Anbieter; dessen Gratislimits/Tarife gelten. Kein automatischer Weblogin. |
 | Ollama + Qwen 3.5 | Alternative für lokale Skripte und Szenarien. | Kein Konto, kein Abo; Modell herunterladen. |

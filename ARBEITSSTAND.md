@@ -1,12 +1,37 @@
 # Prioritäten für die Strichmännchen-Pipeline
 
-Aktualisiert: 2026-10-14. Nutzerentscheidung: erst die eigene Version fertigstellen; die Familienversion kommt ganz am Ende.
+Aktualisiert: 2026-10-15. Nutzerentscheidung: erst die eigene Version fertigstellen; die Familienversion kommt ganz am Ende.
 
 Nummerierte Übersicht: [ENTWICKLUNGSPLAN.md](ENTWICKLUNGSPLAN.md).
 Detaillierter Plan: [tasks/plan.md](tasks/plan.md); Checkliste: [tasks/todo.md](tasks/todo.md).
 Schritte 1–10 schließen die Originalversion ab. Schritte 11–13 betreffen anschließend die Familienversion.
 
-## Aktuelle Etappe: Schritte 12 und 13
+## Aktuelle Ergänzung: Desktop für Windows, Linux und macOS
+
+Doppelklick startet UI und eigene Pipeline; Fenster schließen oder die passende
+Stoppdatei beendet die eigenen Prozesse. Bei laufender Arbeit: weiterarbeiten,
+nach Abschluss beenden oder abbrechen. Vorhandene Texte, Freigaben, Konten und
+Videos bleiben erhalten; abgebrochene Renderings starten nicht automatisch neu.
+
+Die Verwaltung ist nativ zugeschnitten: Windows Job Objects; Linux eine temporäre
+systemd-Benutzereinheit plus Kernel-Unterprozessüberwachung für Chromiums getrennte
+Portalgruppen; macOS eine temporäre launchd-Überwachung mit registrierten
+Prozessgruppen. Python, Electron und Profile liegen getrennt nach System/Architektur.
+Mac startet erst nach bestandener Prozessprüfung auf dem Zielgerät. Keine dauerhaft
+installierten Hintergrunddienste, Autostarts, Firewallfreigaben oder Debugports.
+Backend ausschließlich 127.0.0.1; fremde laufende Dienste werden nicht übernommen.
+
+Geprüft: Windows-Backend-Suite (290 Tests, 10 plattformbedingte/optionale Skips), 58 JS-Tests; acht echte Linux-Prozesstests.
+Echte Windows- und Linux-Fenster: Zweitstart, Schließen, Abbruch, Electron-Absturz,
+Sandbox, Host-/Origin-Sperre und ausschließlich lokale Endpunkte. Keine erfassten
+eigenen Prozessreste. Windows-Oberfläche auch als Bild geprüft. Neuer Desktop-
+npm-Lockfile: Audit ohne bekannte Befunde. Kein Film und kein KI-Auftrag erzeugt.
+
+Offen: native Mac-/Apple-Silicon-Abnahme, zweite schwache Hardware und signierte
+Installationspakete. Dies ist ein startbarer Projektordner. Anleitung und genaue
+Grenzen: [docs/desktop-app.md](docs/desktop-app.md).
+
+## Vorherige Etappe: Schritte 12 und 13
 
 Technisch umgesetzt: automatischer Antigravity-Zugang mit eigenem berechtigtem
 Google-Konto, Credit-Sperre vor jedem Aufruf und begrenztem Herstellerkontingent;

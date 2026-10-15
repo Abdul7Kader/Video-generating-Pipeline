@@ -1,5 +1,20 @@
 # Lokale Video Pipeline
 
+**Desktop-App für Windows, Linux und macOS:** Die passende Einrichtung einmal
+starten, danach die Startdatei öffnen. Schließen oder die Stoppdatei beendet auch
+die eigene Pipeline. Bei laufender Arbeit kannst du warten oder abbrechen.
+
+| System | Einmal einrichten | Starten | Beenden |
+|---|---|---|---|
+| Windows | `Desktop-Einrichten.cmd` | `Start-Desktop.cmd` | `Stop-Desktop.cmd` |
+| Linux | `Desktop-Einrichten.sh` | `Start-Desktop.sh` / erzeugte `.desktop`-Datei | `Stop-Desktop.sh` / Beenden-Datei |
+| macOS | `Desktop-Einrichten.command` | `Start-Desktop.command` | `Stop-Desktop.command` |
+
+Linux benötigt eine reguläre systemd-Benutzersitzung; macOS prüft die
+Prozessbereinigung auf dem Zielgerät vor dem ersten Start. Native Mac-Abnahme
+steht hier noch aus. Ein separat gestartetes Browser-Backend zuerst beenden.
+[Einrichtung, Verhalten und Sicherheitsgrenzen](docs/desktop-app.md).
+
 Eine lokale Videoproduktion mit Startern für Windows, Linux und macOS. Aktueller Schwerpunkt sind gezeichnete Strichmenschen-Geschichten mit Remotion, SVG, Piper und FFmpeg. FastAPI und SQLite speichern Auftrag, Versionen, Fehler und beide verbindlichen Freigaben.
 
 Die weitere Entwicklung folgt dem [nummerierten Entwicklungsplan](ENTWICKLUNGSPLAN.md):

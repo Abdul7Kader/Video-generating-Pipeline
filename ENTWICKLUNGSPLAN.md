@@ -1,6 +1,6 @@
 # Entwicklungsplan für die Strichmännchen-Pipeline
 
-Stand: 2026-10-14. Vom Nutzer gewünschte Reihenfolge: zuerst die Originalversion fertigstellen, erst danach die Familienversion ohne Pro-Abos. Vorhandene Funktionen werden geprüft und verbessert; andere Videoarten bleiben ausgeblendet.
+Stand: 2026-10-15. Vom Nutzer gewünschte Reihenfolge: zuerst die Originalversion fertigstellen, erst danach die Familienversion ohne Pro-Abos. Vorhandene Funktionen werden geprüft und verbessert; andere Videoarten bleiben ausgeblendet.
 
 Arbeitsstand: Schritte 1–9 technisch umgesetzt; Schritt 10 als technische
 Mehrthemenprüfung mit vier Filmen und allgemeinen Pipelinekorrekturen abgeschlossen.
@@ -57,9 +57,23 @@ Videoprobe erzeugen. Die echte Qualitätsabnahme ist dadurch nicht vorweggenomme
 
 ## Zugehörige Arbeitsdateien
 
+Zusätzlicher Nutzerauftrag vom 15.10.2026: bestehende UI als Electron-Anwendung
+unter Windows starten; beim Schließen sämtliche eigenen Pipelineprozesse beenden,
+bei laufender Arbeit Abschluss/Abbruch anbieten und ausschließlich Loopback nutzen.
+[Umsetzung und Abnahme](docs/desktop-app.md). Die nummerierten Videopipeline-Schritte
+1–13 bleiben als bisherige Reihenfolge erhalten.
+
 - [Detaillierter Implementierungsplan mit Abnahmebedingungen und Prüfungen](tasks/plan.md)
 - [Aufgabencheckliste](tasks/todo.md)
 - [Arbeitsstand und Prioritäten](ARBEITSSTAND.md)
 - [Entwicklungsstatus und historische Prüfergebnisse](STATUS.md)
 
 Diese Datei beschreibt die vereinbarte Reihenfolge. Sie ist kein Nachweis, dass offene Schritte bereits umgesetzt oder abgenommen sind. Bearbeitungsstatus und Abnahme werden in der Checkliste und im Entwicklungsstatus gepflegt.
+
+## Desktop-Ergänzung
+
+Vom Nutzer freigegeben: Windows, Linux und macOS mit eigenen Start-/Stoppdateien,
+gemeinsamem Lebenszyklus für UI und Pipeline, ausschließlich lokalen Ports und
+getrennten Systemlaufzeiten. Windows und Linux nativ geprüft; macOS mit
+verbindlicher Prozessprüfung auf dem Zielgerät vorbereitet, native Mac-Abnahme
+ausstehend. [Einrichtung und Nachweise](docs/desktop-app.md). Keine neuen Testfilme.

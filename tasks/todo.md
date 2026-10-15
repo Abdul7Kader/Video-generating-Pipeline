@@ -137,3 +137,21 @@ Fortsetzungspunkt: Schritt 3, Architekturfreigabe. Vor der Freigabe keine Umsetz
 - [ ] Gesamttests, Secret-Prüfung, Commit und Push ausführen
 
 - [ ] Externe Abnahme 12/13: eigenes kostenloses Familienkonto, ausgewählte Web-KI und schwächerer physischer Rechner
+
+## Desktop-Ergänzung vom 15.10.2026
+
+- [x] Electron-Fenster für die vorhandene UI und eigene Pipeline
+- [x] Doppelklick für Einrichtung, Start und Stop unter Windows
+- [x] Doppelstart fokussiert vorhandene App; fremde Server werden nicht übernommen
+- [x] Schließen mit Weiterarbeiten, nach Abschluss beenden oder Abbruch
+- [x] Windows-Prozessgruppe vor Start; Kinder auch bei Absturz entfernen
+- [x] Nur Loopback, keine Debugports, Tunnel, Firewallfreigaben oder Autostart
+- [x] Unit-/UI- und echte Prozess-/Portabnahme ohne neues Video
+- [x] Linux: eigene Start-/Stoppdateien, temporäre systemd-Einheit und Subreaper
+- [x] Linux: Portalgruppen, getrennte Sitzungen und echte Electron-Fenster geprüft
+- [x] macOS: .command-Dateien, temporärer launchd-Wächter und Zielgerät-Selbstprüfung
+- [x] Laufzeiten/Profile getrennt nach System und Architektur; wiederverwendete PIDs absichern
+- [x] Windows-Oberfläche auch anhand eines nativen Screenshots geprüft
+- [ ] Native Mac-Abnahme (einschließlich Apple Silicon und Zeichenbrowser)
+- [ ] Leistungs-/Installationsabnahme auf schwachem zweitem PC und weitere Architekturen
+- [ ] Signierte Installationspakete (aktuell startbarer Projektordner)

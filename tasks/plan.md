@@ -222,3 +222,12 @@ Stand: 2026-09-17
 - Kein Import ohne aktuelle Skriptfreigabe.
 - Kein Überspringen der zweiten Veröffentlichungsfreigabe.
 - Kein vollständiges Einlesen großer Dateien in den Arbeitsspeicher.
+
+# Desktop-Ergänzung (15.10.2026)
+
+Vom Nutzer freigegeben: vorhandene UI als Electron-Anwendung unter Windows, Linux und macOS,
+ein gemeinsamer Lebenszyklus für Fenster und eigene Pipeline. Doppelklick-Dateien,
+bei aktiver Arbeit Abschluss/Abbruch, keine versteckten Restprozesse und nur
+Loopback. Anforderungen, Sicherheitsgrenzen und Abnahme sind in
+[docs/desktop-app.md](../docs/desktop-app.md) dokumentiert. Die Video- und
+Modellproduktion wird wiederverwendet; kein neuer Testfilm für diese Änderung.
