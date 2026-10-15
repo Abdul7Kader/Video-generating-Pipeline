@@ -74,7 +74,7 @@ window.PipelineSettings = (() => {
     document.getElementById('settings-script').onchange();
     document.getElementById('settings-accounts-check').onclick=checkAccess;
     document.getElementById('settings-save').onclick=save;
-    modelHint();progress(state.task);
+    modelHint();progress(state.task);globalThis.IntegrationSettings?.mount(body,token);
     if(state.task.status==='running')watch();
   }
   async function checkAccess(){

@@ -85,6 +85,15 @@ def configured_automatic_platforms(config: Any = settings) -> set[str]:
         enabled.add("youtube")
     if _mastodon_configured(config):
         enabled.add("mastodon")
+    if config is settings:
+        from .integrations import load
+        from .credentials import credentials, CredentialError
+        try:
+            preferences = load()
+            if preferences.youtube_enabled and preferences.youtube_client_id and credentials.get('youtube_refresh_token') and credentials.get('youtube_client_secret'):
+                enabled.add('youtube')
+        except CredentialError:
+            pass
     return enabled
 
 

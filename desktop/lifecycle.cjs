@@ -10,7 +10,7 @@ function localNavigation(value, origin) {
 function externalLink(value) {
   const hosts = new Set(['antigravity.google', 'www.antigravity.google', 'developers.google.com',
     'gemini.google.com', 'chatgpt.com', 'nodejs.org', 'www.python.org', 'pypi.org',
-    'ffmpeg.org', 'www.google.com', 'ollama.com', 'www.remotion.dev', 'huggingface.co']);
+    'discord.com', 'developers.facebook.com', 'console.cloud.google.com', 'developers.tiktok.com', 'www.tiktok.com', 'ffmpeg.org', 'www.google.com', 'ollama.com', 'www.remotion.dev', 'huggingface.co']);
   try {
     const url = new URL(value);
     return url.protocol === 'https:' && !url.username && !url.password && !url.port && hosts.has(url.hostname);
@@ -41,6 +41,10 @@ class BackendClient {
       try { value = JSON.parse(line.slice('PIPELINE_DESKTOP '.length)); } catch { return; }
       if (value.type === 'starting' && Number.isInteger(value.port) && value.port >= 1024 && value.port <= 65535) {
         this.resolveStarting(value.port);
+      } else if (value.type === 'folder' && /^[0-9a-f]{32}$/.test(value.id) && this.chooseFolder) {
+        Promise.resolve().then(() => this.chooseFolder()).catch(() => null).then(folder => {
+          if (!this.exited) child.stdin.write(JSON.stringify({id: value.id, command:'folder-result', path: folder}) + '\n');
+        });
       } else if (value.type === 'reply' && this.pending.has(value.id)) {
         const pending = this.pending.get(value.id);
         clearTimeout(pending.timer);

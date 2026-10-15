@@ -101,6 +101,13 @@ async def render_worker(stop: asyncio.Event) -> None:
                     with operations.lock:
                         operation.check()
                         db.finish_render_variants(job['id'], int(job['render_version']), outputs, tts_mode)
+                try:
+                    from .video_storage import archive_video
+                    paths = await asyncio.to_thread(archive_video, db.get_job(job['id']))
+                    if paths:
+                        db.record_event(job['id'], 'video_archived', 'Fertige Videos zusätzlich im gewählten Videoordner gespeichert.', {'paths': paths})
+                except Exception:
+                    db.record_event(job['id'], 'archive_failed', 'Videokopie fehlgeschlagen. Original im Projekt bleibt verfügbar; Ordner und freien Speicher prüfen.')
             except OperationCancelled:
                 pass
             except Exception as exc:
@@ -160,6 +167,8 @@ app = FastAPI(title="Video Pipeline", version="1.0.0", lifespan=lifespan, docs_u
 app.state.shutdown_requested = threading.Event()
 app.state.worker_claim_lock = threading.Lock()
 app.include_router(setup.router)
+from .integrations import router as integrations_router
+app.include_router(integrations_router)
 
 
 @app.middleware("http")
@@ -366,6 +375,20 @@ def cancel_job(job_id: str):
         return operations.cancel(job_id, db)
     except ValueError as error:
         raise HTTPException(409, str(error)) from error
+
+
+@app.post('/api/jobs/{job_id}/archive')
+def archive_job(job_id: str):
+    from .video_storage import archive_video
+    job = require_job(job_id)
+    try:
+        paths = archive_video(job)
+        if not paths:
+            raise RuntimeError('Zuerst unter Einstellungen einen zusätzlichen Videoordner auswählen.')
+        db.record_event(job_id, 'video_archived', 'Fertige Videos im gewählten Videoordner gespeichert.', {'paths': paths})
+        return {'paths': paths}
+    except (RuntimeError, OSError, KeyError):
+        raise HTTPException(409, 'Nur fertige unveränderte Videos können kopiert werden. Prüfe Videoordner, Schreibrechte und freien Speicher; Originale bleiben erhalten.') from None
 
 
 def web_request(payload):

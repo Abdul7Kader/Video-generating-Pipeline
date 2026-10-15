@@ -59,6 +59,18 @@ function status(origin, headers) {
   assert.equal(page.title, 'Video Pipeline');
   assert.equal(page.node, 'undefined');
   assert.ok(page.heading);
+  await window.webContents.executeJavaScript('document.getElementById("settings-button").click()');
+  for (let i = 0; i < 100; i++) {
+    if (await window.webContents.executeJavaScript('Boolean(document.getElementById("integration-save"))')) break;
+    await delay(100);
+  }
+  assert.equal(await window.webContents.executeJavaScript('Boolean(document.getElementById("integration-save"))'), true);
+  const picked = path.join(folder, 'chosen-video-folder');
+  dialog.showOpenDialog = async () => ({canceled:false, filePaths:[picked]});
+  const folderResult = await window.webContents.executeJavaScript('(async()=>{const state=await(await fetch("/api/settings")).json();return (await fetch("/api/settings/integrations/folder",{method:"POST",headers:{"X-Setup-Token":state.token}})).json()})()');
+  assert.equal(folderResult.directory, picked);
+  await window.webContents.executeJavaScript('document.getElementById("settings-dialog").close()');
+  trace('Integration settings and private native-folder round trip passed; no credentials/settings saved');
   const clipboardPermissions = await window.webContents.executeJavaScript(
     'Promise.all(["clipboard-write", "clipboard-read"].map(async name => ({name, state: (await navigator.permissions.query({name})).state})))');
   assert.equal(clipboardPermissions[0].state, 'granted');

@@ -683,6 +683,11 @@ class Database:
             conn.execute("UPDATE jobs SET status='script_review',error=?,updated_at=? WHERE id=? AND status='render_planning'", (str(message)[:2000], utcnow(), job_id))
             conn.commit()
 
+    def record_event(self, job_id, kind, message, metadata=None):
+        with self._write_lock, self.connect() as conn:
+            self._event(conn, job_id, kind, message, metadata)
+            conn.commit()
+
     def cancel_production(self, job_id, *, running):
         with self._write_lock, self.connect() as conn:
             conn.execute('BEGIN IMMEDIATE')

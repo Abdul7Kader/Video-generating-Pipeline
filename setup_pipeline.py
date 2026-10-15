@@ -26,8 +26,8 @@ def main(*, start: bool = True, runtime: Path | None = None):
         if require_project_runtime and Path(sys.prefix).resolve() != runtime.resolve():
             # Avoid loading native inference libraries from the wrong interpreter.
             raise ImportError('Projektlokale Laufzeit wird benötigt')
-        import fastapi, uvicorn, dotenv, piper
-        minimum={'fastapi':(0,116,1),'uvicorn':(0,35,0),'pydantic':(2,0,0),'piper-tts':(1,4,2)}
+        import fastapi, uvicorn, dotenv, piper, keyring, websockets
+        minimum={'fastapi':(0,116,1),'uvicorn':(0,35,0),'pydantic':(2,0,0),'piper-tts':(1,4,2), 'keyring':(25,7,0), 'websockets':(17,1)}
         ready = all(tuple(int(value) for value in re.findall(r'\d+',version(package))[:3]) >= required for package,required in minimum.items())
     except (ImportError,PackageNotFoundError):
         ready = False

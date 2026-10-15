@@ -157,6 +157,11 @@ async function startDesktop() {
     {cwd: root, env: environment, windowsHide: true, stdio: ['pipe', 'pipe', log]});
   fs.closeSync(log);
   backend = new BackendClient(child);
+  backend.chooseFolder = async () => {
+    const result = await dialog.showOpenDialog(window, {title:'Ordner für fertige Videos auswählen',
+      properties:['openDirectory', 'createDirectory']});
+    return result.canceled ? null : result.filePaths[0] || null;
+  };
   backend.exit.then(() => {
     if (!draining && !exiting) {
       dialog.showErrorBox('Pipeline beendet', 'Die Pipeline konnte nicht weiterlaufen. Falls sie bereits im Browser gestartet ist, beende sie zuerst mit stop.cmd. Andernfalls prüfe data/desktop/backend.log und die lokale Einrichtung.');
