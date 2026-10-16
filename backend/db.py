@@ -130,6 +130,10 @@ class Database:
             if "production_config_json" not in script_columns:
                 conn.execute("ALTER TABLE script_versions ADD COLUMN production_config_json TEXT NOT NULL DEFAULT '{}'")
             job_columns = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+            if 'keep_work_files' not in job_columns:
+                conn.execute('ALTER TABLE jobs ADD COLUMN keep_work_files INTEGER NOT NULL DEFAULT 0')
+            if 'work_cleaned_at' not in job_columns:
+                conn.execute('ALTER TABLE jobs ADD COLUMN work_cleaned_at TEXT')
             legacy_target_migration = "aspect_ratios_json" not in job_columns
             if legacy_target_migration:
                 conn.execute("ALTER TABLE jobs ADD COLUMN aspect_ratios_json TEXT NOT NULL DEFAULT '[]'")
@@ -356,6 +360,25 @@ class Database:
         job["target_platforms"] = [target["platform"] for target in job["publication_targets"]]
         return job
 
+    def retain_project(self, job_id, keep):
+        with self._write_lock,self.connect() as conn:
+            changed = conn.execute('UPDATE jobs SET keep_work_files=?,updated_at=? WHERE id=?',(int(keep),utcnow(),job_id)).rowcount
+            if not changed:
+                raise KeyError(job_id)
+            conn.commit()
+
+    def save_final_locations(self, job_id, version, outputs):
+        with self._write_lock,self.connect() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            row = conn.execute('SELECT render_version,output_variants_json,status FROM jobs WHERE id=?',(job_id,)).fetchone()
+            if not row or row['render_version'] != version or row['status'] in {'render_queued','rendering','render_planning','cancelling','publish_queued','publishing','publish_pending'}:
+                raise ValueError('version_conflict')
+            old = json.loads(row['output_variants_json'])
+            if set(old) != set(outputs) or any(old[key]['sha256'] != outputs[key]['sha256'] or old[key]['path'] != outputs[key]['path'] for key in old):
+                raise ValueError('hash_conflict')
+            conn.execute('UPDATE jobs SET output_variants_json=? WHERE id=?',(json.dumps(outputs),job_id))
+            conn.commit()
+
     def update_script(self, job_id: str, expected: int, script: dict[str, Any]) -> dict[str, Any]:
         now = utcnow()
         with self._write_lock, self.connect() as conn:
@@ -539,7 +562,7 @@ class Database:
                 raise ValueError("render_formats_incomplete")
             primary = outputs[selected["aspect_ratio"]]
             conn.execute(
-                """UPDATE jobs SET status='video_review',output_path=?,output_sha256=?,output_variants_json=?,tts_mode=?,
+                """UPDATE jobs SET status='video_review',output_path=?,output_sha256=?,output_variants_json=?,tts_mode=?,work_cleaned_at=NULL,
                 updated_at=?,error=NULL WHERE id=?""",
                 (primary["path"], primary["sha256"], json.dumps(outputs), tts_mode, utcnow(), job_id),
             )

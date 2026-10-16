@@ -82,8 +82,9 @@ class DiscordReviewService:
                 response = request('POST', '/channels/' + ticket['channel_id'] + '/messages', payload,
                     file=source,filename='sprechertext.txt',limit=preferences.discord_upload_mb*1024*1024,expected_sha256=file_sha256(source))
         else:
-            source = (settings.jobs_dir / job['output_path']).resolve()
-            if settings.jobs_dir not in source.parents or not source.is_file() or file_sha256(source) != ticket['fingerprint']:
+            from .video_storage import primary_output
+            source = primary_output(job,settings)
+            if not source.is_file() or file_sha256(source) != ticket['fingerprint']:
                 raise DiscordError('Die fertige Videodatei fehlt oder hat sich verändert; Übertragung gesperrt.')
             response = request('POST','/channels/' + ticket['channel_id'] + '/messages',payload,
                 file=source,filename='video.mp4',limit=preferences.discord_upload_mb*1024*1024,expected_sha256=ticket['fingerprint'])

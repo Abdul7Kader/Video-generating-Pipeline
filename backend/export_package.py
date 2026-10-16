@@ -5,7 +5,7 @@ from pathlib import Path
 from .config import settings
 from .integrations import load
 from .plan import file_sha256
-from .video_storage import copy_verified
+from .video_storage import copy_verified,output_file
 
 
 def prepare_package(job):
@@ -17,8 +17,8 @@ def prepare_package(job):
     target.mkdir(parents=True,exist_ok=True)
     files = {}
     for ratio,item in job['render_outputs'].items():
-        source = (settings.jobs_dir / item['path']).resolve()
-        if settings.jobs_dir not in source.parents or not source.is_file() or file_sha256(source) != item['sha256']:
+        source = output_file(item,settings)
+        if not source.is_file() or file_sha256(source) != item['sha256']:
             raise RuntimeError('Die fertige Videodatei fehlt oder wurde verändert.')
         destination = target / ('video-' + ratio.replace(':','x') + '.mp4')
         copy_verified(source,destination,item['sha256'])

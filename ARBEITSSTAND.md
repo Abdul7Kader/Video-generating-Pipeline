@@ -8,6 +8,27 @@ Schritte 1–10 schließen die Originalversion ab. Schritte 11–13 betreffen an
 
 ## Aktueller Auftrag vom 16.10.2026: Abbruch und Discord-Verteilung
 
+Neueste Nutzerentscheidung: **nur manuell aufräumen**, automatische Bereinigung
+standardmäßig aus. Neue Endvideos getrennt im gewählten Ordner (sonst data/videos),
+Arbeitsdateien unter data/jobs. Dauerhafte final_path-Metadaten; Vorschau, Discord,
+Upload und Export folgen ihnen. Identische Arbeits-MP4 erst nach verifizierter
+Kopie und DB-Verweis entfernen. Bestehende Filme bewusst über Sichern/Bereinigen
+übernehmen; kein ungefragter Massenumzug oder Aufräumen vorhandener Nutzerdateien.
+Manueller Knopf entfernt eigene Ton-/Bild-Caches und Manifeste; behält Endvideos,
+Skriptversionen, Qualitätsberichte, unbekannte Dateien und sonstige alte MP4s.
+„Projekt behalten“, aktive Operationen/Uploads/Discordaufträge, Versionskonflikte,
+fehlende/veränderte Endvideos und Pfadverknüpfungen sperren die Bereinigung.
+Optionale Frist 30/90/180/365 Tage nur nach ausdrücklicher UI-Auswahl und während
+die App läuft. Vorhandene Sprachcache-Wiederverwendung bleibt; nach Bereinigung
+werden benötigte Zwischenmaterialien neu erzeugt, Text-/Zeichenplanhistorie bleibt.
+317 Backend-Tests (10 Skips), 60 JS-Tests und Windows-Fensterprüfung bestanden:
+data/desktop/acceptance-normal-1792138431187704500/result.json; nur 127.0.0.1:8080,
+null eigene Prozessreste. [Benutzung und Grenzen](docs/video-storage.md).
+Letzter Bearbeitungstest ebenfalls bestanden: Nach Bereinigung neue Skriptversion
+gespeichert, alter getrennter Endfilm bleibt. Keine Produktivdateien bereinigt.
+Code/Dokumentation zur Sicherung und Push bereit; aktualisierte native App zum
+Abschluss öffnen, falls keine Nutzerarbeit läuft. Danach Nutzerabnahme der Bedienung.
+
 Auftrag und Grenzen: [docs/review-distribution.md](docs/review-distribution.md).
 Desktopabschluss ist lokal als e33143e gesichert; Push weiterhin am Ende.
 Abbruch je Auftrag für Zeichenplanung und Rendern implementiert: separater nativer

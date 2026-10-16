@@ -16,7 +16,7 @@ Werkzeuge der Strichmännchen-Pipeline. Alternativen werden ausdrücklich ausgew
 | Chrome / Edge / Chromium | Berechnet die einzelnen Videobilder. | Kein Konto, kein Abo. |
 | FFmpeg / FFprobe | Audio verarbeiten, Videos kodieren und Mediendateien prüfen. | Kein Konto, kein Abo. |
 | Python + FastAPI + Uvicorn | Steuert Aufträge und stellt die lokale Webseite bereit. | Kein Konto, kein Abo. |
-| SQLite | Speichert Aufträge, Skriptversionen und Freigaben. | Kein Konto, kein Abo. |
+| SQLite | Speichert Aufträge, Skriptversionen, Freigaben und dauerhafte Endvideoorte. | Kein Konto, kein Abo. |
 | keyring + Betriebssystem-Tresor | Neue API-Schlüssel und Anmeldetokens geschützt speichern. | Kein Abo; Windows-Tresor, Mac-Schlüsselbund oder Linux Secret Service nötig. |
 | Discord Bot API + WebSocket-Gateway | Videos zur Abnahme senden; Freigeben, Ändern, Ablehnen. | Discord-Konto, eigener Bot, Server-/Kanalrechte und erlaubte Nutzer-IDs. |
 | YouTube Data API + Google OAuth | Freigegebene Videos hochladen. | Google-Konto/Kanal, Entwicklerprojekt, OAuth-Desktopclient; Anbieterquoten gelten. |

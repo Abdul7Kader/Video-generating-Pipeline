@@ -2,6 +2,14 @@
 
 Letzte Aktualisierung: 2026-10-16
 
+Neueste Ergänzung: Endvideos getrennt im gewählten Ordner, sonst `data/videos`.
+Arbeitsdateien lassen sich pro Video manuell bereinigen; Skript und Endfilm bleiben.
+Nutzerwahl: **Automatik aus**. Optional Frist und „Projekt behalten“. Vorschau und
+Verteilung verwenden gespeicherte Endvideoorte. 317 Backend-Tests (10 Skips),
+60 JS-Tests und Windows-Fensterprüfung bestanden; keine Nutzerdateien bereinigt.
+Weiterbearbeitung nutzt gespeicherte Skripte/Pläne und vorhandene Sprachcaches;
+entfernte Zwischenmaterialien brauchen eine neue Erzeugung. [Anleitung](docs/video-storage.md).
+
 ## Neu: Einzelabbruch, Discord-Abnahme und Plattformziele
 
 Technisch implementiert: einzelne Planung/Videoerstellung abbrechen, zusätzliche

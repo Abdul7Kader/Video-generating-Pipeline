@@ -4,6 +4,9 @@ Ergänzung 16.10.2026: Desktop und Einzelabbruch, native Kontotresore/Videoablag
 Discord-Abnahme und offizielle Verteilung implementiert; tatsächliche Konten- und
 Uploadabnahme nach Einrichtung offen. TikTok nur Inbox mit finaler App-Freigabe.
 Aktueller Ablauf, Schutzbedarf und Prüfungen: [Abnahme und Verteilung](../docs/review-distribution.md).
+Neueste Nutzerwahl: Arbeitsdateien **nur manuell** aufräumen. Endvideo getrennt
+speichern, Projekt bei Bedarf schützen; Skript-/Planhistorie erhalten, vorhandene
+Sprachcaches wiederverwenden. [Speicherablauf und Grenzen](../docs/video-storage.md).
 
 Stand: 2026-10-14. Nummerierter Entwicklungsplan auf Nutzerwunsch.
 Zuerst die Originalversion für den Nutzer fertigstellen, erst danach die Familienversion

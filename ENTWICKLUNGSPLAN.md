@@ -6,6 +6,9 @@ Aktuelle Ergänzung: Desktop-Start/Stopp, Einzelabbruch, geschützte Kontoeinric
 Videoordner und Discord-Abnahme technisch umgesetzt. Freigabe verteilt über
 offizielle Zieladapter; TikTok bleibt eine Inbox-Übergabe mit finalem Posten in der
 App. Live-Kontenabnahme offen. [Anleitung und Grenzen](docs/review-distribution.md).
+Endvideos und Arbeitsdateien werden getrennt gehalten; manuelle Bereinigung und
+Projektschutz implementiert, Automatik auf Nutzerwunsch aus. Gespeicherte Texte/
+Pläne bleiben bearbeitbar. [Speicherung und Wiederverwendung](docs/video-storage.md).
 
 Arbeitsstand: Schritte 1–9 technisch umgesetzt; Schritt 10 als technische
 Mehrthemenprüfung mit vier Filmen und allgemeinen Pipelinekorrekturen abgeschlossen.

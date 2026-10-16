@@ -22,6 +22,7 @@ class Preferences(BaseModel):
     model_config = ConfigDict(extra='forbid')
     connection_revision: int = Field(default=0, ge=0)
     archive_directory: str = Field(default='', max_length=600)
+    work_retention_days: int = Field(default=0, ge=0, le=3650)
     discord_enabled: bool = False
     discord_guild_id: str = Field(default='', pattern=r'^([0-9]{15,22})?$')
     discord_channel_id: str = Field(default='', pattern=r'^([0-9]{15,22})?$')
@@ -54,6 +55,10 @@ class Preferences(BaseModel):
     def local_folder(cls, value):
         if value and (not Path(value).is_absolute() or value.startswith(('\\\\', '//')) or '\0' in value):
             raise ValueError('Einen absoluten lokalen Ordner auswählen; keine Netzwerkfreigabe.')
+        if value:
+            resolved = Path(value).resolve()
+            if resolved == Path(resolved.anchor) or resolved == settings.jobs_dir or settings.jobs_dir in resolved.parents:
+                raise ValueError('Einen eigenen Endvideoordner außerhalb der Arbeitsdateien wählen.')
         return value
 
 
@@ -87,7 +92,7 @@ def snapshot():
         available, message = False, str(error)
     return {'preferences': load().model_dump(), 'secrets_present': present,
             'vault_ready': available, 'vault_message': message,
-            'working_directory': str(settings.jobs_dir), 'restart_required': False}
+            'working_directory': str(settings.jobs_dir), 'final_directory':load().archive_directory or str(settings.data_dir / 'videos'), 'restart_required': False}
 
 
 @router.get('')
@@ -170,7 +175,7 @@ async def update_preferences(request: Request):
             if getattr(request.app.state, 'integration_changes_blocked', lambda: False)():
                 raise HTTPException(409, 'Eine Freigabe wartet auf Veröffentlichung oder wird übertragen. Kanäle und Schlüssel danach ändern.')
             current = load()
-            connection_fields = set(Preferences.model_fields) - {'archive_directory', 'discord_upload_mb', 'connection_revision'}
+            connection_fields = set(Preferences.model_fields) - {'archive_directory', 'work_retention_days', 'discord_upload_mb', 'connection_revision'}
             preferences.connection_revision = current.connection_revision + int(bool(changes) or any(getattr(current,name) != getattr(preferences,name) for name in connection_fields))
             previous = {name: credentials.get(name) for name in changes}
             applied = []

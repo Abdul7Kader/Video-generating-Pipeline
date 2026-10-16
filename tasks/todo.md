@@ -1,6 +1,9 @@
 # Aktueller Auftrag: Strichmenschen-Videos
 
 Ergänzung 16.10.2026 ([Details](../docs/review-distribution.md)):
+- [x] Endvideo separat speichern und Vorschau/Upload an gespeicherten Ort binden.
+- [x] Manuell Arbeitsdateien bereinigen, Projekt schützen; automatische Frist nur optional (Standard aus).
+- [x] Nach Bereinigung Skripte weiterbearbeiten und erhaltenen Endfilm wiedergeben.
 - [x] Einzelabbruch einschließlich nativer Unterprozesse und verspäteter Ergebnisse.
 - [x] Zusätzlicher Videoordner, OS-Tresor und YouTube-Anmeldung in Einstellungen.
 - [x] Discord-Abnahme: anschauen, freigeben, ändern, ablehnen; Version/Datei/Rechte prüfen.

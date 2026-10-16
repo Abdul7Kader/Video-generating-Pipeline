@@ -24,9 +24,10 @@ globalThis.IntegrationSettings = {
       const platform = (id, label, enabled, fields, guide, hint) => `<details class="setup-tool"><summary>${label}</summary><p>${hint}</p>${flag(enabled, 'API-Zugang für ' + label + ' aktivieren')}${fields}<p><a href="${guide}" target="_blank" rel="noopener noreferrer">Offizielle Einrichtung und Anmeldung ↗</a></p><label class="check"><input type="checkbox" data-publish-target="${id}" ${preferences.publish_targets.includes(id) ? 'checked' : ''}> Nach Freigabe auf ${label} veröffentlichen</label></details>`;
       section.innerHTML = `<h2>4 · Videos, Discord und Veröffentlichung</h2>
         <p>Erst ansehen, dann entscheiden. Die Freigabe gilt für die konkrete Videoversion und die darunter gewählten Ziele. Ein Anbieterzugang allein startet keinen Upload.</p>
-        <h3>Dein Videoordner</h3><p>Arbeitsdateien und Originale bleiben hier erhalten: <code>${escape(state.working_directory)}</code>.</p>
-        ${text('archive_directory', 'Fertige Videos zusätzlich in diesem Ordner ablegen', 'Leer lassen: nur im Projekt speichern. Vorhandene Videos werden weder verschoben noch gelöscht.')}
+        <h3>Endvideos und Arbeitsdateien getrennt speichern</h3><p>Endvideos: <code>${escape(state.final_directory)}</code>. Arbeitsdateien: <code>${escape(state.working_directory)}</code>.</p>
+        ${text('archive_directory', 'Ordner für fertige Videos', 'Leer lassen: data/videos im Projekt. Neue Endvideos werden getrennt abgelegt. Bestehende Videos über „Endvideo im Videoordner sichern“ übernehmen; frühere externe Ablagen bleiben erhalten.')}
         <button type="button" id="choose-video-folder" class="ghost" ${state.native_picker ? '' : 'disabled'}>Ordner auswählen …</button>
+        <label>Arbeitsdateien automatisch aufräumen<select data-integration="work_retention_days">${[0,30,90,180,365,...([0,30,90,180,365].includes(preferences.work_retention_days)?[]:[preferences.work_retention_days])].map(days=>`<option value="${days}" ${preferences.work_retention_days===days?'selected':''}>${days===0?'Automatik aus':days+' Tage nach letzter Bearbeitung'}</option>`).join('')}</select></label><p>Die Bereinigung läuft nur bei geöffneter Anwendung und löscht abgelaufene Ton-/Bild-Arbeitsdateien. Endvideos, Skripte und Qualitätsnachweise bleiben. Laufende/vorgemerkte Aufträge und „Projekt behalten“ sind geschützt. Ohne erreichbares geprüftes Endvideo wird nichts bereinigt. Nach der Bereinigung müssen Zwischenmaterialien für spätere Änderungen neu erzeugt werden.</p>
         <h3>Abnahme auf deinem Discord-Server</h3><p>Fertige Videos gehen an den gewählten Kanal. Nur eingetragene Discord-Nutzer dürfen freigeben, Änderungswünsche senden oder ablehnen. Die Verbindung geht ausschließlich nach außen; dein Rechner braucht dafür keinen öffentlichen Port.</p>
         ${flag('discord_enabled', 'Neue fertige Videos an Discord zur Prüfung senden')}
         ${secret('discord_bot_token', 'Discord Bot-Token')}
@@ -55,7 +56,7 @@ globalThis.IntegrationSettings = {
         event.target.disabled = true;
         const updated = {...preferences}, secrets = {};
         section.querySelectorAll('[data-integration]').forEach(input => {
-          updated[input.dataset.integration] = input.type === 'checkbox' ? input.checked : input.type === 'number' ? Number(input.value) : input.value.trim();
+          updated[input.dataset.integration] = input.type === 'checkbox' ? input.checked : input.type === 'number' || input.dataset.integration === 'work_retention_days' ? Number(input.value) : input.value.trim();
         });
         updated.discord_approver_ids = section.querySelector('#discord-approvers').value.split(/[\s,;]+/).filter(Boolean);
         updated.publish_targets = [...section.querySelectorAll('[data-publish-target]:checked')].map(input => input.dataset.publishTarget);
@@ -64,7 +65,7 @@ globalThis.IntegrationSettings = {
           const result = await api('', 'PUT', {preferences:updated, secrets});
           Object.assign(preferences, result.preferences);
           section.querySelectorAll('[data-credential]').forEach(input => {input.value = ''; input.placeholder = result.secrets_present[input.dataset.credential] ? 'Gespeichert – leer lassen, um ihn zu behalten' : 'Noch nicht gespeichert';});
-          message.textContent = 'Gespeichert. Bestehende Dateien bleiben erhalten; es wurde nichts veröffentlicht.';
+          message.textContent = 'Gespeichert. Automatik: '+(result.preferences.work_retention_days?'Arbeitsdateien nach '+result.preferences.work_retention_days+' Tagen bereinigen.':'aus · nur manuell aufräumen.')+' Es wurde nichts veröffentlicht.';
         } catch (error) { message.textContent = error.message; }
         finally { event.target.disabled = false; }
       };

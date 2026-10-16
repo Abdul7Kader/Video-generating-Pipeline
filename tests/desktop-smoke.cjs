@@ -65,6 +65,7 @@ function status(origin, headers) {
     await delay(100);
   }
   assert.equal(await window.webContents.executeJavaScript('Boolean(document.getElementById("integration-save"))'), true);
+  assert.equal(await window.webContents.executeJavaScript('document.querySelector("[data-integration=work_retention_days]").value'), '0');
   const picked = path.join(folder, 'chosen-video-folder');
   dialog.showOpenDialog = async () => ({canceled:false, filePaths:[picked]});
   const folderResult = await window.webContents.executeJavaScript('(async()=>{const state=await(await fetch("/api/settings")).json();return (await fetch("/api/settings/integrations/folder",{method:"POST",headers:{"X-Setup-Token":state.token}})).json()})()');
@@ -84,7 +85,9 @@ function status(origin, headers) {
   })()`);
   assert.match(reviewPanel, /Zur Discord-Abnahme senden/);
   assert.match(reviewPanel, /Uploadpaket/);
-  assert.match(reviewPanel, /Original auf diesem Rechner/);
+  assert.match(reviewPanel, /Endvideo auf diesem Rechner/);
+  assert.match(reviewPanel, /Projekt behalten/);
+  assert.match(reviewPanel, /Arbeitsdateien jetzt bereinigen/);
   trace('Review panel rendered with fixture; no video, Discord message or upload created');
   const clipboardPermissions = await window.webContents.executeJavaScript(
     'Promise.all(["clipboard-write", "clipboard-read"].map(async name => ({name, state: (await navigator.permissions.query({name})).state})))');

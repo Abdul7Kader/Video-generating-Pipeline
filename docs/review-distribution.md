@@ -33,10 +33,11 @@ ungefragtes Veröffentlichen vorhandener Filme.
 
 ## So wird es benutzt
 
-1. Unter **Einstellungen → Videoordner und Kanäle** einen zusätzlichen lokalen
-   Videoordner wählen. Originale bleiben unter `data/jobs/<Auftrag>/v<Version>/`.
-   Der tatsächliche Originalpfad steht auch bei jedem fertigen Video. Ein anderer
-   Kopierordner verschiebt oder löscht keine bisherigen Dateien.
+1. Unter **Einstellungen → Endvideos und Arbeitsdateien getrennt speichern** einen
+   lokalen Endvideoordner wählen, sonst `data/videos/`. Arbeitsdateien liegen in
+   `data/jobs/<Auftrag>/v<Version>/`. Den tatsächlichen Endvideoort zeigt jedes
+   fertige Video. Bestehende Filme über „Endvideo im Videoordner sichern“ übernehmen.
+   [Manuell aufräumen und später weiterbearbeiten](video-storage.md).
 2. Discord-Bot im [Developer Portal](https://discord.com/developers/applications)
    anlegen. Bot-Token, Server-ID, Kanal-ID und ausdrücklich erlaubte Nutzer-IDs
    eintragen. IDs lassen sich im Discord-Entwicklermodus kopieren. Bot prüfen und
@@ -80,13 +81,15 @@ Dateiprüfsummen für manuelle Übergabe ab; dabei wird nichts hochgeladen.
   auf, bevor dieser Versuch ein Video erzeugt hatte. Vorhandene ältere Filme und
   Skripte werden dadurch nicht gelöscht. Der ausdrücklich abgebrochene neue
   Feuer-Versuch ist gespeichert und startet nicht automatisch erneut.
-- Originale: `data/jobs/`; zusätzliche Kopien: gewählter Videoordner; Uploadpakete:
+- Neue Endvideos: gewählter Videoordner, sonst `data/videos/`. Noch nicht übernommene
+  ältere Filme: `data/jobs/`. Arbeitsdateien werden standardmäßig nur manuell
+  bereinigt. Uploadpakete:
   dessen Unterordner `Uploadpakete`, sonst `data/exports/Uploadpakete`.
 - Neue API-Schlüssel/Refresh-Tokens: Windows-Anmeldeinformationsverwaltung,
   macOS-Schlüsselbund oder Linux Secret Service, ohne Klartextfallback. Nichtgeheime
   Optionen stehen in `data/integrations.json`. Der Tresor ist an Betriebssystemnutzer
   und Projektpfad gebunden; nach Projektumzug gegebenenfalls neu verbinden.
-- Die Ordnerkopie ist kein verschlüsseltes Backup. Für vertrauliche Videos einen
+- Der Videoordner ist kein verschlüsseltes Backup. Für vertrauliche Videos einen
   durch das Betriebssystem verschlüsselten Datenträger wählen. Bewusste Übertragung
   an Discord/Plattformen unterliegt deren Speicherung und Zugriffsrechten.
 - Ausschließlich eigene native Windows-Browser für den Windows-Renderer; keine

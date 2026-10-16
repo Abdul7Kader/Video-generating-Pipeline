@@ -28,7 +28,7 @@ from .planner import ScriptProviderUnavailable, generate_script, script_provider
 from .production import build_production_catalog, normalize_production_config, production_plan_readiness, require_active_production
 from .publishing import configured_automatic_platforms, platform_catalog, publish_to_target, PublicationError, PendingPublication
 from .rendering import dependency_status, render_job, synthesize, normalize_narration_audio
-from .schemas import JobCreate, ProductionConfig, ProductionConfigUpdate, Scene, SceneUpdate, ScriptRevision, ScriptUpdate, VersionAction, VideoApproval, VoicePreview
+from .schemas import JobCreate, ProductionConfig, ProductionConfigUpdate, Scene, SceneUpdate, ScriptRevision, ScriptUpdate, VersionAction, VideoApproval, VoicePreview, ProjectRetention
 from .voices import VOICE_CHOICES, voice_choice, validate_voice_language, estimated_words_per_minute
 from .speech import compact_speech, speech_metrics, VOICE_POLICY
 from .story import generate_story, generate_storyboard, spoken_story
@@ -83,6 +83,7 @@ def require_job(job_id: str):
 
 async def render_worker(stop: asyncio.Event) -> None:
     next_confirmation = time.monotonic() + 60
+    next_cleanup = time.monotonic() + 30
     while not stop.is_set() and not app.state.shutdown_requested.is_set():
         with app.state.worker_claim_lock:
             if app.state.shutdown_requested.is_set():
@@ -104,10 +105,10 @@ async def render_worker(stop: asyncio.Event) -> None:
                         operation.check()
                         db.finish_render_variants(job['id'], int(job['render_version']), outputs, tts_mode)
                 try:
-                    from .video_storage import archive_video
-                    paths = await asyncio.to_thread(archive_video, db.get_job(job['id']))
+                    from .video_storage import separate_finished_video
+                    paths = await asyncio.to_thread(separate_finished_video, db, db.get_job(job['id']))
                     if paths:
-                        db.record_event(job['id'], 'video_archived', 'Fertige Videos zusätzlich im gewählten Videoordner gespeichert.', {'paths': paths})
+                        db.record_event(job['id'], 'video_archived', 'Endvideos getrennt von Arbeitsdateien gespeichert.', {'paths': paths})
                 except Exception:
                     db.record_event(job['id'], 'archive_failed', 'Videokopie fehlgeschlagen. Original im Projekt bleibt verfügbar; Ordner und freien Speicher prüfen.')
                 try:
@@ -134,8 +135,9 @@ async def render_worker(stop: asyncio.Event) -> None:
                 selected_output = publish_job.get("publication_output") or {
                     "path": publish_job["output_path"], "sha256": publish_job["output_sha256"]
                 }
-                output = (settings.jobs_dir / selected_output["path"]).resolve()
-                if settings.jobs_dir not in output.parents or file_sha256(output) != publish_job["publication_target"]["approved_output_sha256"]:
+                from .video_storage import output_file
+                output = output_file(selected_output,settings)
+                if file_sha256(output) != publish_job["publication_target"]["approved_output_sha256"]:
                     raise PublicationError("Die freigegebene Videodatei wurde nach der Freigabe verändert; Upload gestoppt.")
                 receipt = await asyncio.to_thread(publish_to_target, publish_job, output, platform)
                 if isinstance(receipt,PendingPublication):
@@ -152,6 +154,13 @@ async def render_worker(stop: asyncio.Event) -> None:
                 await asyncio.to_thread(service.publish_status,publish_job['id'])
             continue
         if not job:
+            if time.monotonic() >= next_cleanup:
+                next_cleanup = time.monotonic() + 3600
+                try:
+                    from .retention import clean_expired_work
+                    await asyncio.to_thread(clean_expired_work,db)
+                except Exception:
+                    logger.warning('Arbeitsdatei-Bereinigung pausiert; Dateien bleiben erhalten.')
             if time.monotonic() >= next_confirmation:
                 next_confirmation = time.monotonic() + 60
                 try:
@@ -415,25 +424,45 @@ def cancel_job(job_id: str):
 
 @app.post('/api/jobs/{job_id}/archive')
 def archive_job(job_id: str):
-    from .video_storage import archive_video
+    from .video_storage import separate_finished_video
     job = require_job(job_id)
     try:
-        paths = archive_video(job)
+        paths = separate_finished_video(db,job)
         if not paths:
-            raise RuntimeError('Zuerst unter Einstellungen einen zusätzlichen Videoordner auswählen.')
+            raise RuntimeError('Zuerst ein fertiges Video erzeugen.')
         db.record_event(job_id, 'video_archived', 'Fertige Videos im gewählten Videoordner gespeichert.', {'paths': paths})
         return {'paths': paths}
-    except (RuntimeError, OSError, KeyError):
-        raise HTTPException(409, 'Nur fertige unveränderte Videos können kopiert werden. Prüfe Videoordner, Schreibrechte und freien Speicher; Originale bleiben erhalten.') from None
+    except (RuntimeError, OSError, KeyError, ValueError):
+        raise HTTPException(409, 'Nur fertige unveränderte Videos können gesichert werden. Prüfe Videoordner, Schreibrechte und freien Speicher; vorhandene Dateien bleiben erhalten.') from None
+
+
+@app.put('/api/jobs/{job_id}/retention')
+def retain_work_files(job_id: str, payload: ProjectRetention):
+    require_job(job_id)
+    db.retain_project(job_id,payload.keep_work_files)
+    return db.get_job(job_id)
+
+
+@app.post('/api/jobs/{job_id}/clean-work')
+def clean_job_work(job_id: str, payload: VersionAction):
+    from .retention import clean_expired_work
+    job = require_job(job_id)
+    if payload.expected_version != job['render_version'] or payload.expected_hash != job['output_sha256']:
+        raise HTTPException(409,'Videoversion geändert. Aktuelle Version neu laden.')
+    try:
+        return {'files':clean_expired_work(db,job_id=job_id,expected=(payload.expected_version,payload.expected_hash)),'job':db.get_job(job_id)}
+    except (OSError,RuntimeError,ValueError):
+        raise HTTPException(409,'Arbeitsdateien konnten nicht bereinigt werden. Endvideo, Speicherort und Projektstatus prüfen.') from None
 
 
 @app.get('/api/jobs/{job_id}/discord-review')
 def review_status(job_id: str):
     from .reviews import Reviews
+    from .video_storage import primary_output
     job = require_job(job_id)
     service = getattr(app.state,'discord_service',None)
     return {'review':Reviews(db).latest(job_id),'connection':service.status if service else 'Discord-Abnahme startet mit der Anwendung.',
-            'local_path':str(settings.jobs_dir / job['output_path']) if job['output_path'] else None,'job_status':job['status']}
+            'local_path':str(primary_output(job,settings)) if job['output_path'] else None,'job_status':job['status']}
 
 
 @app.post('/api/jobs/{job_id}/discord-review')
@@ -997,14 +1026,15 @@ def _approve_video_locked(job_id: str, payload: VideoApproval):
     job = require_job(job_id)
     if not job["output_path"]:
         raise HTTPException(409, "Video noch nicht erzeugt.")
-    candidate = (settings.jobs_dir / job["output_path"]).resolve()
-    if settings.jobs_dir not in candidate.parents or not candidate.exists():
+    from .video_storage import primary_output,output_file
+    candidate = primary_output(job,settings)
+    if not candidate.exists():
         raise HTTPException(409, "Die zu prüfende Videodatei fehlt.")
     if file_sha256(candidate) != payload.expected_hash:
         raise HTTPException(409, "Die Videodatei hat sich seit dem Laden verändert. Bitte neu laden und erneut prüfen.")
     for ratio, item in job["render_outputs"].items():
-        variant = (settings.jobs_dir / item["path"]).resolve()
-        if settings.jobs_dir not in variant.parents or not variant.is_file() or file_sha256(variant) != item["sha256"]:
+        variant = output_file(item,settings)
+        if not variant.is_file() or file_sha256(variant) != item["sha256"]:
             raise HTTPException(409, f"Das gerenderte Format {ratio} fehlt oder wurde verändert. Bitte erneut erzeugen.")
     try:
         return db.approve_video(
@@ -1033,8 +1063,9 @@ def get_video(job_id: str, aspect_ratio: str | None = Query(default=None)):
     variant = job["render_outputs"].get(ratio)
     if not variant:
         raise HTTPException(404, "Video noch nicht vorhanden")
-    candidate = (settings.jobs_dir / variant["path"]).resolve()
-    if settings.jobs_dir not in candidate.parents or not candidate.exists():
+    from .video_storage import output_file
+    candidate = output_file(variant,settings)
+    if not candidate.exists():
         raise HTTPException(404, "Videodatei fehlt")
     if not variant["sha256"] or file_sha256(candidate) != variant["sha256"]:
         raise HTTPException(409, "Die Videodatei stimmt nicht mehr mit der erzeugten Version überein.")

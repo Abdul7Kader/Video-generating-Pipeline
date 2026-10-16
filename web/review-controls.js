@@ -32,7 +32,7 @@ globalThis.ReviewControls = {
       connection.textContent = value.connection;
       panel.append(connection);
       const location = document.createElement('p');
-      location.textContent = 'Original auf diesem Rechner: ' + (value.local_path || job.output_path);
+      location.textContent = 'Endvideo auf diesem Rechner: ' + (value.local_path || job.output_path);
       panel.append(location);
       if (value.review?.message_id) {
         const link = document.createElement('a');
@@ -62,7 +62,7 @@ globalThis.ReviewControls = {
       const archive = document.createElement('button');
       archive.type = 'button';
       archive.className = 'ghost';
-      archive.textContent = 'In den gewählten Videoordner kopieren';
+      archive.textContent = 'Endvideo im Videoordner sichern';
       archive.onclick = async () => {
         archive.disabled = true;
         try {const result = await request('archive','POST');status.textContent = 'Gespeichert: ' + result.paths.join(', ');}
@@ -70,6 +70,19 @@ globalThis.ReviewControls = {
         finally {archive.disabled = false;}
       };
       panel.append(archive);
+      const keep = document.createElement('label');
+      const checkbox = document.createElement('input');
+      checkbox.type='checkbox';checkbox.checked=Boolean(job.keep_work_files);
+      keep.append(checkbox,document.createTextNode(' Projekt behalten · Arbeitsdateien vor Bereinigung schützen'));
+      checkbox.onchange=async()=>{checkbox.disabled=true;try{await request('retention','PUT',{keep_work_files:checkbox.checked});job.keep_work_files=checkbox.checked;status.textContent=checkbox.checked?'Projekt ist vor Bereinigung geschützt.':'Projekt kann nach deiner gewählten Einstellung bereinigt werden.';}catch(error){checkbox.checked=Boolean(job.keep_work_files);status.textContent=error.message;}finally{checkbox.disabled=false;}};
+      panel.append(keep);
+      const retained = document.createElement('p');
+      retained.textContent=job.work_cleaned_at?'Arbeitsdateien wurden bereinigt. Skript und Endvideo bleiben erhalten; benötigte Zwischenmaterialien werden bei einer neuen Produktion erneut erzeugt.':'Über „Skript bearbeiten“ hier weiterarbeiten. Unveränderte vorhandene Sprachabschnitte können wiederverwendet werden; Änderungen erfordern einen neuen Videoschnitt.';
+      panel.append(retained);
+      const clean = document.createElement('button');
+      clean.type='button';clean.className='ghost';clean.textContent='Arbeitsdateien jetzt bereinigen · Endvideo behalten';
+      clean.onclick=async()=>{clean.disabled=true;try{const result=await request('clean-work','POST',{expected_version:job.render_version,expected_hash:job.output_sha256});status.textContent=result.files?result.files+' Arbeitsdateien entfernt. Endvideo und Skript bleiben erhalten.':'Nichts entfernt. Projekt ist geschützt, noch aktiv oder bereits bereinigt; bei offener Übertragung zuerst deren Abschluss abwarten.';if(result.files){job.work_cleaned_at=result.job.work_cleaned_at;retained.textContent='Arbeitsdateien bereinigt. Für spätere Änderungen werden benötigte Zwischenmaterialien neu erzeugt.';}}catch(error){status.textContent=error.message;}finally{clean.disabled=false;}};
+      panel.append(clean);
       const exported = document.createElement('button');
       exported.type = 'button';exported.className = 'ghost';exported.textContent = 'Uploadpaket mit Video und Beschriftung vorbereiten';
       exported.onclick = async () => {

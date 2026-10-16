@@ -186,5 +186,10 @@ class VersionAction(BaseModel):
     expected_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
+class ProjectRetention(BaseModel):
+    model_config = {'extra':'forbid'}
+    keep_work_files: bool = Field(strict=True)
+
+
 class VideoApproval(VersionAction):
     target_platforms: list[PlatformId] | None = Field(default=None, min_length=1, max_length=15)

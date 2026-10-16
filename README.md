@@ -4,8 +4,12 @@
 zusätzlichen Videoordner, Discord-Freigeber und Plattformzugänge einrichten.
 Fertige Videos in Discord anschauen, freigeben, ändern lassen oder ablehnen;
 erst nach Freigabe an ausgewählte eingerichtete Ziele übertragen. TikTok erhält
-einen Entwurf zur endgültigen Veröffentlichung in TikTok. Originale bleiben unter
-`data/jobs/`. [Kurze Anleitung und Voraussetzungen](docs/review-distribution.md).
+einen Entwurf zur endgültigen Veröffentlichung in TikTok. Neue Endvideos liegen
+getrennt im gewählten Videoordner, sonst `data/videos/`; Arbeitsdateien unter
+`data/jobs/`. Aufräumen ist standardmäßig **nur manuell**. Beim fertigen Video
+„Arbeitsdateien jetzt bereinigen“ wählen; Video und Skript bleiben erhalten.
+[Speicherung und Weiterbearbeitung](docs/video-storage.md),
+[Abnahme und Voraussetzungen](docs/review-distribution.md).
 
 **Desktop-App für Windows, Linux und macOS:** Die passende Einrichtung einmal
 starten, danach die Startdatei öffnen. Schließen oder die Stoppdatei beendet auch
