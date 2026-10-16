@@ -1,6 +1,6 @@
 # Entwicklungsplan für die Strichmännchen-Pipeline
 
-## Neuer Schwerpunkt: Bildgeschichten neben eingefrorener Animation
+## Neuer Schwerpunkt: Frame-Videos neben eingefrorener Animation
 
 Nutzerauftrag vom 16.10.2026: zwei Reiter, nachvollziehbare Fehlermeldungen und
 KI-Illustrationen als erzählgenaue Bildsequenz mit Piper-Tonspur; frei wählbare,
@@ -10,7 +10,8 @@ Produktionsauswahlen aus der UI entfernen. Ein echter KI-Bildgenerator ist noch
 nicht angebunden; seine Verfügbarkeit ist ein früher Prüfpunkt.
 
 **Neue nummerierte Umsetzung: B01–B12 in [tasks/plan.md](tasks/plan.md).**
-Status: geplant, noch nicht gebaut. [Referenzanalyse](docs/reference-image-sequence.md).
+Status: B01/B02 umgesetzt und geprüft; B03–B12 offen. Neuer Modus heißt **Frame**.
+[Diagnose und Modi](docs/pipeline-diagnostics.md), [Referenzanalyse](docs/reference-image-sequence.md).
 Die frühere Nummerierung 1–13 und ihre offenen Abnahmen bleiben unten erhalten.
 
 Stand: 2026-10-16. Vom Nutzer gewünschte Reihenfolge: zuerst die Originalversion fertigstellen, erst danach die Familienversion ohne Pro-Abos. Vorhandene Funktionen werden geprüft und verbessert; andere Videoarten bleiben ausgeblendet.

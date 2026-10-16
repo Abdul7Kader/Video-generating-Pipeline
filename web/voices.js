@@ -70,7 +70,7 @@ window.VoiceEditor = (() => {
             try {
               const response = await fetch('/api/voice-previews', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({voice_id:voice.id, text, speed})});
               const result = await response.json();
-              if (!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : 'Ungültige Hörprobe.');
+              if (!response.ok) throw new Error(globalThis.PipelineErrors?.message(result) || (typeof result.detail === 'string' ? result.detail : 'Ungültige Hörprobe.'));
               if(result.voice_id!==voice.id||!/^\/api\/voice-previews\/[0-9a-f]{64}$/.test(result.url))throw new Error('Die Hörprobe passt nicht zur ausgewählten Stimme. Bitte erneut versuchen.');
               const card = document.createElement('div');
               card.className = 'voice-sample';

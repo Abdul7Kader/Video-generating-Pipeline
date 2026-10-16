@@ -2,9 +2,9 @@
 
 ## Neue aktive Etappe B: Bildsequenz-Videos und nachvollziehbare Fehler
 
-Stand 16.10.2026: **nur geplant, noch nicht implementiert**. Nutzer wünscht zwei
+Stand 16.10.2026: **B01 und B02 umgesetzt; B03–B12 noch offen**. Nutzer wünscht zwei
 Reiter: **Animierte Strichmännchen** (bestehenden Herstellungsweg einfrieren) und
-**Strichmännchen-Bildgeschichten** (KI-Illustrationen + eine zusammenhängende
+**Frame** (Nutzerbenennung; KI-Illustrationen + eine zusammenhängende
 Erzählspur). Die frühere Aufgabenfolge darunter bleibt erhalten; ihre offenen
 Abnahmen werden weder geschlossen noch als erledigt ausgegeben.
 
@@ -44,6 +44,11 @@ Verteilung. Keine verpflichtende Einzelszenen- oder Einzelbildfreigabe.
 
 ### B01 · Bestand sichern und zwei Herstellungsmodi festlegen
 
+**Umgesetzt:** additive Modusfelder an Auftrag/Skriptversion, Legacy-Standard
+`animated`, unveränderte Texthashes, Schutz gegen Moduswechsel und abweichende
+Skriptversionen. `frame` noch gesperrt vor Provider-/Renderaufruf; keine Reiter
+vor B04 freigeschaltet. Nachweis: [Diagnose und Modi](../docs/pipeline-diagnostics.md).
+
 **Ergebnis:** Neuer Modus ist von alten Animationsjobs unterscheidbar; gemeinsame
 Auftrags-/Freigabe-/Speicherverträge bleiben verwendbar.
 **Abnahme:** Alte Jobs laden identisch; kein Wechsel des Modus hinter einer
@@ -53,6 +58,12 @@ bestehenden Freigabe; Stilreferenz samt tatsächlichen Grenzen dokumentiert.
 gezielte Migrationstests. Umfang mittel.
 
 ### B02 · Fehler vom Verarbeitungsschritt bis zur Oberfläche verfolgen
+
+**Umgesetzt:** begrenzte strukturierte Diagnosen, persistente Fehler-ID und sichere
+Karte inklusive Details/Kopierfunktion, Worker-Schritt/Abschnitt, gezielte
+Fehlerkategorien und Schutz vor Rohantwort-/Secret-/HTML-Ausgabe. Neue Serverfehler
+auch ohne bestehenden Auftrag nachvollziehbar. Alte Meldungen bleiben historisch.
+327 Backend-Tests (10 Skips), 63 JS-Tests und native Windows-Kartenprüfung bestanden.
 
 **Ergebnis:** Gemeinsame Fehlerstruktur mit Auftrags-ID, Schritt, Fehlercode,
 verständlich erklärter Ursache, Wiederholbarkeit und nächster Aktion.
@@ -82,7 +93,7 @@ ein realer Bildweg und seine Grenzen sind bekannt. Erst dann Serienproduktion pl
 
 ### B04 · Oberfläche auf die zwei Wege konzentrieren
 
-**Ergebnis:** Reiter „Animierte Strichmännchen“ und „Strichmännchen-Bildgeschichten“;
+**Ergebnis:** Reiter „Animierte Strichmännchen“ und „Frame“;
 linke Auftragsliste nach Modus übersichtlich filtern. Einstellungen bleiben erhalten.
 **Abnahme:** Überflüssige Cloud-/Stock-/Podcast-/MoneyPrinter-Produktionsauswahlen
 und nicht implementierte Verfahren aus dem Erstellungsdialog entfernen; aktiv
@@ -193,7 +204,7 @@ Discord-/Freigabewege; keine zweite Implementierung dieser Dienste.
 
 ### B12 · An wenigen Beispielen abnehmen und dokumentieren
 
-**Ergebnis:** Neue Bildgeschichten sind sichtbar passend und die alte Animation
+**Ergebnis:** Neue Frame-Videos sind sichtbar passend und die alte Animation
 funktioniert unverändert. Erst nach technischem Nachweis den neuen Reiter produktiv freischalten.
 **Abnahme:** Ein kurzes eigenes Motivbeispiel und danach ein längeres Video mit
 gewählter Dauer; Nutzer prüft Bildbezug und Stimme; Fehlerfall ist bedienbar und

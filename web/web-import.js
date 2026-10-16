@@ -6,7 +6,7 @@ window.PipelineWebImport = (() => {
   async function post(path,payload){
     const res=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const value=await res.json();
-    if(!res.ok)throw new Error(typeof value.detail==='string'?value.detail:'Die Antwort ist zu groß oder entspricht nicht dem angeforderten Format.');
+    if(!res.ok)throw new Error(globalThis.PipelineErrors?.message(value)||(typeof value.detail==='string'?value.detail:'Die Antwort ist zu groß oder entspricht nicht dem angeforderten Format.'));
     return value;
   }
   function message(text){notice.textContent=text;notice.hidden=false;}

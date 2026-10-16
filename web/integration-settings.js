@@ -12,7 +12,7 @@ globalThis.IntegrationSettings = {
         headers:{'Content-Type':'application/json', 'X-Setup-Token':token},
         ...(value ? {body:JSON.stringify(value)} : {})});
       const result = await response.json();
-      if (!response.ok) throw new Error(result.detail || 'Kontoeinstellung konnte nicht geladen werden.');
+      if (!response.ok) throw new Error(globalThis.PipelineErrors?.message(result) || result.detail || 'Kontoeinstellung konnte nicht geladen werden.');
       return result;
     }
     try {

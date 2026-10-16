@@ -2,12 +2,18 @@
 
 Letzte Aktualisierung: 2026-10-16
 
-**Neuer Auftrag nur geplant:** bestehende Animation einfrieren, zweiter Reiter
-„Strichmännchen-Bildgeschichten“, freie längere Dauer, Piper + passende KI-Bilder,
+**B01/B02 umgesetzt:** Animation/Frame am Auftrag und je Skriptversion gebunden,
+alte Hashes erhalten, Moduswechsel geschützt. Neue Fehler mit Verarbeitungsschritt,
+sicherer Ursache/Handlungsempfehlung und persistenter ID; kopierbare Fehlerkarte,
+Worker-Fortschritt und lokale Diagnose. 327 Backend-Tests (10 Skips), 63 JS-Tests
+und eigene Windows-Fensterprüfung bestanden. [Details](docs/pipeline-diagnostics.md).
+
+**Weitere Etappe noch offen:** bestehende Animation einfrieren, zweiter Reiter
+„Frame“, freie längere Dauer, Piper + passende KI-Bilder,
 detaillierte Fehlermeldungen und aufgeräumte Produktionsauswahl. B01–B12 in
 [tasks/plan.md](tasks/plan.md); [Referenzanalyse](docs/reference-image-sequence.md).
 Ein echter Bildgenerator/Visionweg ist noch zu prüfen/anzubinden. Kein Umsetzungserfolg
-dieser neuen Etappe behauptet; bisheriger implementierter Stand folgt darunter.
+für B03–B12 behauptet; bisheriger implementierter Stand folgt darunter.
 
 Neueste Ergänzung: Endvideos getrennt im gewählten Ordner, sonst `data/videos`.
 Arbeitsdateien lassen sich pro Video manuell bereinigen; Skript und Endfilm bleiben.

@@ -16,7 +16,7 @@ globalThis.ReviewControls = {
       const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/${suffix}`, {method,
         headers:{'Content-Type':'application/json'},...(body ? {body:JSON.stringify(body)} : {})});
       const value = await response.json();
-      if (!response.ok) throw new Error(value.detail || 'Aktion konnte nicht abgeschlossen werden.');
+      if (!response.ok) throw new Error(globalThis.PipelineErrors?.message(value) || value.detail || 'Aktion konnte nicht abgeschlossen werden.');
       return value;
     }
     const status = document.createElement('p');

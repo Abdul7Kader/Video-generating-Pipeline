@@ -89,6 +89,15 @@ function status(origin, headers) {
   assert.match(reviewPanel, /Projekt behalten/);
   assert.match(reviewPanel, /Arbeitsdateien jetzt bereinigen/);
   trace('Review panel rendered with fixture; no video, Discord message or upload created');
+  const errorCard = await window.webContents.executeJavaScript(`(()=>{
+    PipelineErrors.show({id:'0123456789abcdef',job_id:'fixture',stage:'voice',stage_label:'Erzählerstimme erzeugen',code:'timeout',message:'Fixture: Zeitlimit überschritten <img src=x>',next_action:'Stimme unter Einstellungen prüfen.',retryable:true,context:{scene_id:'scene_2'}});
+    const card=document.getElementById('pipeline-error-card');
+    const result={text:card.innerText,role:card.getAttribute('role'),images:card.querySelectorAll('img').length};
+    card.remove();return result;
+  })()`);
+  assert.equal(errorCard.role,'alert');assert.equal(errorCard.images,0);
+  assert.match(errorCard.text,/Erzählerstimme/);assert.match(errorCard.text,/Fehlerdetails kopieren/);assert.match(errorCard.text,/0123456789abcdef/);
+  trace('Persistent error card: stage, next action and diagnostic ID rendered safely; no production failure caused');
   const clipboardPermissions = await window.webContents.executeJavaScript(
     'Promise.all(["clipboard-write", "clipboard-read"].map(async name => ({name, state: (await navigator.permissions.query({name})).state})))');
   assert.equal(clipboardPermissions[0].state, 'granted');

@@ -1,11 +1,11 @@
 # Aktueller Auftrag: Strichmenschen-Videos
 
-## Neue aktive Etappe B · Bildgeschichten (nur geplant)
+## Neue aktive Etappe B · Frame (B01/B02 umgesetzt)
 
 Nummern und Abnahmekriterien: [tasks/plan.md](plan.md). Alte offene Abnahmen bleiben erhalten.
 
-- [ ] B01 Bestand einfrieren und versionsgebundene Herstellungsmodi festlegen.
-- [ ] B02 Nachvollziehbare Fehler vom Worker bis zur Oberfläche, sichere Diagnose-ID.
+- [x] B01 Bestand einfrieren und versionsgebundene Herstellungsmodi festlegen.
+- [x] B02 Nachvollziehbare Fehler vom Worker bis zur Oberfläche, sichere Diagnose-ID.
 - [ ] B03 Tatsächlich nutzbaren KI-Bild-/Visionweg mit vorhandenen Zugängen prüfen.
 - [ ] Prüfpunkt B01–B03: Bestand stabil, Fehler sichtbar, Bildzugang belegt.
 - [ ] B04 Zwei klare Reiter; überflüssige/nicht implementierte Erstellungsoptionen entfernen.
@@ -19,7 +19,8 @@ Nummern und Abnahmekriterien: [tasks/plan.md](plan.md). Alte offene Abnahmen ble
 - [ ] B11 Bearbeitung, Abbruch, Ablage und Discord-/Zielverteilung integrieren.
 - [ ] B12 Wenige notwendige echte Beispiele einschließlich Langvideo mit Nutzer abnehmen.
 
-Noch keine Implementierung dieser Etappe; nur Referenzanalyse und Planung erstellt.
+B01/B02 implementiert und geprüft: [Diagnose und Modi](../docs/pipeline-diagnostics.md).
+Frame-Produktion, neue Reiter und weitere Schritte bleiben offen. Keine Testfilme.
 
 ## Erhaltene bisherige Aufgaben und Nachweise
 

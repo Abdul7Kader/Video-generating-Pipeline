@@ -130,6 +130,18 @@ class Database:
             if "production_config_json" not in script_columns:
                 conn.execute("ALTER TABLE script_versions ADD COLUMN production_config_json TEXT NOT NULL DEFAULT '{}'")
             job_columns = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+            if 'generation_mode' not in job_columns:
+                conn.execute("ALTER TABLE jobs ADD COLUMN generation_mode TEXT NOT NULL DEFAULT 'animated' CHECK(generation_mode IN ('animated','frame'))")
+            if 'generation_mode' not in script_columns:
+                conn.execute("ALTER TABLE script_versions ADD COLUMN generation_mode TEXT NOT NULL DEFAULT 'animated' CHECK(generation_mode IN ('animated','frame'))")
+            conn.executescript("""CREATE TRIGGER IF NOT EXISTS immutable_generation_mode
+                BEFORE UPDATE OF generation_mode ON jobs WHEN OLD.generation_mode != NEW.generation_mode
+                BEGIN SELECT RAISE(ABORT,'generation_mode_immutable'); END;
+                CREATE TABLE IF NOT EXISTS pipeline_failures (
+                    id TEXT PRIMARY KEY,job_id TEXT REFERENCES jobs(id) ON DELETE CASCADE,
+                    report_json TEXT NOT NULL,diagnostics_json TEXT NOT NULL,created_at TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS idx_pipeline_failure_job ON pipeline_failures(job_id,created_at);
+            """)
             if 'keep_work_files' not in job_columns:
                 conn.execute('ALTER TABLE jobs ADD COLUMN keep_work_files INTEGER NOT NULL DEFAULT 0')
             if 'work_cleaned_at' not in job_columns:
@@ -223,19 +235,22 @@ class Database:
         provider, model, fallback = self._script_provenance(script.get("metadata") or {})
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
-            if conn.execute("SELECT 1 FROM jobs WHERE id=?", (job_id,)).fetchone():
+            existing = conn.execute("SELECT generation_mode FROM jobs WHERE id=?", (job_id,)).fetchone()
+            if existing:
+                if existing['generation_mode'] != values.get('generation_mode','animated'):
+                    raise ValueError('generation_mode_conflict')
                 conn.commit()
                 return job_id
             conn.execute(
                 """INSERT INTO jobs
                 (id, created_at, updated_at, topic, language, duration_seconds, aspect_ratio, aspect_ratios_json,
                  video_type, production_config_json, actual_script_provider, actual_script_model,
-                 script_fallback_json, target_platform, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'script_review')""",
+                 script_fallback_json, target_platform, generation_mode, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'script_review')""",
                 (job_id, now, now, values["topic"], values["language"], values["duration_seconds"],
                  values["aspect_ratio"], json.dumps(values.get("aspect_ratios") or [values["aspect_ratio"]]), production_config["video_type"],
                  json.dumps(production_config, ensure_ascii=False), provider, model,
-                 json.dumps(fallback, ensure_ascii=False), values["target_platform"]),
+                 json.dumps(fallback, ensure_ascii=False), values["target_platform"],values.get('generation_mode','animated')),
             )
             self._insert_script(conn, job_id, 1, script, now, production_config)
             targets = values["target_platforms"] if "target_platforms" in values else [values["target_platform"]]
@@ -283,12 +298,13 @@ class Database:
         conn.execute(
             """INSERT INTO script_versions
             (job_id, version, title, description, scenes_json, metadata_json,
-             production_config_json, content_hash, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             production_config_json, content_hash, created_at,generation_mode)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (job_id, version, script["title"], script.get("description", ""),
              json.dumps(script["scenes"], ensure_ascii=False),
              json.dumps(metadata, ensure_ascii=False),
-             json.dumps(production_config, ensure_ascii=False), content_hash, now),
+             json.dumps(production_config, ensure_ascii=False), content_hash, now,
+             conn.execute('SELECT generation_mode FROM jobs WHERE id=?',(job_id,)).fetchone()['generation_mode']),
         )
         return content_hash
 
@@ -298,13 +314,29 @@ class Database:
             (job_id, event_type, message, json.dumps(metadata or {}, ensure_ascii=False), utcnow()),
         )
 
+    def record_failure(self, failure, job_id=None):
+        with self._write_lock,self.connect() as conn:
+            if job_id and not conn.execute('SELECT 1 FROM jobs WHERE id=?',(job_id,)).fetchone():
+                job_id = None
+            report = failure.public(job_id)
+            conn.execute('INSERT OR IGNORE INTO pipeline_failures VALUES(?,?,?,?,?)',
+                (failure.identifier,job_id,json.dumps(report),json.dumps(failure.diagnostics),utcnow()))
+            if job_id:
+                self._event(conn,job_id,'pipeline_failure',str(failure),{'failure':report})
+            conn.commit()
+        return report
+
     def _verified_script_hash(self, conn: sqlite3.Connection, job_id: str, version: int) -> str:
         row = conn.execute(
-            "SELECT title,description,scenes_json,content_hash FROM script_versions WHERE job_id=? AND version=?",
+            "SELECT title,description,scenes_json,content_hash,generation_mode FROM script_versions WHERE job_id=? AND version=?",
             (job_id, version),
         ).fetchone()
         if not row:
             raise KeyError(job_id)
+        if row['generation_mode'] != conn.execute('SELECT generation_mode FROM jobs WHERE id=?',(job_id,)).fetchone()['generation_mode']:
+            raise ValueError('generation_mode_conflict')
+        from .modes import require_mode
+        require_mode(row['generation_mode'])
         actual = canonical_script_hash(row["title"], row["description"], json.loads(row["scenes_json"]))
         if actual != row["content_hash"]:
             raise ValueError("script_integrity_error")
@@ -341,6 +373,7 @@ class Database:
                 WHERE job_id=? ORDER BY position,platform""",
                 (job_id,),
             ).fetchall()
+            failure = conn.execute('SELECT report_json FROM pipeline_failures WHERE job_id=? ORDER BY created_at DESC LIMIT 1',(job_id,)).fetchone()
         job["script"] = dict(script)
         job["production_config"] = json.loads(job.pop("production_config_json"))
         job["script_fallback"] = json.loads(job.pop("script_fallback_json") or "{}")
@@ -352,7 +385,9 @@ class Database:
         job["script"]["integrity_verified"] = (
             canonical_script_hash(job["script"]["title"], job["script"]["description"], job["script"]["scenes"])
             == job["script"]["content_hash"]
+            and job['script']['generation_mode'] == job['generation_mode']
         )
+        job['error_report'] = json.loads(failure['report_json']) if failure and job.get('error') else None
         job["events"] = [{**dict(e), "metadata": json.loads(e["metadata_json"])} for e in events]
         for event in job["events"]:
             event.pop("metadata_json", None)

@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from backend import main, qwen_tts, rendering
+from backend.db import Database
 from backend.production import legacy_production_config, normalize_production_config
 from backend.schemas import ProductionConfig, VoicePreview
 from backend.voices import validate_voice_language
@@ -22,6 +23,11 @@ class QwenVoiceTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.settings = replace(qwen_tts.settings, data_dir=self.root,
                                 qwen_tts_model_dir=self.root / "model", qwen_tts_python=self.root / "python.exe")
+        diagnostics_db = Database(self.root / 'test.sqlite3')
+        diagnostics_db.initialize()
+        isolated_db = patch.object(main,'db',diagnostics_db)
+        isolated_db.start()
+        self.addCleanup(isolated_db.stop)
 
     def tearDown(self):
         self.temp.cleanup()

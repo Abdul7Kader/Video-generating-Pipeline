@@ -18,6 +18,7 @@ from .plan import file_sha256
 from .reviews import Reviews
 from .schemas import VersionAction, VideoApproval
 from .story import spoken_story
+from .failures import describe
 
 
 class DiscordReviewService:
@@ -211,7 +212,9 @@ class DiscordReviewService:
                         self.reviews.transition(ticket['id'],{ticket['state']},'failed',error='Auf Wunsch abgebrochen; keine Veröffentlichung.')
                     except Exception as error:
                         uncertain = isinstance(error,DiscordError) and error.uncertain
-                        message = str(error) if isinstance(error,DiscordError) else 'Der Abnahmeschritt wurde nicht abgeschlossen. Lokalen Auftragsstatus prüfen; keine automatische Wiederholung.'
+                        failure = describe(error,'discord' if ticket['state'] == 'sending' else 'planning' if ticket['state'] == 'planning' else 'script')
+                        self.db.record_failure(failure,ticket['job_id'])
+                        message = str(failure)
                         self.reviews.transition(ticket['id'],{ticket['state']},'unknown' if uncertain else 'failed',error=message)
                         self.db.planning_failed(ticket['job_id'],message)
                         self.db.record_event(ticket['job_id'],'discord_failed',message)

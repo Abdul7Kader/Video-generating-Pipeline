@@ -15,7 +15,7 @@ globalThis.ProductionControls = {
       try {
         const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/cancel`, {method: 'POST'});
         const result = await response.json();
-        if (!response.ok) throw new Error(result.detail || 'Abbruch konnte nicht angefordert werden.');
+        if (!response.ok) throw new Error(globalThis.PipelineErrors?.message(result) || result.detail || 'Abbruch konnte nicht angefordert werden.');
         button.textContent = result.status === 'cancelled' ? 'Erstellung abgebrochen' : 'Eigene Prozesse werden beendet …';
         if (refresh) await refresh();
       } catch (error) {

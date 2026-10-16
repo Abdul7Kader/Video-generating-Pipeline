@@ -1,5 +1,11 @@
 # Lokale Video Pipeline
 
+Neue Fehler zeigen den betroffenen Verarbeitungsschritt, eine Fehler-ID und eine
+Handlungsempfehlung. **Fehlerdetails kopieren** hilft beim Melden; vergangene Fehler
+bleiben im Auftrag nachvollziehbar. Bestehende Animation ist als eigener Modus
+gesichert; **Frame** wird vorbereitet und ist noch nicht zur Generierung freigegeben.
+[Fehlerdiagnose und Modusstand](docs/pipeline-diagnostics.md).
+
 **Neu:** Laufende Erstellung einzeln abbrechen. Unter **⚙ Einstellungen** den
 zusätzlichen Videoordner, Discord-Freigeber und Plattformzugänge einrichten.
 Fertige Videos in Discord anschauen, freigeben, ändern lassen oder ablehnen;

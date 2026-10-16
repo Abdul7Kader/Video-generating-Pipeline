@@ -14,6 +14,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .antigravity import antigravity_status
 from .assets import asset_provider_status, render_plan_readiness
@@ -39,10 +40,46 @@ from .plan import object_sha256
 from . import setup
 from .device import load_preferences
 from . import web_import
+from .failures import PipelineFailure,describe,STAGES
+from .modes import require_mode,MODES
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("video-pipeline")
 db = Database(settings.database_path)
+
+
+def remember_failure(error,stage,job_id=None,**context):
+    failure = describe(error,stage,**context)
+    logger.error('Pipeline failure id=%s stage=%s code=%s type=%s',failure.identifier,failure.stage,failure.code,failure.diagnostics.get('exception_type','PipelineFailure'))
+    try:
+        db.record_failure(failure,job_id)
+    except Exception:
+        logger.error('Diagnostic persistence failed for id=%s',failure.identifier)
+    return failure
+
+
+def failed_http(error,stage,job_id=None,status=502):
+    failure = remember_failure(error,stage,job_id)
+    response = HTTPException(status,str(failure))
+    response.pipeline_failure = failure
+    return response
+
+
+def request_stage(request):
+    path = request.url.path
+    if 'voice' in path: return 'voice'
+    if 'approve-and-render' in path or 'web-board' in path: return 'planning'
+    if 'discord' in path: return 'discord'
+    if any(value in path for value in ('archive','export-package','clean-work','/video')): return 'storage'
+    if 'publication' in path or 'approve-video' in path: return 'publish'
+    if 'render' in path: return 'render'
+    if path == '/api/jobs' or any(value in path for value in ('script','revision','scene','web-import')): return 'script'
+    return 'request'
+
+
+def request_job(request):
+    match = re.match(r'^/api/jobs/([0-9a-f-]{36})(?:/|$)',request.url.path)
+    return match[1] if match else None
 _voice_preview_slot = threading.BoundedSemaphore(1)
 _story_plan_slot = threading.BoundedSemaphore(1)
 _web_import_lock = threading.Lock()
@@ -109,7 +146,8 @@ async def render_worker(stop: asyncio.Event) -> None:
                     paths = await asyncio.to_thread(separate_finished_video, db, db.get_job(job['id']))
                     if paths:
                         db.record_event(job['id'], 'video_archived', 'Endvideos getrennt von Arbeitsdateien gespeichert.', {'paths': paths})
-                except Exception:
+                except Exception as error:
+                    remember_failure(error,'storage',job['id'])
                     db.record_event(job['id'], 'archive_failed', 'Videokopie fehlgeschlagen. Original im Projekt bleibt verfügbar; Ordner und freien Speicher prüfen.')
                 try:
                     from .integrations import load as integration_preferences
@@ -117,13 +155,14 @@ async def render_worker(stop: asyncio.Event) -> None:
                     preference = integration_preferences()
                     if preference.discord_enabled:
                         Reviews(db).enqueue(job['id'],preference)
-                except Exception:
+                except Exception as error:
+                    remember_failure(error,'discord',job['id'])
                     db.record_event(job['id'],'discord_failed','Discord-Abnahme nicht eingereiht. Einstellungen prüfen; Video bleibt lokal verfügbar.')
             except OperationCancelled:
                 pass
             except Exception as exc:
-                logger.exception("Render failed for %s", job["id"])
-                db.fail_render(job["id"], str(exc))
+                failure = remember_failure(exc,'render',job['id'])
+                db.fail_render(job["id"],str(failure))
             continue
         with app.state.worker_claim_lock:
             if app.state.shutdown_requested.is_set():
@@ -146,8 +185,8 @@ async def render_worker(stop: asyncio.Event) -> None:
                     remote_id,remote_url = receipt
                     db.finish_publication(publish_job['id'],platform,remote_id,remote_url)
             except Exception as exc:
-                logger.warning('Publication not confirmed for %s on %s',publish_job['id'],platform)
-                message = str(exc) if isinstance(exc,PublicationError) else 'Upload nicht bestätigt. Anmeldung und externen Zielstatus prüfen; keine automatische Wiederholung.'
+                failure = remember_failure(exc,'publish',publish_job['id'],platform=platform)
+                message = str(failure)
                 db.fail_publication(publish_job['id'],platform,message,unknown=getattr(exc,'uncertain',True),remote_id=getattr(exc,'remote_id',None))
             service = getattr(app.state,'discord_service',None)
             if service:
@@ -216,6 +255,23 @@ from .integrations import router as integrations_router
 app.include_router(integrations_router)
 
 
+@app.exception_handler(PipelineFailure)
+async def pipeline_failure_response(request, error):
+    failure = remember_failure(error,error.stage,request_job(request))
+    return JSONResponse({'detail':str(failure),'failure':failure.public(request_job(request))},status_code=409 if failure.code == 'not_ready' else 502)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_failure_response(request,error):
+    failure = getattr(error,'pipeline_failure',None)
+    if failure is None and error.status_code >= 500:
+        failure = remember_failure(error.__cause__ or error,request_stage(request),request_job(request))
+    payload = {'detail':str(failure) if failure else error.detail}
+    if failure:
+        payload['failure'] = failure.public(request_job(request))
+    return JSONResponse(payload,status_code=error.status_code,headers=error.headers)
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     loopback = {'localhost', '127.0.0.1', '::1'}
@@ -240,7 +296,11 @@ async def security_headers(request: Request, call_next):
         if production and not blocked:
             setup.manager.production_requests += 1
     try:
-        response = JSONResponse({'detail':'Die Rechnereinrichtung läuft. Warte auf ihren Abschluss.'}, status_code=409) if blocked else await call_next(request)
+        try:
+            response = JSONResponse({'detail':'Die Rechnereinrichtung läuft. Warte auf ihren Abschluss.'}, status_code=409) if blocked else await call_next(request)
+        except Exception as error:
+            failure = remember_failure(error,request_stage(request),request_job(request))
+            response = JSONResponse({'detail':str(failure),'failure':failure.public(request_job(request))},status_code=500)
     finally:
         if production and not blocked:
             with setup.manager.lock:
@@ -266,6 +326,7 @@ def health():
     preferred_cloud = antigravity_status() if cloud_selected else {'ready':False,'message':'Optionales Cloudprofil; anderer Skriptzugang ist gewählt.'}
     return {
         "status": "ok",
+        'generation_modes':MODES,
         "dependencies": dependency_status(),
         "script_generation": preferred_cloud if cloud_selected else script_provider_status(),
         "antigravity": preferred_cloud,
@@ -393,7 +454,7 @@ def create_voice_preview(payload: VoicePreview):
                 "url": f"/api/voice-previews/{key}", "speed": payload.speed, 'cached':cached,
                 'speech':report, 'policy':VOICE_POLICY}
     except (RuntimeError, ValueError, OSError) as exc:
-        raise HTTPException(503, "Hörprobe konnte nicht erzeugt werden. Lokale Stimme und ihre Laufzeit prüfen.") from exc
+        raise failed_http(exc,'voice',status=503) from None
     finally:
         _voice_preview_slot.release()
 
@@ -432,8 +493,8 @@ def archive_job(job_id: str):
             raise RuntimeError('Zuerst ein fertiges Video erzeugen.')
         db.record_event(job_id, 'video_archived', 'Fertige Videos im gewählten Videoordner gespeichert.', {'paths': paths})
         return {'paths': paths}
-    except (RuntimeError, OSError, KeyError, ValueError):
-        raise HTTPException(409, 'Nur fertige unveränderte Videos können gesichert werden. Prüfe Videoordner, Schreibrechte und freien Speicher; vorhandene Dateien bleiben erhalten.') from None
+    except (RuntimeError, OSError, KeyError, ValueError) as error:
+        raise failed_http(error,'storage',job_id,status=409) from None
 
 
 @app.put('/api/jobs/{job_id}/retention')
@@ -451,8 +512,8 @@ def clean_job_work(job_id: str, payload: VersionAction):
         raise HTTPException(409,'Videoversion geändert. Aktuelle Version neu laden.')
     try:
         return {'files':clean_expired_work(db,job_id=job_id,expected=(payload.expected_version,payload.expected_hash)),'job':db.get_job(job_id)}
-    except (OSError,RuntimeError,ValueError):
-        raise HTTPException(409,'Arbeitsdateien konnten nicht bereinigt werden. Endvideo, Speicherort und Projektstatus prüfen.') from None
+    except (OSError,RuntimeError,ValueError) as error:
+        raise failed_http(error,'storage',job_id,status=409) from None
 
 
 @app.get('/api/jobs/{job_id}/discord-review')
@@ -504,7 +565,7 @@ def export_package(job_id: str, payload: VersionAction):
     try:
         return {'directory':prepare_package(job)}
     except (RuntimeError,OSError) as error:
-        raise HTTPException(409,str(error) if isinstance(error,RuntimeError) else 'Uploadpaket konnte nicht gespeichert werden. Ordnerrechte und freien Speicher prüfen.') from None
+        raise failed_http(error,'storage',job_id,status=409) from None
 
 
 def web_request(payload):
@@ -618,6 +679,7 @@ def import_web_board(job_id: str, payload: web_import.WebBoard):
 
 @app.post("/api/jobs", status_code=201)
 def create_job(payload: JobCreate):
+    require_mode(payload.generation_mode)
     try:
         values = payload.model_dump()
         production_config = normalize_production_config(
@@ -661,13 +723,13 @@ def create_job(payload: JobCreate):
         else:
             script = generate_script(payload.model_copy(update={"video_type": production_config["video_type"]}))
     except ScriptProviderUnavailable as exc:
-        raise HTTPException(503, str(exc)) from exc
+        raise failed_http(exc,'script',locals().get('job_id'),status=503) from None
     except HTTPException:
         raise
     except ValueError as exc:
-        raise HTTPException(422, str(exc)) from exc
+        raise failed_http(exc,'script',locals().get('job_id'),status=422) from None
     except Exception as exc:
-        raise HTTPException(502, f"Skripterstellung fehlgeschlagen: {exc}") from exc
+        raise failed_http(exc,'script',locals().get('job_id')) from None
     return require_job(db.create_job(values, script, job_id=job_id))
 
 
@@ -840,6 +902,7 @@ def update_production_config(job_id: str, payload: ProductionConfigUpdate):
 @app.post("/api/jobs/{job_id}/render")
 def queue_render(job_id: str, payload: VersionAction):
     job = require_job(job_id)
+    require_mode(job.get('generation_mode','animated'))
     try:
         require_active_production(job["production_config"])
     except ValueError as exc:
@@ -873,6 +936,7 @@ def queue_render(job_id: str, payload: VersionAction):
 @app.post('/api/jobs/{job_id}/approve-and-render')
 def approve_story_and_render(job_id: str, payload: VersionAction):
     current = require_job(job_id)
+    require_mode(current.get('generation_mode','animated'))
     script = current['script']
     if not script['integrity_verified']:
         raise HTTPException(409, 'Die Integritätsprüfung des Skripts ist fehlgeschlagen.')
@@ -910,11 +974,18 @@ def approve_story_and_render(job_id: str, payload: VersionAction):
     except OperationCancelled as exc:
         raise HTTPException(409, str(exc)) from exc
     except ScriptProviderUnavailable as exc:
-        db.planning_failed(job_id, exc)
-        raise HTTPException(503, str(exc)) from exc
+        failure = remember_failure(exc,'planning',job_id)
+        db.planning_failed(job_id,str(failure))
+        response = HTTPException(503,str(failure))
+        response.pipeline_failure=failure
+        raise response from None
     except (ValueError, RuntimeError) as exc:
-        db.planning_failed(job_id, exc)
-        raise HTTPException(409 if str(exc) in {'version_conflict', 'hash_conflict', 'script_integrity_error', 'job_busy'} else 502, str(exc)) from exc
+        status = 409 if str(exc) in {'version_conflict', 'hash_conflict', 'script_integrity_error', 'job_busy'} else 502
+        failure = remember_failure(exc,'planning',job_id)
+        db.planning_failed(job_id,str(failure))
+        response = HTTPException(status,str(failure))
+        response.pipeline_failure=failure
+        raise response from None
     finally:
         _story_plan_slot.release()
 

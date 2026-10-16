@@ -1,6 +1,19 @@
 # Prioritäten für die Strichmännchen-Pipeline
 
-## Neuester Auftrag: Planung Bildgeschichten (16.10.2026)
+## Neuester Auftrag: Planung Frame-Videos (16.10.2026)
+
+Neueste Ausführung: B01/B02 implementiert. Nutzerbenennung ist **Frame**.
+Job-/Versionsmodus mit Legacy-Standard animated; alte Inhaltshashes erhalten,
+Jobmodus unveränderbar, Frame vor Modell-/Renderaufruf gesperrt. Animationslogik
+erhalten. Strukturierte sichere Diagnosen über Worker/Backend/DB/UI mit ID,
+Schritt/Abschnitt, Code, nächster Aktion und Kopierfunktion; aktuelle Fehler und
+historische Einträge unterscheidbar. Kein erneuter Upload als Fehlerreaktion.
+327 Backend-Tests (10 Skips), 63 JS-Tests und native Windows-Fensterprüfung:
+data/desktop/acceptance-normal-1792175752622340900/result.json, nur Loopback,
+null eigene Prozessreste. Test-Fixtures für Qwen-Diagnosen von Produktiv-DB isoliert.
+Keine neuen Filme, KI-Inferenz, Pakete oder Ports. [Details](docs/pipeline-diagnostics.md).
+B03 Bild-/Visionzugang und B04 Reiter/Aufräumen bleiben offen. Nächster Schritt:
+Abschlussprüfung sichern/pushen und aktualisierte eigene Anwendung öffnen.
 
 Aktiver Schwerpunkt jetzt B01–B12 in tasks/plan.md, Checkliste tasks/todo.md.
 Bestehende Animation in eigenem Reiter einfrieren; neuer Reiter mit generierten
@@ -12,9 +25,9 @@ YouTube-Stilprobe und lokale Facebook-Anleitung visuell ausgewertet; Nachweis un
 Grenzen in docs/reference-image-sequence.md. Kein vollständiges Audiotranskript.
 Bildgenerator/Visionfähigkeit derzeit nicht produktiv verfügbar; vor Implementierung
 mit vorhandenen berechtigten Zugängen prüfen, keine Bezahltarife still aktivieren.
-Nur Plan-/Dokumentationsänderungen und lokale Kontaktbögen, keine Codeänderungen,
-Installation, neue Generierung oder Änderung laufender Produktion. Frühere offene
-Abnahmen erhalten. Nächster Schritt nach Plan: B01 und B02, Bildmachbarkeit B03 früh klären.
+Ursprünglich nur Plan-/Dokumentationsänderungen und lokale Kontaktbögen; B01/B02
+sind inzwischen wie oben umgesetzt. Frühere offene Abnahmen erhalten;
+Bildmachbarkeit B03 als nächsten fachlichen Punkt früh klären.
 
 Aktualisiert: 2026-10-16. Nutzerentscheidung: erst die eigene Version fertigstellen; die Familienversion kommt ganz am Ende.
 

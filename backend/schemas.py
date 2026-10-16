@@ -69,6 +69,7 @@ class Scene(BaseModel):
 
 
 class JobCreate(BaseModel):
+    generation_mode: Literal['animated','frame'] = 'animated'
     topic: str = Field(min_length=3, max_length=500)
     language: Literal["de", "en"] = "de"
     duration_seconds: int = Field(default=60, ge=15, le=600)

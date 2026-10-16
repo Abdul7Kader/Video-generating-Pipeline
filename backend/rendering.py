@@ -22,6 +22,11 @@ from .speech import VOICE_POLICY, TIMING_METHOD, compact_speech, estimate_word_t
 from .continuity import normalize_continuity
 from .voices import voice_choice, validate_voice_language
 from . import qwen_tts
+from .failures import at_stage,failure_stage
+from .modes import require_mode
+
+prepare_scene_assets = at_stage('image')(prepare_scene_assets)
+run_quality_gate = at_stage('quality')(run_quality_gate)
 
 
 _PIPER_VOICE_CACHE: dict[str, Any] = {}
@@ -105,6 +110,7 @@ def _synthesize_gemini(text: str, output: Path, language: str) -> tuple[str, flo
     return f"gemini:{settings.gemini_tts_model}:{settings.gemini_tts_voice}", duration
 
 
+@at_stage('voice')
 def synthesize(text: str, output: Path, language: str, *, provider: str | None = None, voice_id: str | None = None, speed: float = 1.0) -> tuple[str, float]:
     selected_provider = provider or settings.tts_provider
     if selected_provider == "qwen_tts":
@@ -182,6 +188,7 @@ def _cached_voice(job_dir: Path, scene_id: str, fingerprint: str) -> tuple[Path,
     return None
 
 
+@at_stage('voice')
 def prepare_scene_audio(
     job_dir: Path,
     scenes: list[dict[str, Any]],
@@ -212,7 +219,8 @@ def prepare_scene_audio(
             options = {"provider": provider} if provider else {}
             if voice_id or speed != 1.0:
                 options.update(voice_id=voice_id, speed=speed)
-            mode, duration = synthesize(str(scene["narration"]), destination, language, **options)
+            with failure_stage('voice',scene_id=scene_id):
+                mode, duration = synthesize(str(scene["narration"]), destination, language, **options)
             reused_from = None
         expected_mode = 'gemini' if (provider or settings.tts_provider) in {'gemini','gemini_tts'} else (provider or settings.tts_provider)
         if mode != expected_mode and not (expected_mode=='gemini' and mode.startswith('gemini:')):
@@ -247,6 +255,7 @@ def prepare_scene_audio(
     return segments, next(iter(modes))
 
 
+@at_stage('voice')
 def compose_scene_audio(job_dir: Path, segments: list[dict[str, Any]], scene_durations: list[float], output: Path) -> float:
     if len(segments) != len(scene_durations):
         raise ValueError("Audiosegmente und Szenen stimmen nicht überein")
@@ -277,6 +286,7 @@ def compose_scene_audio(job_dir: Path, segments: list[dict[str, Any]], scene_dur
     return total_frames / output_params[2]
 
 
+@at_stage('voice')
 def normalize_narration_audio(audio_path: Path) -> float:
     """Normalize speech to a platform-friendly -16 LUFS with true-peak headroom."""
     executable = find_ffmpeg()
@@ -308,7 +318,9 @@ def normalize_narration_audio(audio_path: Path) -> float:
         normalized.unlink(missing_ok=True)
 
 
+@at_stage('render')
 def render_job(job: dict[str, Any], *, job_dir_override: Path | None = None) -> tuple[str, str]:
+    require_mode(job.get('generation_mode','animated'))
     version = int(job["render_version"])
     job_dir = job_dir_override or settings.jobs_dir / job["id"] / f"v{version}"
     job_dir.mkdir(parents=True, exist_ok=True)
@@ -374,10 +386,11 @@ def render_job(job: dict[str, Any], *, job_dir_override: Path | None = None) -> 
             settings,
         )
     else:
-        _run([
-            "node", str(settings.renderer_dir / "render.mjs"),
-            str(props_path), str(output_path), str(settings.render_concurrency), str(audio_path),
-        ], timeout=3600)
+        with failure_stage('render'):
+            _run([
+                "node", str(settings.renderer_dir / "render.mjs"),
+                str(props_path), str(output_path), str(settings.render_concurrency), str(audio_path),
+            ], timeout=3600)
     if not output_path.exists() or output_path.stat().st_size < 10_000:
         raise RuntimeError("Renderer hat keine gültige Videodatei erzeugt")
     quality_report = run_quality_gate(
