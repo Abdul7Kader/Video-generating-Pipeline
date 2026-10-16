@@ -1,5 +1,18 @@
 # Entwicklungsplan für die Strichmännchen-Pipeline
 
+Neuester Stand 16.10.2026: **B05/B06 umgesetzt und geprüft**. Frame-Skriptplanung
+in der UI nutzbar: Idee/eigener unveränderter Sprechertext, 15 Sekunden bis 30 Minuten
+Zieldauer, langer Fließtext, KI-Überarbeitung und einmalige Textfreigabe. Bildplan
+folgt dem jeweiligen Inhalt statt festem Erzähl-/Gestenmuster; exakte Textbereiche,
+Motive, Handlungen, Zustände, passende Bildarten und begrenzte KI-Planprüfung.
+343 Backend-Tests (10 Skips), 73 JS-Tests und eigene Windows-Appprüfung bestanden.
+Keine neuen Bilder/Filme oder echte Modellinferenz. Bestehenden Startfehler im
+Erstellungsdialog behoben. [Nachweise und Grenzen](docs/frame-text-and-planning.md).
+Offen bleiben B03 Bildzugang sowie B07–B12. Frame-Rendern bleibt gesperrt.
+Nächster Schritt: B07 durchgehende gemessene Erzählspur; Bildanbieter separat entscheiden.
+Ältere Zwischenstände darunter sind historisch und keine aktuelle Aufgabenliste.
+
+
 Aktuell 16.10.2026: **B04 umgesetzt**, zwei Reiter und aufgeräumter Herstellungsdialog;
 Einstellungen und Altaufträge erhalten, Frame-Produktion weiter gesperrt.
 **B03 teilweise geprüft, offen:** Antigravity-Skriptkonto bereit, Zusatzcredits aus;

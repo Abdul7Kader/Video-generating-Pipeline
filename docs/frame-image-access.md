@@ -1,5 +1,10 @@
 # Frame: Bildzugang und Oberfläche · B03/B04
 
+Nachtrag B05/B06: Frame kann inzwischen Texte und Bildpläne vorbereiten.
+[Betriebsumfang und Nachweise](frame-text-and-planning.md). Der fehlende Bildzugang
+und die weiterhin gesperrte Medienproduktion ändern sich dadurch nicht.
+
+
 Stand: 16.10.2026. **B04 umgesetzt; B03 teilweise geprüft, nicht abgeschlossen.**
 
 ## Vorhandener Zugang

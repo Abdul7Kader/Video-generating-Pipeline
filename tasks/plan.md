@@ -2,7 +2,7 @@
 
 ## Neue aktive Etappe B: Bildsequenz-Videos und nachvollziehbare Fehler
 
-Stand 16.10.2026: **B01/B02/B04 umgesetzt; B03 teilweise geprüft und noch offen; B05–B12 offen**. Nutzer wünscht zwei
+Stand 16.10.2026: **B01/B02/B04/B05/B06 umgesetzt; B03 teilweise geprüft und noch offen; B07–B12 offen**. Nutzer wünscht zwei
 Reiter: **Animierte Strichmännchen** (bestehenden Herstellungsweg einfrieren) und
 **Frame** (Nutzerbenennung; KI-Illustrationen + eine zusammenhängende
 Erzählspur). Die frühere Aufgabenfolge darunter bleibt erhalten; ihre offenen
@@ -117,6 +117,11 @@ fehlender notwendiger Zugang bekommt einen klaren Einrichtungsweg statt vieler
 
 ### B05 · Längere Skripte mit eigener Dauerwahl ermöglichen
 
+**Umgesetzt:** Frame-Idee/eigener Wortlaut, Minuten/Sekunden bis 30 Minuten,
+begrenzte interne Entwürfe/Revisionen und ein Fließtext. Ziel-/Schätz-/Istzeit
+getrennt; eigener Text unverändert. UI und API mit langen Fixtures geprüft.
+[Vertrag, Grenzen und Nachweise](../docs/frame-text-and-planning.md).
+
 **Ergebnis:** Minuten-/Sekundenfeld plus Vorschläge, etwa 1/5/10/20/30 Minuten;
 Idee und vorhandener Sprechertext sind mögliche Eingaben. Ein Fließtext zur Freigabe.
 **Abnahme:** Die heutige Dialogauswahl bis 3 Minuten und Backendgrenze bis 10 Minuten
@@ -130,6 +135,13 @@ nach Freigabe verändert; notwendige Änderungen verlangen eine neue Textfreigab
 Erstellungsdialog und längenabhängige Prüfungen. In kleine Vertrag-/UI-Slices teilen.
 
 ### B06 · Sprechertext in konkrete Bildaussagen übersetzen
+
+**Umgesetzt:** versionsgebundener semantischer Bildplan nach Textfreigabe,
+lückenlose exakte Textbereiche, stabile IDs, Figuren-/Objektbelege, konkrete
+Handlungen/Umgebung/Zustände, mehrere passende Bildarten und begrenzte
+KI-Inhaltsprüfung des Plans. Keine fest verdrahtete Geschichte, kein fester
+Zeichenkatalog. Bild-/Pixelprüfung und Audiozeiten folgen später.
+[Vertrag, Grenzen und Nachweise](../docs/frame-text-and-planning.md).
 
 **Ergebnis:** Interner Bildplan mit stabilen IDs, exakten Textbereichen, Figuren,
 Gegenständen, Handlung, Umgebung und Stil; keine starren Fünf-Sekunden-Szenen.

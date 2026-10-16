@@ -73,3 +73,5 @@ main{grid-template-columns:310px minmax(0,1fr)}aside,#workspace{min-width:0}.pan
 .mode-tabs [role=tab]:focus-visible{outline:3px solid var(--accent,#ff7956);outline-offset:2px}
 .frame-home{max-width:900px;margin:auto}.frame-home .workflow-overview li{gap:10px}
 @media(max-width:650px){.mode-tabs{padding:8px;gap:4px}.mode-tabs [role=tab]{flex:1;padding:10px 8px;font-size:.9rem}}
+
+.frame-narration{white-space:pre-wrap}.duration-choice{border:0;margin:0;padding:0}.duration-choice legend{font-weight:700}.duration-choice .actions{gap:5px;margin-top:8px}.duration-choice input{max-width:100%}

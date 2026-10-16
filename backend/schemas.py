@@ -72,7 +72,9 @@ class JobCreate(BaseModel):
     generation_mode: Literal['animated','frame'] = 'animated'
     topic: str = Field(min_length=3, max_length=500)
     language: Literal["de", "en"] = "de"
-    duration_seconds: int = Field(default=60, ge=15, le=600)
+    duration_seconds: int = Field(default=60, ge=15, le=1800)
+    input_kind: Literal['idea', 'narration'] = 'idea'
+    narration: str | None = Field(default=None, min_length=20, max_length=80000)
     aspect_ratio: Literal["9:16", "16:9", "1:1"] = "16:9"
     aspect_ratios: list[Literal["9:16", "16:9", "1:1"]] | None = Field(default=None, min_length=1, max_length=3)
     video_type: VideoType = "stickman"
@@ -93,6 +95,14 @@ class JobCreate(BaseModel):
 
     @model_validator(mode="after")
     def normalize_targets(self):
+        if self.generation_mode == 'animated' and (self.duration_seconds > 600 or self.input_kind != 'idea' or self.narration is not None):
+            raise ValueError('Eigener Sprechertext und mehr als 10 Minuten gehören zum Frame-Modus.')
+        if self.input_kind == 'narration' and (self.narration is None or len(self.narration.strip()) < 20):
+            raise ValueError('Den vollständigen Sprechertext mit mindestens 20 Zeichen eingeben.')
+        if self.input_kind == 'idea' and self.narration is not None:
+            raise ValueError('Für eigenen Sprechertext die entsprechende Eingabeart wählen.')
+        if self.generation_mode == 'frame':
+            self.script_mode = 'story'
         self.aspect_ratios = list(dict.fromkeys(self.aspect_ratios or [self.aspect_ratio]))
         self.aspect_ratio = self.aspect_ratios[0]
         selected = self.target_platforms if "target_platforms" in self.model_fields_set else [self.target_platform]

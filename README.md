@@ -1,9 +1,16 @@
 # Lokale Video Pipeline
 
+**Frame: Skript und Bildplan jetzt vorbereiten.** Reiter Frame → Frame-Skript:
+Idee oder eigenen Sprechertext wählen, Minuten/Sekunden festlegen (bis 30 Minuten),
+Text von der KI verbessern lassen und freigeben. Der Bildplan folgt dem jeweiligen
+Inhalt. Bilder, Tonspur und Frame-Video folgen in den nächsten Schritten;
+[Bedienung und aktueller Umfang](docs/frame-text-and-planning.md).
+
+
 Neue Fehler zeigen den betroffenen Verarbeitungsschritt, eine Fehler-ID und eine
 Handlungsempfehlung. **Fehlerdetails kopieren** hilft beim Melden; vergangene Fehler
 bleiben im Auftrag nachvollziehbar. Bestehende Animation ist als eigener Modus
-gesichert; **Frame** wird vorbereitet und ist noch nicht zur Generierung freigegeben.
+gesichert; **Frame** kann Text und Bildplan vorbereiten; die Medienproduktion bleibt gesperrt.
 [Fehlerdiagnose und Modusstand](docs/pipeline-diagnostics.md).
 
 **Neu:** Laufende Erstellung einzeln abbrechen. Unter **⚙ Einstellungen** den

@@ -41,10 +41,10 @@ class PipelineDiagnosticsTests(unittest.TestCase):
 
     def test_frame_is_explicit_and_never_runs_the_old_renderer_or_a_provider(self):
         self.assertEqual(JobCreate(topic='Testidee').generation_mode,'animated')
-        with patch.object(main,'generate_story') as story,patch.object(main,'generate_script') as scenes:
-            with self.assertRaises(PipelineFailure) as error:
-                main.create_job(JobCreate(topic='Testidee',generation_mode='frame'))
-        self.assertEqual(error.exception.code,'not_ready');story.assert_not_called();scenes.assert_not_called()
+        with patch.object(main,'db',self.db),patch.object(main,'generate_story') as story,patch.object(main,'generate_script') as scenes,patch('backend.frame.call') as provider:
+            draft=main.create_job(JobCreate(topic='Testidee',generation_mode='frame',input_kind='narration',narration='Dies ist ein eigener vollständiger Sprechertext.'))
+        self.assertEqual(draft['generation_mode'],'frame');self.assertEqual(draft['status'],'script_review')
+        story.assert_not_called();scenes.assert_not_called();provider.assert_not_called()
         require_mode('animated')
         frame_id=self.db.create_job({**VALUES,'generation_mode':'frame'},SCRIPT)
         frame=self.db.get_job(frame_id)
@@ -135,6 +135,8 @@ class PipelineDiagnosticsTests(unittest.TestCase):
         self.assertIsNotNone(found)
 
     def test_frame_api_refuses_before_any_paid_or_local_generation(self):
-        with patch.object(main,'db',self.db),patch.object(main,'generate_script') as provider:
-            status,value=asyncio.run(request('POST','/api/jobs',{**VALUES,'generation_mode':'frame'}))
-        self.assertEqual(status,409);self.assertEqual(value['failure']['code'],'not_ready');provider.assert_not_called()
+        with patch.object(main,'db',self.db),patch('backend.operations.Operation.run') as worker:
+            status,value=asyncio.run(request('POST','/api/jobs',{**VALUES,'generation_mode':'frame','input_kind':'narration','narration':'Ein eigener zusammenhängender Sprechertext bleibt erhalten.'}))
+            self.assertEqual(status,201);worker.assert_not_called()
+            status,failure=asyncio.run(request('POST',f"/api/jobs/{value['id']}/render",{'expected_version':1,'expected_hash':value['script']['content_hash']}))
+        self.assertEqual(status,409);self.assertEqual(failure['failure']['code'],'not_ready');worker.assert_not_called()

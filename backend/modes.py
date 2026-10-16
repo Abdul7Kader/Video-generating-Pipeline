@@ -3,7 +3,7 @@ from .failures import PipelineFailure
 
 MODES = (
     {'id':'animated','label':'Animierte Strichmännchen','available':True,'design_frozen':True},
-    {'id':'frame','label':'Frame','available':False,'design_frozen':False},
+    {'id':'frame','label':'Frame','available':False,'preparation_available':True,'design_frozen':False},
 )
 
 

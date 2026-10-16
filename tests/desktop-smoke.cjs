@@ -25,7 +25,7 @@ app.on('browser-window-created', (_event, window) => {
   window.webContents.on('did-start-loading', () => trace('loading'));
   window.webContents.on('did-finish-load', () => trace('loaded: ' + window.webContents.getURL()));
   window.webContents.on('did-fail-load', (_e, code, text, url) => trace(JSON.stringify({code, text, url})));
-  window.webContents.on('console-message', (_e, details) => trace('console: ' + JSON.stringify(details)));
+  window.webContents.on('console-message', (_e, details, message) => trace('console: ' + JSON.stringify(message||details)));
   window.webContents.on('render-process-gone', (_e, details) => trace('renderer gone: ' + JSON.stringify(details)));
 });
 dialog.showErrorBox = (title, content) => {
@@ -67,7 +67,7 @@ function status(origin, headers) {
     return {tabs,frame,animated:document.getElementById('mode-animated').getAttribute('aria-selected')};
   })()`);
   assert.deepEqual(modes.tabs,['Animierte Strichmännchen','Frame']);
-  assert.equal(modes.frame.newHidden,true);assert.equal(modes.frame.selected,'true');assert.equal(modes.animated,'true');
+  assert.equal(modes.frame.newHidden,false);assert.equal(modes.frame.selected,'true');assert.equal(modes.animated,'true');
   assert.match(modes.frame.text,/erst nach dem vollständigen Funktionstest/);
   await window.setSize(590,820);
   const narrow = await window.webContents.executeJavaScript('document.documentElement.scrollWidth <= window.innerWidth');
@@ -96,6 +96,29 @@ function status(origin, headers) {
     fs.writeFileSync(path.join(folder, 'settings.png'), (await window.webContents.capturePage(undefined, {stayAwake:true})).toPNG());
   } catch (error) {trace('Settings screenshot unavailable: ' + String(error));}
   await window.webContents.executeJavaScript('document.getElementById("settings-dialog").close()');
+  await window.webContents.executeJavaScript(`(()=>{
+    document.getElementById('mode-frame').click();document.getElementById('frame-new-button').click();
+  })()`);
+  for(let i=0;i<200;i++){
+    if(await window.webContents.executeJavaScript('!actionPending'))break;
+    await delay(100);
+  }
+  const ownedText='Eine Katze kommt aus dem Tierheim.\n\nSie erkundet aufmerksam ihr neues Zuhause.';
+  await window.webContents.executeJavaScript(`(()=>{
+    const choice=document.getElementById('frame-input-select');choice.value='narration';choice.dispatchEvent(new Event('change'));
+    document.querySelector('[name=topic]').value='Native Frame-Skriptprüfung';
+    document.getElementById('frame-narration').value=${JSON.stringify(ownedText)};
+    document.getElementById('duration-minutes').value='30';document.getElementById('duration-extra-seconds').value='0';
+    document.getElementById('create-form').requestSubmit();
+  })()`);
+  for(let i=0;i<100;i++){
+    if(await window.webContents.executeJavaScript('Boolean(document.querySelector(".frame-narration"))'))break;
+    await delay(100);
+  }
+  const frameDraft=await window.webContents.executeJavaScript('({text:document.querySelector(".frame-narration")?.textContent,body:document.getElementById("workspace").innerText})');
+  assert.equal(frameDraft.text,ownedText);assert.match(frameDraft.body,/Zieldauer: 30 Min/);
+  assert.match(frameDraft.body,/Text freigeben & Bildplan vorbereiten/);
+  trace('Frame own-text UI round trip, 30-minute target, exact paragraphs and approval action passed; no inference or media generated');
   trace('Integration settings and private native-folder round trip passed; no credentials/settings saved');
   const reviewPanel = await window.webContents.executeJavaScript(`(async()=>{
     const originalFetch = window.fetch;

@@ -43,7 +43,7 @@ class Operation:
                         return PipelineFailure.from_wire(json.loads(progress.read_text(encoding='utf-8')))
                 except (OSError,ValueError,TypeError):
                     pass
-                return PipelineFailure({'plan':'planning','render':'render','revise':'script'}.get(kind,'request'))
+                return PipelineFailure({'plan':'planning','render':'render','revise':'script','frame_plan':'planning','frame_revise':'script','frame_draft':'script'}.get(kind,'request'))
             request.write_text(json.dumps({'kind': kind, 'payload': payload}), encoding='utf-8')
             request.chmod(0o600)
             environment = dict(os.environ)
@@ -88,7 +88,7 @@ class Operations:
         self.active = {}
 
     @contextmanager
-    def start(self, job_id, db):
+    def start(self, job_id, db, *, allow_frame=False):
         operation = Operation()
         operation.on_progress = lambda step: db.record_event(job_id,'production_step',step['stage_label'],{'stage':step['stage'],'context':step['context']})
         with self.lock:
@@ -96,7 +96,8 @@ class Operations:
             if not job or job['status'] in {'cancelling', 'cancelled'}:
                 raise OperationCancelled('Der Auftrag wurde abgebrochen.')
             from .modes import require_mode
-            require_mode(job.get('generation_mode','animated'))
+            if not allow_frame:
+                require_mode(job.get('generation_mode','animated'))
             if job_id in self.active:
                 raise RuntimeError('Dieser Auftrag wird bereits bearbeitet.')
             self.active[job_id] = operation

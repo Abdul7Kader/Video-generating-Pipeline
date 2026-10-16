@@ -42,6 +42,7 @@ from .device import load_preferences
 from . import web_import
 from .failures import PipelineFailure,describe,STAGES
 from .modes import require_mode,MODES
+from . import frame
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("video-pipeline")
@@ -68,7 +69,7 @@ def failed_http(error,stage,job_id=None,status=502):
 def request_stage(request):
     path = request.url.path
     if 'voice' in path: return 'voice'
-    if 'approve-and-render' in path or 'web-board' in path: return 'planning'
+    if 'approve-and-render' in path or 'web-board' in path or 'approve-frame-plan' in path: return 'planning'
     if 'discord' in path: return 'discord'
     if any(value in path for value in ('archive','export-package','clean-work','/video')): return 'storage'
     if 'publication' in path or 'approve-video' in path: return 'publish'
@@ -281,6 +282,10 @@ async def security_headers(request: Request, call_next):
     if request.headers.get('sec-fetch-site') == 'cross-site' or origin and origin != str(request.base_url).rstrip('/'):
         return JSONResponse({'detail': 'Ein fremder Webauftritt darf die lokale Pipeline nicht aufrufen.'}, status_code=403)
     production = request.method in {'POST','PUT','PATCH','DELETE'} and (request.url.path.startswith('/api/jobs') or request.url.path == '/api/voice-previews')
+    if request.method == 'POST' and request.url.path == '/api/jobs':
+        length=request.headers.get('content-length','')
+        if not length.isdecimal() or int(length)>1500000:
+            return JSONResponse({'detail':'Die Textanfrage benötigt eine gültige Länge bis 1,5 MB.'},status_code=413)
     if request.method == 'POST' and request.url.path.startswith('/api/jobs') and '/web-' in request.url.path:
         length = request.headers.get('content-length', '')
         if not length.isdecimal() or int(length) > 1500000:
@@ -569,6 +574,8 @@ def export_package(job_id: str, payload: VersionAction):
 
 
 def web_request(payload):
+    if payload.generation_mode == 'frame':
+        raise ValueError('Frame verwendet eigenen Sprechertext oder den eingerichteten automatischen Skriptzugang; dieser Webimport ist für Animationen.')
     values = payload.model_dump()
     config = normalize_production_config(values.get('production_config'), legacy_video_type=payload.video_type, legacy_script_provider=payload.script_generator)
     require_active_production(config)
@@ -677,8 +684,79 @@ def import_web_board(job_id: str, payload: web_import.WebBoard):
         raise HTTPException(409 if str(exc) in {'version_conflict', 'hash_conflict', 'script_integrity_error', 'job_busy'} else 422, str(exc)) from None
 
 
+def frame_request(job):
+    return JobCreate.model_validate({**{key:job[key] for key in ('topic','language','duration_seconds','aspect_ratio','production_config')},
+                                     'generation_mode':'frame','script_mode':'story'})
+
+
+def create_frame_job(payload):
+    if not _story_plan_slot.acquire(blocking=False):
+        raise HTTPException(429,'Eine Text-/Bildplanung läuft bereits. Bitte danach erneut versuchen.')
+    try:
+        config=normalize_production_config(payload.production_config.model_dump() if payload.production_config else None,
+                                           legacy_video_type='stickman',legacy_script_provider=payload.script_generator)
+        require_active_production(config)
+        validate_voice_language(config,payload.language)
+        request=payload.model_copy(update={'production_config':ProductionConfig.model_validate(config),'video_type':'stickman'})
+        values=request.model_dump();fingerprint=object_sha256(values)
+        job_id=str(uuid.uuid5(uuid.NAMESPACE_URL,'video-pipeline:frame:'+payload.generation_id)) if payload.generation_id else None
+        if job_id and (existing:=db.get_job(job_id)):
+            if existing['generation_mode']!='frame' or existing['script']['metadata'].get('request_fingerprint')!=fingerprint:
+                raise HTTPException(409,'Diese Anfrage-ID gehört zu einem anderen Auftrag. Neu anlegen.')
+            return existing
+        if request.input_kind=='narration':
+            script=frame.draft(request)
+        else:
+            from .operations import Operation
+            script=Operation().run('frame_draft',{'request':values},timeout=frame.operation_timeout(request))
+        script['metadata']['request_fingerprint']=fingerprint
+        return require_job(db.create_job(values,script,job_id=job_id))
+    except HTTPException:
+        raise
+    except Exception as error:
+        raise failed_http(error,'script',status=503 if isinstance(error,ScriptProviderUnavailable) else 422 if isinstance(error,ValueError) else 502) from None
+    finally:
+        _story_plan_slot.release()
+
+
+@app.post('/api/jobs/{job_id}/approve-frame-plan')
+def approve_frame_plan(job_id: str, payload: VersionAction):
+    current=require_job(job_id)
+    if current['generation_mode']!='frame':
+        raise HTTPException(422,'Bildsequenzplanung gehört zum Frame-Modus.')
+    if current['script_version']!=payload.expected_version or current['script']['content_hash']!=payload.expected_hash or not current['script']['integrity_verified']:
+        raise HTTPException(409,'Der Sprechertext wurde geändert. Aktuelle Fassung lesen und erneut freigeben.')
+    if current.get('frame_plan') and current['approved_script_hash']==payload.expected_hash:
+        frame.validate_plan(current['frame_plan'],current['script'])
+        return current
+    if not _story_plan_slot.acquire(blocking=False):
+        raise HTTPException(429,'Eine Text-/Bildplanung läuft bereits.')
+    try:
+        with operations.start(job_id,db,allow_frame=True) as operation:
+            db.approve_script(job_id,payload.expected_version,payload.expected_hash,allow_frame=True)
+            db.begin_planning(job_id,payload.expected_version)
+            request=frame_request(current)
+            plan=operation.run('frame_plan',{'request':request.model_dump(),'script':current['script']},
+                               timeout=frame.operation_timeout(request,frame.narration(current['script'])))
+            with operations.lock:
+                operation.check()
+                return db.save_frame_plan(job_id,payload.expected_version,payload.expected_hash,plan)
+    except OperationCancelled as error:
+        raise HTTPException(409,str(error)) from None
+    except Exception as error:
+        failure=remember_failure(error,'planning',job_id)
+        db.planning_failed(job_id,str(failure))
+        response=HTTPException(409 if str(error) in {'version_conflict','hash_conflict','job_busy'} else 502,str(failure))
+        response.pipeline_failure=failure
+        raise response from None
+    finally:
+        _story_plan_slot.release()
+
+
 @app.post("/api/jobs", status_code=201)
 def create_job(payload: JobCreate):
+    if payload.generation_mode == 'frame':
+        return create_frame_job(payload)
     require_mode(payload.generation_mode)
     try:
         values = payload.model_dump()
@@ -748,6 +826,8 @@ def get_job(job_id: str):
 
 @app.put("/api/jobs/{job_id}/script")
 def update_script(job_id: str, payload: ScriptUpdate):
+    if require_job(job_id)['generation_mode']=='frame':
+        raise HTTPException(422,'Frame verwendet einen Fließtext. Änderungen über „KI verbessert das Skript“ anfordern.')
     try:
         current = require_job(job_id)
         script = payload.model_dump(exclude={"expected_version"})
@@ -768,6 +848,8 @@ def update_script(job_id: str, payload: ScriptUpdate):
 @app.patch("/api/jobs/{job_id}/scenes/{scene_id}")
 def update_scene(job_id: str, scene_id: str, payload: SceneUpdate):
     current = require_job(job_id)
+    if current['generation_mode']=='frame':
+        raise HTTPException(422,'Frame hat keine animierten Einzelszenen. Den vollständigen Sprechertext überarbeiten lassen.')
     if current["script_version"] != payload.expected_version:
         raise HTTPException(409, "Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.")
     scenes = [dict(scene) for scene in current["script"]["scenes"]]
@@ -807,6 +889,29 @@ def revise_script(job_id: str, payload: ScriptRevision):
     current = require_job(job_id)
     if current["script_version"] != payload.expected_version:
         raise HTTPException(409, "Das Skript wurde zwischenzeitlich geändert. Bitte neu laden.")
+    if current['generation_mode']=='frame':
+        if payload.scene_id or not current['script']['integrity_verified']:
+            raise HTTPException(409,'Frame überarbeitet den vollständigen unveränderten Sprechertext.')
+        if not _story_plan_slot.acquire(blocking=False):
+            raise HTTPException(429,'Eine Text-/Bildplanung läuft bereits.')
+        try:
+            with operations.start(job_id,db,allow_frame=True) as operation:
+                request=frame_request(current)
+                revised=operation.run('frame_revise',{'request':request.model_dump(),'script':current['script'],'instructions':payload.instructions},
+                                      timeout=frame.operation_timeout(request,frame.narration(current['script'])))
+                if current['script']['metadata'].get('request_fingerprint'):
+                    revised['metadata']['request_fingerprint']=current['script']['metadata']['request_fingerprint']
+                with operations.lock:
+                    operation.check()
+                    if script_hash(revised)==current['script']['content_hash'] and all(revised.get('metadata',{}).get(key)==current['script'].get('metadata',{}).get(key) for key in ('visual_summary','fact_check_notes','visual_requests')):
+                        raise ValueError('Die Überarbeitung hat den Text nicht verändert.')
+                    return db.update_script(job_id,payload.expected_version,revised)
+        except OperationCancelled as error:
+            raise HTTPException(409,str(error)) from None
+        except Exception as error:
+            raise failed_http(error,'script',job_id,status=409 if str(error) in {'version_conflict','job_busy'} else 502) from None
+        finally:
+            _story_plan_slot.release()
     if payload.story_mode or current['script'].get('metadata', {}).get('workflow') in {'story_draft', 'storyboard'}:
         if current['video_type'] != 'stickman':
             raise HTTPException(422, 'Dieser Ablauf ist für Strichmännchen-Videos vorgesehen.')

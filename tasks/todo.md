@@ -1,6 +1,6 @@
 # Aktueller Auftrag: Strichmenschen-Videos
 
-## Neue aktive Etappe B · Frame (B01/B02/B04 umgesetzt)
+## Neue aktive Etappe B · Frame (B01/B02/B04/B05/B06 umgesetzt)
 
 Nummern und Abnahmekriterien: [tasks/plan.md](plan.md). Alte offene Abnahmen bleiben erhalten.
 
@@ -9,8 +9,8 @@ Nummern und Abnahmekriterien: [tasks/plan.md](plan.md). Alte offene Abnahmen ble
 - [ ] B03 Tatsächlich nutzbaren KI-Bild-/Visionweg mit vorhandenen Zugängen prüfen.
 - [ ] Prüfpunkt B01–B03: Bestand stabil, Fehler sichtbar, Bildzugang belegt.
 - [x] B04 Zwei klare Reiter; überflüssige/nicht implementierte Erstellungsoptionen entfernen.
-- [ ] B05 Idee oder eigenes Skript, freier Dauerwunsch und längere Fließtexte.
-- [ ] B06 Vollständig textgebundene, inhaltlich konkrete Bildplanung.
+- [x] B05 Idee oder eigenes Skript, freier Dauerwunsch und längere Fließtexte.
+- [x] B06 Vollständig textgebundene, inhaltlich konkrete Bildplanung.
 - [ ] B07 Eine Erzählspur und gemessene Bildzeiten ohne kumulativen Versatz.
 - [ ] Prüfpunkt B04–B07: Skriptfreigabe, Bildaussagen und lange Audiotimeline geprüft.
 - [ ] B08 Lokale KI-Illustrationen, Fortschritt, Cache und gezielte Wiederaufnahme.
@@ -22,7 +22,8 @@ Nummern und Abnahmekriterien: [tasks/plan.md](plan.md). Alte offene Abnahmen ble
 B01/B02 implementiert und geprüft: [Diagnose und Modi](../docs/pipeline-diagnostics.md).
 B04 und Bildzugangsprüfung: [Nachweis](../docs/frame-image-access.md).
 B03 bleibt offen bis Anbieterentscheidung, echtem Adapter und Live-Bild-/Visionprobe.
-Frame-Produktion und B05–B12 bleiben offen. Keine Testfilme.
+B05/B06: [Text und Bildplanung](../docs/frame-text-and-planning.md).
+Frame-Produktion und B07–B12 bleiben offen. Keine Testfilme.
 
 ## Erhaltene bisherige Aufgaben und Nachweise
 

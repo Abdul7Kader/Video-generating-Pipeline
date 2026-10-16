@@ -141,6 +141,12 @@ class Database:
                     id TEXT PRIMARY KEY,job_id TEXT REFERENCES jobs(id) ON DELETE CASCADE,
                     report_json TEXT NOT NULL,diagnostics_json TEXT NOT NULL,created_at TEXT NOT NULL);
                 CREATE INDEX IF NOT EXISTS idx_pipeline_failure_job ON pipeline_failures(job_id,created_at);
+                CREATE TABLE IF NOT EXISTS frame_plans (
+                    job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+                    script_version INTEGER NOT NULL,script_hash TEXT NOT NULL,
+                    plan_json TEXT NOT NULL,created_at TEXT NOT NULL,
+                    PRIMARY KEY(job_id,script_version),
+                    FOREIGN KEY(job_id,script_version) REFERENCES script_versions(job_id,version));
             """)
             if 'keep_work_files' not in job_columns:
                 conn.execute('ALTER TABLE jobs ADD COLUMN keep_work_files INTEGER NOT NULL DEFAULT 0')
@@ -326,7 +332,7 @@ class Database:
             conn.commit()
         return report
 
-    def _verified_script_hash(self, conn: sqlite3.Connection, job_id: str, version: int) -> str:
+    def _verified_script_hash(self, conn: sqlite3.Connection, job_id: str, version: int, *, allow_frame=False) -> str:
         row = conn.execute(
             "SELECT title,description,scenes_json,content_hash,generation_mode FROM script_versions WHERE job_id=? AND version=?",
             (job_id, version),
@@ -336,7 +342,8 @@ class Database:
         if row['generation_mode'] != conn.execute('SELECT generation_mode FROM jobs WHERE id=?',(job_id,)).fetchone()['generation_mode']:
             raise ValueError('generation_mode_conflict')
         from .modes import require_mode
-        require_mode(row['generation_mode'])
+        if not allow_frame:
+            require_mode(row['generation_mode'])
         actual = canonical_script_hash(row["title"], row["description"], json.loads(row["scenes_json"]))
         if actual != row["content_hash"]:
             raise ValueError("script_integrity_error")
@@ -374,6 +381,7 @@ class Database:
                 (job_id,),
             ).fetchall()
             failure = conn.execute('SELECT report_json FROM pipeline_failures WHERE job_id=? ORDER BY created_at DESC LIMIT 1',(job_id,)).fetchone()
+            frame_plan = conn.execute('SELECT plan_json FROM frame_plans WHERE job_id=? AND script_version=?', (job_id,job['script_version'])).fetchone()
         job["script"] = dict(script)
         job["production_config"] = json.loads(job.pop("production_config_json"))
         job["script_fallback"] = json.loads(job.pop("script_fallback_json") or "{}")
@@ -393,7 +401,30 @@ class Database:
             event.pop("metadata_json", None)
         job["publication_targets"] = [dict(target) for target in publication_targets]
         job["target_platforms"] = [target["platform"] for target in job["publication_targets"]]
+        if job['generation_mode'] == 'frame':
+            job['frame_plan'] = json.loads(frame_plan['plan_json']) if frame_plan else None
         return job
+
+    def save_frame_plan(self, job_id, expected, expected_hash, plan):
+        from .frame import validate_plan
+        with self._write_lock, self.connect() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            job=conn.execute('SELECT * FROM jobs WHERE id=?',(job_id,)).fetchone()
+            if not job or job['generation_mode'] != 'frame':
+                raise ValueError('frame_job_required')
+            actual=self._verified_script_hash(conn,job_id,expected,allow_frame=True)
+            if job['script_version']!=expected or actual!=expected_hash or job['approved_script_version']!=expected or job['approved_script_hash']!=actual:
+                raise ValueError('version_conflict')
+            if job['status']!='render_planning':
+                raise ValueError('job_busy')
+            row=conn.execute('SELECT title,description,scenes_json FROM script_versions WHERE job_id=? AND version=?',(job_id,expected)).fetchone()
+            validate_plan(plan,{'version':expected,'content_hash':actual,'title':row['title'],'description':row['description'],'scenes':json.loads(row['scenes_json'])})
+            conn.execute('INSERT OR REPLACE INTO frame_plans VALUES(?,?,?,?,?)',
+                         (job_id,expected,actual,json.dumps(plan,ensure_ascii=False),utcnow()))
+            conn.execute("UPDATE jobs SET status='script_approved',error=NULL,updated_at=? WHERE id=?",(utcnow(),job_id))
+            self._event(conn,job_id,'frame_plan_ready',f"Bildplan mit {len(plan['images'])} inhaltlichen Abschnitten vorbereitet; Bilder und Video folgen später.",{'plan_hash':plan['plan_hash']})
+            conn.commit()
+        return self.get_job(job_id)
 
     def retain_project(self, job_id, keep):
         with self._write_lock,self.connect() as conn:
@@ -482,7 +513,7 @@ class Database:
             conn.commit()
         return self.get_job(job_id)  # type: ignore[return-value]
 
-    def approve_script(self, job_id: str, expected: int, expected_hash: str) -> dict[str, Any]:
+    def approve_script(self, job_id: str, expected: int, expected_hash: str, *, allow_frame=False) -> dict[str, Any]:
         now = utcnow()
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
@@ -491,7 +522,7 @@ class Database:
                 raise KeyError(job_id)
             if row["script_version"] != expected:
                 raise ValueError("version_conflict")
-            actual_hash = self._verified_script_hash(conn, job_id, expected)
+            actual_hash = self._verified_script_hash(conn, job_id, expected, allow_frame=allow_frame)
             if actual_hash != expected_hash:
                 raise ValueError("hash_conflict")
             if row['status'] in {'render_queued', 'rendering', 'publish_queued', 'publishing'}:
@@ -674,7 +705,7 @@ class Database:
         with self._write_lock, self.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             job = conn.execute(
-                "SELECT script_version,status,production_config_json FROM jobs WHERE id=?",
+                "SELECT script_version,status,production_config_json,generation_mode,language FROM jobs WHERE id=?",
                 (job_id,),
             ).fetchone()
             if not job:
@@ -698,6 +729,11 @@ class Database:
                 "scenes": json.loads(current["scenes_json"]),
                 "metadata": json.loads(current["metadata_json"]),
             }
+            if job['generation_mode']=='frame':
+                from .voices import estimated_words_per_minute
+                voice=normalized.get('voice_id') or ('thorsten' if job['language']=='de' else 'ljspeech')
+                count=len(script['scenes'][0]['narration'].split())
+                script['metadata']['story_quality']['estimated_speech_seconds']=round(count/estimated_words_per_minute(voice)*60/normalized.get('voice_speed',1),1)
             self._insert_script(conn, job_id, version, script, now, normalized)
             conn.execute(
                 """UPDATE jobs SET updated_at=?, status='script_review', script_version=?,
