@@ -1,5 +1,232 @@
 # Aktiver Entwicklungsplan: Strichmenschen-Videos
 
+## Neue aktive Etappe B: Bildsequenz-Videos und nachvollziehbare Fehler
+
+Stand 16.10.2026: **nur geplant, noch nicht implementiert**. Nutzer wünscht zwei
+Reiter: **Animierte Strichmännchen** (bestehenden Herstellungsweg einfrieren) und
+**Strichmännchen-Bildgeschichten** (KI-Illustrationen + eine zusammenhängende
+Erzählspur). Die frühere Aufgabenfolge darunter bleibt erhalten; ihre offenen
+Abnahmen werden weder geschlossen noch als erledigt ausgegeben.
+
+Referenzprüfung und Grenzen: [Auswertung der lokalen Anleitung](../docs/reference-image-sequence.md).
+Maßgeblicher Ablauf: Idee **oder eigener Sprechertext** → durchgehendes Skript
+lesen → freigeben, ablehnen oder KI-Änderungswunsch → nach Textfreigabe Bilder
+und Sprache erzeugen → synchron zusammensetzen → Videoabnahme → bestehende
+Verteilung. Keine verpflichtende Einzelszenen- oder Einzelbildfreigabe.
+
+### Entscheidungen und Schutzbedarf
+
+- Bestehende Skript-KI, Piper (bestehende Qwen-Alternative), Remotion/FFmpeg,
+  Aufträge, Versionen, Speicherorte, manuelle Bereinigung, Abbruch, Einstellungen,
+  OS-Kontotresor und Desktopverwaltung weiterverwenden. Beide Modi teilen diese
+  Dienste. Kein zweites Projekt und keine Abhängigkeit von einem Coding-Agenten.
+- Neue Jobs bekommen einen gespeicherten, versionsgebundenen Herstellungsmodus;
+  alte Jobs werden unverändert als animiert gelesen. Neue Bildpläne gehören zum
+  Bildmodus und werden nicht in die alten Bewegungs-/SVG-Verträge gezwängt.
+  Sicherheits-/Fehlerkorrekturen dürfen gemeinsam gelten; die Animationsgestaltung
+  wird während dieser Etappe nicht weiterentwickelt.
+- **Echte Bildgenerierung fehlt derzeit:** `generated_media` ist nicht verfügbar,
+  `procedural_stickman` zeichnet SVG. Zuerst den vorhandenen autorisierten Zugang
+  auf eine nutzbare Bildfunktion prüfen. Falls er keine bietet, ist die Auswahl
+  eines geeigneten Bildanbieters/lokalen Modells eine offene Entscheidung.
+  Kein neues Abo, keine Credits oder großen Modelldownloads still aktivieren.
+  Ein Entwicklungswerkzeug für Bilder ist kein Produktionszugang für die App.
+- Erzeugte Bilder/Anbieterantworten sind untrusted. Nur begrenzte Bildformate,
+  Dateigrößen, Auflösungen und freigegebene HTTPS-Anbieterziele; keine beliebigen
+  Remote-URLs, Modellbefehle oder Fremdpfade. Zugangsdaten bleiben im OS-Tresor;
+  keine Schlüssel, vollständigen Providerantworten oder signierten URLs in Logs.
+- Fehlende Inhalte/Dateien nicht durch eine beliebige Standardfigur, wiederholte
+  Fremdbilder oder stille Anbieterwechsel verdecken. Fehler bleiben sichtbar.
+  Auch bei aufgeräumter UI notwendige Einrichtungsfehler verständlich anzeigen.
+- Endvideos und freigegebene Texte schützen. Abbruch betrifft nur eigene Prozesse.
+  Backend bleibt Loopback; keine WSL-Browser, öffentlichen Ports oder neuen
+  Hintergrunddienste. Automatische Bereinigung bleibt **standardmäßig aus**.
+
+### B01 · Bestand sichern und zwei Herstellungsmodi festlegen
+
+**Ergebnis:** Neuer Modus ist von alten Animationsjobs unterscheidbar; gemeinsame
+Auftrags-/Freigabe-/Speicherverträge bleiben verwendbar.
+**Abnahme:** Alte Jobs laden identisch; kein Wechsel des Modus hinter einer
+bestehenden Freigabe; Stilreferenz samt tatsächlichen Grenzen dokumentiert.
+**Prüfung:** Bestehende Jobfixtures und Versions-/Freigabefälle, ohne Film.
+**Abhängigkeit:** keine. **Bereiche:** `backend/production.py`, `schemas.py`, `db.py`,
+gezielte Migrationstests. Umfang mittel.
+
+### B02 · Fehler vom Verarbeitungsschritt bis zur Oberfläche verfolgen
+
+**Ergebnis:** Gemeinsame Fehlerstruktur mit Auftrags-ID, Schritt, Fehlercode,
+verständlich erklärter Ursache, Wiederholbarkeit und nächster Aktion.
+**Abnahme:** Skript, Bildplanung, Bildanbieter, Stimme, Schnitt, Ablage und
+Verteilung unterscheidbar; Logs und UI lassen sich über eine Fehler-ID zuordnen;
+keine Zugangsdaten oder privaten Textblöcke im Fehlerbericht.
+**Prüfung:** Timeout, Kontingent, Anmeldung, ungültige Antwort, voller Datenträger,
+fehlende Datei und Prozessabsturz gezielt simulieren. Zuerst ein vollständiger
+Fall Backend → Ereignis → UI, dann die weiteren Schrittgrenzen anbinden.
+**Abhängigkeit:** B01. **Bereiche:** gemeinsame Fehler-/Ereignisverträge,
+`backend/main.py`, Workergrenze, Fehlerkarte der UI; kleine aufeinanderfolgende Änderungen.
+
+### B03 · Einen tatsächlich nutzbaren KI-Bildweg nachweisen
+
+**Ergebnis:** Fester Bildadapter mit Anbieterauswahl ausschließlich in Einstellungen,
+echter Verfügbarkeitsprüfung und begrenzter Verarbeitung.
+**Abnahme:** Vorhandenen autorisierten Zugang zuerst prüfen; wenige eigene
+Stilproben lassen sich lokal speichern; Kontingent-/Kosten-/Anmeldebedingungen
+sind geklärt. Ohne Bildzugang bleibt der neue Herstellungsweg nicht freigegeben.
+**Prüfung:** Vertragstests zunächst simuliert; eine notwendige echte Bildprobe erst
+mit eingerichtetem berechtigtem Zugang. Kein Video und kein Bezahltarif als Nebeneffekt.
+**Abhängigkeit:** B01–B02. **Bereiche:** neuer Bildadapter, Einstellungen/Tresor,
+Bereitschaftsprüfung, isolierte Tests. Umfang mittel; Auswahl bei fehlendem Zugang offen.
+
+**Prüfpunkt nach B01–B03:** Alter Modus funktioniert, Fehler sind nachvollziehbar,
+ein realer Bildweg und seine Grenzen sind bekannt. Erst dann Serienproduktion planen.
+
+### B04 · Oberfläche auf die zwei Wege konzentrieren
+
+**Ergebnis:** Reiter „Animierte Strichmännchen“ und „Strichmännchen-Bildgeschichten“;
+linke Auftragsliste nach Modus übersichtlich filtern. Einstellungen bleiben erhalten.
+**Abnahme:** Überflüssige Cloud-/Stock-/Podcast-/MoneyPrinter-Produktionsauswahlen
+und nicht implementierte Verfahren aus dem Erstellungsdialog entfernen; aktiv
+genutzte Skriptzugänge bleiben in Einstellungen; alte Aufträge/Daten bleiben erreichbar.
+**Prüfung:** UI-/Navigationstests für beide Modi und schmale Fenster. Ein aktuell
+fehlender notwendiger Zugang bekommt einen klaren Einrichtungsweg statt vieler
+„nicht verfügbar“-Optionen. Neuen Modus erst nach funktionierendem Durchlauf freischalten.
+**Abhängigkeit:** B01–B03; öffentliche Freigabe nach B10. **Bereiche:** Profilkatalog,
+`web/index.html`, `web/app.js`, UI-Tests. Umfang mittel.
+
+### B05 · Längere Skripte mit eigener Dauerwahl ermöglichen
+
+**Ergebnis:** Minuten-/Sekundenfeld plus Vorschläge, etwa 1/5/10/20/30 Minuten;
+Idee und vorhandener Sprechertext sind mögliche Eingaben. Ein Fließtext zur Freigabe.
+**Abnahme:** Die heutige Dialogauswahl bis 3 Minuten und Backendgrenze bis 10 Minuten
+begrenzen den neuen Modus nicht weiter; Wort-/Text-/Token- und Timeoutgrenzen
+werden zusammen angepasst; Ziel-, geschätzte und tatsächliche Dauer sind unterscheidbar.
+**Prüfung:** 1-/10-/30-Minuten-Textfixtures, Grenzwerte und Überarbeitung ohne KI-Lauf.
+Lange Texte dürfen intern abschnittsweise entworfen werden, müssen vor Freigabe
+zusammenhängend vorliegen. Eigener Text wird nicht ungefragt gekürzt, gestreckt oder
+nach Freigabe verändert; notwendige Änderungen verlangen eine neue Textfreigabe.
+**Abhängigkeit:** B01–B02. **Bereiche:** neuer Modusvertrag, `story.py`, Wortbudget,
+Erstellungsdialog und längenabhängige Prüfungen. In kleine Vertrag-/UI-Slices teilen.
+
+### B06 · Sprechertext in konkrete Bildaussagen übersetzen
+
+**Ergebnis:** Interner Bildplan mit stabilen IDs, exakten Textbereichen, Figuren,
+Gegenständen, Handlung, Umgebung und Stil; keine starren Fünf-Sekunden-Szenen.
+**Abnahme:** Jeder Textbereich ist abgedeckt und an den freigegebenen Text gebunden;
+Bildwechsel folgen Sinnabschnitten; Personen/Objekte und Zustandsänderungen werden
+sichtbar geplant. Gegenstandsbild, Raum, Vergleich und Diagramm sind gleichberechtigt.
+**Prüfung:** Eigene Beispiele Katze adoptieren, Feuer entdecken, Vorher/Nachher und
+abstrakter Vergleich. Katze nur als Korb/Bett oder allgemeines Winken genügt nicht.
+**Abhängigkeit:** B05. **Bereiche:** neuer Bildplanvertrag, Planerprompt,
+Textbereichs-/Abdeckungsprüfungen, Fixtures. Umfang mittel.
+
+### B07 · Eine durchgehende Erzählspur mit verlässlichen Bildzeiten bauen
+
+**Ergebnis:** Piper erzeugt die freigegebenen Wörter; eine zusammenhängende finale
+Tonspur liefert die Zeitbasis. Lange Texte dürfen intern in cachebare Abschnitte zerlegt werden.
+**Abnahme:** Keine neuen Wörter, Auslassungen oder künstlichen Abschnittspausen;
+Zeitmarken beruhen auf tatsächlich gemessenen Audiolängen; letzter Bildschluss
+und Audioende stimmen auch nach längerer Laufzeit überein.
+**Prüfung:** Synthetische WAV-Fixtures für 1/10/30 Minuten, Abbruch, gleiche Stimme
+und Textintegrität. Zunächst Bildwechsel an gemessenen Sprachabschnittsgrenzen;
+keine vorgetäuschte Wortgenauigkeit aus geschätzten Wortzeiten. Ein neuer
+Transkriptionsdienst für den ohnehin bekannten Sprechertext ist nicht erforderlich.
+**Abhängigkeit:** B05–B06. **Bereiche:** vorhandene TTS-/Sprachmodule,
+neue Bildzeitleiste und Zeitprüfungen. Umfang mittel.
+
+**Prüfpunkt nach B04–B07:** Beide Bedienwege nachvollziehbar, langer Fließtext
+freigebbar, Bildplan vollständig und Audiotimeline ohne fortlaufenden Zeitversatz.
+
+### B08 · Illustrationen passend und wiederaufnehmbar erzeugen
+
+**Ergebnis:** Ein Bild pro sinnvoller Bildaussage, konsistenter Zeichenstil und
+Figurenmerkmale, lokal gespeicherte Dateien mit Prompt-/Modell-/Inhaltsnachweis.
+**Abnahme:** Reihenfolge und Bild-ID eindeutig; erfolgreiche Bilder bleiben bei
+Fehler/Abbruch erhalten; Wiederholung erzeugt nur fehlende oder gezielt geänderte
+Bilder. Parallelität begrenzen und Anbieterlimits berücksichtigen.
+**Prüfung:** Simulierter Ausfall bei Bild 7 von 20, Neustart, beschädigte Datei,
+abgelaufene Downloadadresse und gleicher Inhalt aus Cache. Remote-Bildadressen
+allein genügen nicht; Pipeline braucht echte lokale Bilddateien.
+**Abhängigkeit:** B03, B06. **Bereiche:** Bildadapter, Manifest/Cache,
+native Operation und Bildfortschritt. Umfang mittel.
+
+### B09 · Erzeugte Bilder auf Inhalt und Stil prüfen
+
+**Ergebnis:** Technische Bildprüfung plus überprüfbarer Vergleich von tatsächlichem
+Bildinhalt und zugehöriger Erzählung; fehlerhafte Bilder gezielt neu anfordern.
+**Abnahme:** Abmessungen/Format/Lesbarkeit und Hauptmotiv geprüft; stabile Figuren
+und Gegenstände über Bilder; fehlendes Tier/falsche Handlung nicht als bestanden melden.
+**Prüfung:** Absichtlich falsche Bilder und Kontraste zum korrekten Bild; ein Prompt
+oder Dateiname gilt nicht als Beweis für Bildinhalt. Semantische Automatik benötigt
+eine tatsächlich verfügbare Visionfunktion; fehlt sie, ist die visuelle Abnahme
+offen und darf nicht als erfolgreich vorgetäuscht werden. Begrenzte Wiederholungen
+mit sichtbarem Restfehler, keine endlose kostenträchtige Schleife.
+**Abhängigkeit:** B08, geklärte Visionfähigkeit aus B03. **Bereiche:** Bildprüfung,
+Fehler-/Retryvertrag und Testbilder. Umfang mittel.
+
+### B10 · Bilder und Audio effizient zum Video zusammensetzen
+
+**Ergebnis:** Bestehender Schnitt erzeugt gehaltene Bilder mit passendem Wechsel,
+einer durchgehenden Erzählspur und optional schlichten Übergängen/Untertiteln.
+**Abnahme:** Keine zufälligen Standardgesten oder Pflichtanimation; Bilder bleiben
+inhaltlich vollständig sichtbar; Audioende, Zeitmarken und fertige Datei bestehen
+die Qualitätsprüfung. 16:9 wie Referenz zuerst; vorhandene andere Formate gezielt prüfen.
+**Prüfung:** Kurze lokale Zusammensetzung nur bei notwendigem Mediennachweis;
+längere Zeitlinien zunächst ohne echte KI-Bilder/Erzählerlauf testen. Keine Zusage
+einer feststehenden Beschleunigung ohne Messung; Bildgenerierung kann teuer/langsam
+sein. Nach Machbarkeitsprüfung den einfachsten vorhandenen Remotion-/FFmpeg-Weg nehmen.
+**Abhängigkeit:** B07–B09. **Bereiche:** Bildmodus im Renderer, Medien-/Zeitprüfung,
+bestehender Export. Umfang mittel.
+
+### B11 · Bearbeitung, Abbruch und Verteilung mit dem Bildmodus verbinden
+
+**Ergebnis:** Bestehendes Skript überarbeiten, betroffene Bild-/Audioabschnitte
+neu erzeugen und geprüfte Ergebnisse nach Unterbrechung wiederaufnehmen.
+**Abnahme:** Alte Endvideos bleiben erhalten; neue Freigabe bindet Text/Bildplan/
+Datei/Modus; Abbruch beendet nur eigene Prozesse. Speicherort, manueller
+Bereinigungsschutz, Discord-Abnahme und Zielstatus funktionieren für beide Modi.
+**Prüfung:** Jeweils ein eigener kleiner Slice für Bearbeitung/Cache, Abbruch/
+Neustart und Verteilung; fremde/alte Freigaben bleiben wirkungslos. Grenzen nach
+gelöschten Arbeitsdateien verständlich anzeigen. Vollständiges Video bleibt ein
+neuer Schnitt; ein allgemeiner inkrementeller Videoframecache ist nicht nötig.
+**Abhängigkeit:** B08–B10. **Bereiche:** vorhandene Jobs/Operationen/Speicherung/
+Discord-/Freigabewege; keine zweite Implementierung dieser Dienste.
+
+### B12 · An wenigen Beispielen abnehmen und dokumentieren
+
+**Ergebnis:** Neue Bildgeschichten sind sichtbar passend und die alte Animation
+funktioniert unverändert. Erst nach technischem Nachweis den neuen Reiter produktiv freischalten.
+**Abnahme:** Ein kurzes eigenes Motivbeispiel und danach ein längeres Video mit
+gewählter Dauer; Nutzer prüft Bildbezug und Stimme; Fehlerfall ist bedienbar und
+Fortsetzung erhält erfolgreiche Schritte. Dokumentation kennzeichnet offene Grenzen.
+**Prüfung:** Gezielte Backend-/UI-/Schnitt-/Negativtests, eigene native App; keine
+routinemäßigen neuen Testfilme. Wenige notwendige echte Bild-/Videoabnahmen vorab
+benennen; vorhandene Nutzerzugänge, Hostschutz und Kostenbedingungen erhalten.
+**Abhängigkeit:** B02–B11. **Bereiche:** Abnahmefixtures, Bedienanleitung,
+Statusdateien und geprüfter Git-Stand. Umfang mittel.
+
+### Fehlermeldung als Abnahmebeispiel
+
+„**Bild 7 von 20 konnte nicht erzeugt werden.** Abschnitt 01:12–01:20:
+Katze wird aus der Transportbox genommen. Ursache: Anbieter-Zeitlimit.
+6 Bilder und die Erzählspur sind gespeichert. **Bild erneut versuchen** /
+**Auftrag abbrechen** / **Fehlerdetails kopieren**. Fehler-ID …“
+
+Die Meldung muss die tatsächlichen gespeicherten Ergebnisse wiedergeben. Bei
+unbestätigten externen Veröffentlichungen gilt weiterhin: Status prüfen, keine
+blinde Wiederholung. Fortschritt zeigt tatsächlich erledigte Bilder/Schritte;
+Restzeiten nur als gekennzeichnete Schätzung mit passender Datengrundlage.
+
+### Noch zu klärende technische Entscheidungen
+
+1. Nutzbarer Bild-/Visionzugang mit dem vorhandenen Konto und erlaubte Kosten/
+   Kontingente. Die heutige SVG-Produktion liefert keine generativen KI-Bilder.
+2. Praktische obere Dauer-/Bildanzahlgrenze auf dem Zielrechner. Frei wählbare
+   Dauer mit ehrlicher Ressourcenprüfung, keine unbegründete „unbegrenzt“-Zusage.
+3. Kurze Stilprobe vor Serienproduktion: einfacher handgezeichneter Comiclook,
+   eindeutige Motive und stabile Figuren; keine Pflicht zur Nachahmung eines Kanals.
+
+## Vorherige Etappen und erhaltene offene Abnahmen
+
 Ergänzung 16.10.2026: Desktop und Einzelabbruch, native Kontotresore/Videoablage,
 Discord-Abnahme und offizielle Verteilung implementiert; tatsächliche Konten- und
 Uploadabnahme nach Einrichtung offen. TikTok nur Inbox mit finaler App-Freigabe.

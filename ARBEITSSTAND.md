@@ -1,5 +1,21 @@
 # Prioritäten für die Strichmännchen-Pipeline
 
+## Neuester Auftrag: Planung Bildgeschichten (16.10.2026)
+
+Aktiver Schwerpunkt jetzt B01–B12 in tasks/plan.md, Checkliste tasks/todo.md.
+Bestehende Animation in eigenem Reiter einfrieren; neuer Reiter mit generierten
+Strichmännchen-Illustrationen und einer synchronen Piper-Erzählspur. Idee oder
+eigener Text → KI-Überarbeitung → eine Textfreigabe → Bilder/Audio → Videoabnahme.
+Freie längere Dauer, nachvollziehbare Fehler pro Schritt und Bild, aufgeräumte
+Produktionsauswahl; Einstellungen und gemeinsame Sicherheits-/Speicher-/Discordwege bleiben.
+YouTube-Stilprobe und lokale Facebook-Anleitung visuell ausgewertet; Nachweis und
+Grenzen in docs/reference-image-sequence.md. Kein vollständiges Audiotranskript.
+Bildgenerator/Visionfähigkeit derzeit nicht produktiv verfügbar; vor Implementierung
+mit vorhandenen berechtigten Zugängen prüfen, keine Bezahltarife still aktivieren.
+Nur Plan-/Dokumentationsänderungen und lokale Kontaktbögen, keine Codeänderungen,
+Installation, neue Generierung oder Änderung laufender Produktion. Frühere offene
+Abnahmen erhalten. Nächster Schritt nach Plan: B01 und B02, Bildmachbarkeit B03 früh klären.
+
 Aktualisiert: 2026-10-16. Nutzerentscheidung: erst die eigene Version fertigstellen; die Familienversion kommt ganz am Ende.
 
 Nummerierte Übersicht: [ENTWICKLUNGSPLAN.md](ENTWICKLUNGSPLAN.md).

@@ -2,6 +2,13 @@
 
 Letzte Aktualisierung: 2026-10-16
 
+**Neuer Auftrag nur geplant:** bestehende Animation einfrieren, zweiter Reiter
+„Strichmännchen-Bildgeschichten“, freie längere Dauer, Piper + passende KI-Bilder,
+detaillierte Fehlermeldungen und aufgeräumte Produktionsauswahl. B01–B12 in
+[tasks/plan.md](tasks/plan.md); [Referenzanalyse](docs/reference-image-sequence.md).
+Ein echter Bildgenerator/Visionweg ist noch zu prüfen/anzubinden. Kein Umsetzungserfolg
+dieser neuen Etappe behauptet; bisheriger implementierter Stand folgt darunter.
+
 Neueste Ergänzung: Endvideos getrennt im gewählten Ordner, sonst `data/videos`.
 Arbeitsdateien lassen sich pro Video manuell bereinigen; Skript und Endfilm bleiben.
 Nutzerwahl: **Automatik aus**. Optional Frist und „Projekt behalten“. Vorschau und

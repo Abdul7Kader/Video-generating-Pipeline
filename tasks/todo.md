@@ -1,5 +1,28 @@
 # Aktueller Auftrag: Strichmenschen-Videos
 
+## Neue aktive Etappe B · Bildgeschichten (nur geplant)
+
+Nummern und Abnahmekriterien: [tasks/plan.md](plan.md). Alte offene Abnahmen bleiben erhalten.
+
+- [ ] B01 Bestand einfrieren und versionsgebundene Herstellungsmodi festlegen.
+- [ ] B02 Nachvollziehbare Fehler vom Worker bis zur Oberfläche, sichere Diagnose-ID.
+- [ ] B03 Tatsächlich nutzbaren KI-Bild-/Visionweg mit vorhandenen Zugängen prüfen.
+- [ ] Prüfpunkt B01–B03: Bestand stabil, Fehler sichtbar, Bildzugang belegt.
+- [ ] B04 Zwei klare Reiter; überflüssige/nicht implementierte Erstellungsoptionen entfernen.
+- [ ] B05 Idee oder eigenes Skript, freier Dauerwunsch und längere Fließtexte.
+- [ ] B06 Vollständig textgebundene, inhaltlich konkrete Bildplanung.
+- [ ] B07 Eine Erzählspur und gemessene Bildzeiten ohne kumulativen Versatz.
+- [ ] Prüfpunkt B04–B07: Skriptfreigabe, Bildaussagen und lange Audiotimeline geprüft.
+- [ ] B08 Lokale KI-Illustrationen, Fortschritt, Cache und gezielte Wiederaufnahme.
+- [ ] B09 Tatsächlichen Bildinhalt/Stil prüfen, begrenzt korrigieren.
+- [ ] B10 Bildsequenzen mit vorhandenem Schnitt synchron zum Video zusammensetzen.
+- [ ] B11 Bearbeitung, Abbruch, Ablage und Discord-/Zielverteilung integrieren.
+- [ ] B12 Wenige notwendige echte Beispiele einschließlich Langvideo mit Nutzer abnehmen.
+
+Noch keine Implementierung dieser Etappe; nur Referenzanalyse und Planung erstellt.
+
+## Erhaltene bisherige Aufgaben und Nachweise
+
 Ergänzung 16.10.2026 ([Details](../docs/review-distribution.md)):
 - [x] Endvideo separat speichern und Vorschau/Upload an gespeicherten Ort binden.
 - [x] Manuell Arbeitsdateien bereinigen, Projekt schützen; automatische Frist nur optional (Standard aus).
