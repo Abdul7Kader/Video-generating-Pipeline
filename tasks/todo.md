@@ -21,7 +21,9 @@ Nummern und Abnahmekriterien: [tasks/plan.md](plan.md). Alte offene Abnahmen ble
 
 B01/B02 implementiert und geprüft: [Diagnose und Modi](../docs/pipeline-diagnostics.md).
 B04 und Bildzugangsprüfung: [Nachweis](../docs/frame-image-access.md).
-B03 bleibt offen bis Anbieterentscheidung, echtem Adapter und Live-Bild-/Visionprobe.
+B03: Kostenentscheidung getroffen (keine Zusatzkosten, vorhandenes Abo bevorzugen).
+Antigravity-Bildweg und kostenlose Alternativen recherchiert; technische Auswahl,
+echter Adapter und Live-Bild-/Visionprobe weiterhin offen.
 B05/B06: [Text und Bildplanung](../docs/frame-text-and-planning.md).
 Frame-Produktion und B07–B12 bleiben offen. Keine Testfilme.
 

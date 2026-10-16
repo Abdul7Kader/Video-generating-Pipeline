@@ -1,5 +1,16 @@
 # Prioritäten für die Strichmännchen-Pipeline
 
+Nachtrag Bildzugang 16.10.2026: Nutzer will keine zusätzlichen Kosten; vorhandenes
+Abo bevorzugen, Antigravity/CLI/Browser dürfen geprüft werden. Offizielles SDK
+dokumentiert eingeschränkte Bildfähigkeit (intern Agentenlaufzeit), noch kein
+sicherer Live-Adapter für dieses Konto. Cloudflare Workers AI bietet eine kostenlose
+REST-Alternative mit Tageskontingent; Gemini/Flow-Web und lokale offene Modelle
+als weitere Kandidaten. Keine unbegrenzten Bilder versprochen. Entscheidung,
+Quellen und erforderliche Schutzprüfungen in [Bildzugang](docs/frame-image-access.md).
+Nur Recherche/Dokumentation, keine Installation, Inferenz, Kontoeinrichtung oder
+Laufzeitänderung. B03 und B07–B12 bleiben offen. Nächster fachlicher Schritt:
+Antigravity-Bildadapter mit Werkzeug- und Kostenbegrenzung nachweisen.
+
 Neuester Stand 16.10.2026: **B05/B06 umgesetzt und geprüft**. Frame-Skriptplanung
 in der UI nutzbar: Idee/eigener unveränderter Sprechertext, 15 Sekunden bis 30 Minuten
 Zieldauer, langer Fließtext, KI-Überarbeitung und einmalige Textfreigabe. Bildplan
@@ -9,7 +20,7 @@ Motive, Handlungen, Zustände, passende Bildarten und begrenzte KI-Planprüfung.
 Keine neuen Bilder/Filme oder echte Modellinferenz. Bestehenden Startfehler im
 Erstellungsdialog behoben. [Nachweise und Grenzen](docs/frame-text-and-planning.md).
 Offen bleiben B03 Bildzugang sowie B07–B12. Frame-Rendern bleibt gesperrt.
-Nächster Schritt: B07 durchgehende gemessene Erzählspur; Bildanbieter separat entscheiden.
+Danach B07: durchgehende gemessene Erzählspur; Bildzugang gemäß Nachtrag nachweisen.
 Ältere Zwischenstände darunter sind historisch und keine aktuelle Aufgabenliste.
 
 
