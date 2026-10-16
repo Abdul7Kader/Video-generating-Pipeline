@@ -24,4 +24,6 @@ Werkzeuge der Strichmännchen-Pipeline. Alternativen werden ausdrücklich ausgew
 | TikTok Content Posting API | Video als Entwurf in die TikTok-Inbox übertragen, Status prüfen. | Entwickleranwendung, OAuth-Zugang mit video.upload; endgültig in TikTok posten. |
 | HTML + CSS + JavaScript | Benutzeroberfläche mit Einstellungen und Videobedienung. | Kein Konto, kein Abo. |
 
+Frame-Bildgenerator: noch nicht eingerichtet; Antigravity-Skriptanmeldung ist kein Bildzugang.
+
 ElevenLabs wird aktuell nicht verwendet. Codex wird für die Entwicklung genutzt; die fertige Pipeline benötigt keinen Coding-Agenten.

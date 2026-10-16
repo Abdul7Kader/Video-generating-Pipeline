@@ -43,6 +43,13 @@ test('resource-blocked chosen voice stays visible with escaped reason and disabl
   assert.throws(()=>ui.editor.collect('new'),/Stimme fehlt/);
 });
 
+test('unavailable alternative voices are omitted without replacing the saved voice',async()=>{
+  const ui=await voices({available:false});
+  const html=ui.editor.render('new',{voice_id:'thorsten'},'de');
+  assert.match(html,/value="thorsten" selected/);
+  assert.doesNotMatch(html,/value="qwen_narrator"/);
+});
+
 function health(overrides={},available=true){
   const source=fs.readFileSync(path.join(__dirname,'../web/app.js'),'utf8');
   const host={setAttribute(){}};

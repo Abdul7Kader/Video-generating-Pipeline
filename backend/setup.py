@@ -379,6 +379,26 @@ def manual_recommendation(request: Request, payload: ManualHardware):
     return {'device': info, 'recommendation': recommendation(info)}
 
 
+@router.post('/image-access')
+def image_access(request: Request):
+    """Inspect the existing account only; never generate, enable billing or tools."""
+    require_local(request)
+    from .antigravity import antigravity_status
+    account = antigravity_status(refresh=True)
+    # Authentication/text-model availability is deliberately not image readiness.
+    return {
+        'ready': False, 'code': 'image_provider_required',
+        'image_generation': 'not_configured', 'vision': 'not_verified',
+        'account': {key: account.get(key) for key in
+                    ('ready', 'installed', 'authenticated', 'code', 'extra_credits_allowed')},
+        'message': 'Der Skriptzugang ist bereit. Ein eigenständiger Bildzugang ist noch nicht eingerichtet.'
+                   if account.get('ready') else 'Antigravity-Skriptzugang und eigenständigen Bildzugang zuerst einrichten.',
+        'next_step': 'Bildanbieter festlegen. Antigravity bietet Bilder als Agentenwerkzeug; '
+                     'die direkte Gemini-Bild-API benötigt einen eigenen Schlüssel und wird separat abgerechnet. '
+                     'Es wurde kein Bild erzeugt und kein Tarif geändert.',
+    }
+
+
 @router.post('/actions')
 def setup_action(request: Request, payload: SetupAction):
     require_local(request)

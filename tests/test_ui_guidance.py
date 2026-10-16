@@ -31,7 +31,7 @@ class UiGuidanceTests(unittest.TestCase):
         self.assertEqual(by_id["help-button"][1].get("aria-label"), "Hilfe zur Bedienung öffnen")
 
     def test_creation_choices_have_hover_and_keyboard_explanations(self) -> None:
-        names = {"topic", "language", "duration_seconds", "aspect_ratios", "production_profile"}
+        names = {"topic", "language", "duration_seconds", "aspect_ratios"}
         controls = [attrs for tag, attrs in self.nodes if tag in {"input", "select", "textarea"}]
         for name in names:
             with self.subTest(name=name):

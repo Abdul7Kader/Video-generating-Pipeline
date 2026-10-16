@@ -1,5 +1,15 @@
 # Entwicklungsstatus – Video Pipeline V2
 
+Aktuell 16.10.2026: **B04 umgesetzt**, zwei Reiter und aufgeräumter Herstellungsdialog;
+Einstellungen und Altaufträge erhalten, Frame-Produktion weiter gesperrt.
+**B03 teilweise geprüft, offen:** Antigravity-Skriptkonto bereit, Zusatzcredits aus;
+kein agentenfreier Bildadapter oder Live-Bild-/Visionnachweis. Direkte Gemini-Bild-API
+separat kostenpflichtig, kein Schlüssel eingerichtet. Anbieterentscheidung beim Nutzer.
+Einstellungen enthalten nun die sichere Nur-Status-Prüfung für den Bildzugang.
+[Details/Quellen/Prüfung](docs/frame-image-access.md). Nächster Schritt: Bildweg festlegen,
+dann B03 abschließen; B05–B12 folgen. Frühere Zwischenstände darunter sind historisch.
+
+
 Letzte Aktualisierung: 2026-10-16
 
 **B01/B02 umgesetzt:** Animation/Frame am Auftrag und je Skriptversion gebunden,

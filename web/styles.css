@@ -66,3 +66,10 @@ main{grid-template-columns:310px minmax(0,1fr)}aside,#workspace{min-width:0}.pan
 @media(max-width:900px){main{grid-template-columns:minmax(0,1fr)}.job{flex:0 0 220px}}
 @media(max-width:650px){header{height:auto;min-height:76px;flex-wrap:wrap;gap:.5rem;padding:12px 15px}}
 #web-import-dialog{width:min(850px,96vw)}#web-import-form{padding:24px}#web-import-form>p{line-height:1.55}#web-import-form label{display:block;margin-top:18px}#web-import-form textarea{display:block;width:100%;max-width:100%;margin-top:8px}#web-import-prompt{font-size:.85rem}#web-import-copy{margin-top:10px}#web-import-dialog .dialog-actions{position:sticky;bottom:0;background:var(--card);padding-top:12px}@media(max-width:620px){#web-import-form{padding:16px}}
+
+.mode-tabs{display:flex;gap:8px;padding:12px 24px;border-bottom:1px solid var(--line);background:var(--card)}
+.mode-tabs [role=tab]{border:1px solid transparent;background:transparent;color:inherit;padding:10px 16px;border-radius:8px;font:inherit;cursor:pointer}
+.mode-tabs [aria-selected=true]{border-color:var(--accent,#ff7956);background:rgba(255,121,86,.12);font-weight:700}
+.mode-tabs [role=tab]:focus-visible{outline:3px solid var(--accent,#ff7956);outline-offset:2px}
+.frame-home{max-width:900px;margin:auto}.frame-home .workflow-overview li{gap:10px}
+@media(max-width:650px){.mode-tabs{padding:8px;gap:4px}.mode-tabs [role=tab]{flex:1;padding:10px 8px;font-size:.9rem}}

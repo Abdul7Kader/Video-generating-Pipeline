@@ -2,7 +2,7 @@
 
 ## Neue aktive Etappe B: Bildsequenz-Videos und nachvollziehbare Fehler
 
-Stand 16.10.2026: **B01 und B02 umgesetzt; B03–B12 noch offen**. Nutzer wünscht zwei
+Stand 16.10.2026: **B01/B02/B04 umgesetzt; B03 teilweise geprüft und noch offen; B05–B12 offen**. Nutzer wünscht zwei
 Reiter: **Animierte Strichmännchen** (bestehenden Herstellungsweg einfrieren) und
 **Frame** (Nutzerbenennung; KI-Illustrationen + eine zusammenhängende
 Erzählspur). Die frühere Aufgabenfolge darunter bleibt erhalten; ihre offenen
@@ -78,6 +78,12 @@ Fall Backend → Ereignis → UI, dann die weiteren Schrittgrenzen anbinden.
 
 ### B03 · Einen tatsächlich nutzbaren KI-Bildweg nachweisen
 
+**Teilstand:** Vorhandener Skriptzugang bestätigt, Bild-/Visionbereitschaft ausdrücklich nicht.
+Bildanbieterentscheidung beim Nutzer offen: Antigravity-Bildfunktion ist ein Agentenwerkzeug,
+direkte Gemini-Bild-API separat kostenpflichtig und ohne vorhandenen Schlüssel.
+Sichere Nur-Status-Prüfung unter Einstellungen eingebaut; kein Adapter/Livebild
+als fertig behauptet. [Nachweis und Quellen](../docs/frame-image-access.md).
+
 **Ergebnis:** Fester Bildadapter mit Anbieterauswahl ausschließlich in Einstellungen,
 echter Verfügbarkeitsprüfung und begrenzter Verarbeitung.
 **Abnahme:** Vorhandenen autorisierten Zugang zuerst prüfen; wenige eigene
@@ -92,6 +98,11 @@ Bereitschaftsprüfung, isolierte Tests. Umfang mittel; Auswahl bei fehlendem Zug
 ein realer Bildweg und seine Grenzen sind bekannt. Erst dann Serienproduktion planen.
 
 ### B04 · Oberfläche auf die zwei Wege konzentrieren
+
+**Umgesetzt:** Zwei Reiter, Modusfilter, gesicherter Tabwechsel, vereinfachter
+Erstellungs-/Stimmenbereich, Einstellungen erhalten. Frame bleibt gesperrt.
+UI-Arbeit unabhängig von der noch offenen Anbieterentscheidung vorgezogen.
+[Prüfung und Grenzen](../docs/frame-image-access.md).
 
 **Ergebnis:** Reiter „Animierte Strichmännchen“ und „Frame“;
 linke Auftragsliste nach Modus übersichtlich filtern. Einstellungen bleiben erhalten.

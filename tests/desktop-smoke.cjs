@@ -59,12 +59,34 @@ function status(origin, headers) {
   assert.equal(page.title, 'Video Pipeline');
   assert.equal(page.node, 'undefined');
   assert.ok(page.heading);
+  const modes = await window.webContents.executeJavaScript(`(()=>{
+    const tabs=[...document.querySelectorAll('[role=tab]')].map(node=>node.innerText);
+    document.getElementById('mode-frame').click();
+    const frame={text:document.getElementById('workspace').innerText,newHidden:document.getElementById('new-button').hidden,selected:document.getElementById('mode-frame').getAttribute('aria-selected')};
+    document.getElementById('mode-animated').click();
+    return {tabs,frame,animated:document.getElementById('mode-animated').getAttribute('aria-selected')};
+  })()`);
+  assert.deepEqual(modes.tabs,['Animierte Strichmännchen','Frame']);
+  assert.equal(modes.frame.newHidden,true);assert.equal(modes.frame.selected,'true');assert.equal(modes.animated,'true');
+  assert.match(modes.frame.text,/erst nach dem vollständigen Funktionstest/);
+  await window.setSize(590,820);
+  const narrow = await window.webContents.executeJavaScript('document.documentElement.scrollWidth <= window.innerWidth');
+  assert.equal(narrow,true);
+  window.setSize(1280,900);
+  trace('Mode tabs, guarded Frame status and narrow window passed; no generation started');
   await window.webContents.executeJavaScript('document.getElementById("settings-button").click()');
   for (let i = 0; i < 100; i++) {
     if (await window.webContents.executeJavaScript('Boolean(document.getElementById("integration-save"))')) break;
     await delay(100);
   }
   assert.equal(await window.webContents.executeJavaScript('Boolean(document.getElementById("integration-save"))'), true);
+  assert.equal(await window.webContents.executeJavaScript('Boolean(document.getElementById("image-access-check"))'), true);
+  assert.equal(await window.webContents.executeJavaScript('document.getElementById("image-access-result").innerText'), '');
+  const creation = await window.webContents.executeJavaScript(`(()=>{
+    const hidden=document.getElementById('new-production-profile').closest('[hidden]');
+    return {hidden:Boolean(hidden),profileLabels:[...document.querySelectorAll('#create-form label')].filter(node=>node.innerText.includes('Produktionsprofil')).length};
+  })()`);
+  assert.equal(creation.hidden,true);assert.equal(creation.profileLabels,0);
   assert.equal(await window.webContents.executeJavaScript('document.querySelector("[data-integration=work_retention_days]").value'), '0');
   const picked = path.join(folder, 'chosen-video-folder');
   dialog.showOpenDialog = async () => ({canceled:false, filePaths:[picked]});
