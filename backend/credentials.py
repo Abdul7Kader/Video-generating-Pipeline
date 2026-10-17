@@ -6,7 +6,7 @@ import sys
 SERVICE = 'VideoPipeline.' + hashlib.sha256(str(Path(__file__).resolve().parents[1]).encode()).hexdigest()[:24]
 SECRET_NAMES = frozenset({'discord_bot_token', 'youtube_client_secret', 'youtube_refresh_token',
     'facebook_token', 'instagram_token', 'tiktok_access_token', 'tiktok_refresh_token',
-    'tiktok_client_secret', 'mastodon_token'})
+    'tiktok_client_secret', 'mastodon_token', 'cloudflare_api_token'})
 
 
 class CredentialError(RuntimeError):

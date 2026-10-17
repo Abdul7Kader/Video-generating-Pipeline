@@ -1,5 +1,23 @@
 # Prioritäten für die Strichmännchen-Pipeline
 
+Neuester Auftrag 17.10.2026: **Cloudflare-FLUX und Google-Abo-Bildadapter eingebaut**.
+Einstellungen mit Anbieterwahl, nativem Token-Tresor, Free-Tarif-Bestätigung,
+Einzelbildmotiv, Fortschritt und Abbruch. Google bleibt beim vorhandenen
+Antigravity-Abo; keine separat bezahlte Gemini-Bild-API. Private bildbegrenzte
+CLI-Konfiguration, PreToolUse-Sperre, Credit-Prüfung und eigene Prozessgruppen.
+Google-Livebild erfolgreich: data/image-previews/92aff26c56b34f42b23daf238b1334af.png,
+1024×1024; sichtbare Katze, Transportbox und kniendes Strichmännchen. Brückenmodell
+gemini-3.8-flash-high, Bildmodell vom Hersteller nicht gemeldet. Schnittstellen-
+unterschiede (Windows-Aufruf, Tool-Metadaten, fehlender strukturierter Pfad) behoben;
+keine allgemeinen Rechte freigegeben. Cloudflare benötigt
+noch Account-ID und Token. B03 bis vollständigem Live-/Stil-/Visionnachweis offen;
+B07–B12 unverändert offen, kein Frame-Video erzeugt oder freigegeben.
+Windows-UI-Abnahme: data/desktop/acceptance-normal-1792250783779202100/result.json,
+nur 127.0.0.1:8080, keine Prozessreste. Keine neuen Abhängigkeiten installiert.
+[Bedienung und Schutzgrenzen](docs/frame-image-access.md). Ältere Stände sind historisch.
+354 Backend-Tests (10 Skips), 74 JS-Tests bestanden; gezielte Bildtests nach der
+letzten Exportkorrektur erneut bestanden. Kein Video, kein neues Paket/Bezahltarif.
+
 Nachtrag Bildzugang 16.10.2026: Nutzer will keine zusätzlichen Kosten; vorhandenes
 Abo bevorzugen, Antigravity/CLI/Browser dürfen geprüft werden. Offizielles SDK
 dokumentiert eingeschränkte Bildfähigkeit (intern Agentenlaufzeit), noch kein

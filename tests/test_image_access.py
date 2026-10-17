@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from backend import setup
+from backend import setup,images
 from test_settings_api import request
 
 
@@ -9,14 +9,14 @@ class ImageAccessTests(unittest.IsolatedAsyncioTestCase):
     async def test_text_login_never_claims_image_or_vision_readiness_and_drops_private_metadata(self):
         account={'ready':True,'installed':True,'authenticated':True,'code':'ready',
                  'extra_credits_allowed':False,'private_identity':'never-return-this'}
-        with patch('backend.antigravity.antigravity_status',return_value=account) as probe:
+        with patch('backend.antigravity.antigravity_status',return_value=account) as probe, patch.object(images,'load',return_value=images.Preferences(provider='antigravity')),patch.object(images,'credentials'):
             status,value=await request('POST','/api/settings/image-access',headers={'x-setup-token':setup.TOKEN})
         self.assertEqual(status,200)
         probe.assert_called_once_with(refresh=True)
         self.assertTrue(value['account']['ready'])
         self.assertFalse(value['ready'])
         self.assertEqual(value['vision'],'not_verified')
-        self.assertEqual(value['image_generation'],'not_configured')
+        self.assertEqual(value['image_generation'],'not_verified')
         self.assertNotIn('never-return-this',str(value))
 
     async def test_probe_cannot_be_triggered_by_a_foreign_site_or_without_local_token(self):

@@ -1,5 +1,12 @@
 # Entwicklungsstatus – Video Pipeline V2
 
+Aktuell 17.10.2026: Cloudflare-FLUX und Google-Abo-CLI für Frame-Einzelbilder
+eingebaut, einschließlich Einstellungen, geschütztem Token, Fortschritt und Abbruch.
+Keine bezahlte Gemini-API. Google-Livebild erfolgreich lokal exportiert und angesehen.
+Cloudflare-Konto/Token, Serien-/Visionabnahme noch offen. Frame-Videoproduktion bleibt bis B07–B12
+gesperrt. Eigene Windows-Oberfläche und Start/Stopp geprüft, nur Loopback und keine
+Prozessreste. [Details](docs/frame-image-access.md). Ältere Stände darunter historisch.
+
 Neuester Stand 16.10.2026: **B05/B06 umgesetzt und geprüft**. Frame-Skriptplanung
 in der UI nutzbar: Idee/eigener unveränderter Sprechertext, 15 Sekunden bis 30 Minuten
 Zieldauer, langer Fließtext, KI-Überarbeitung und einmalige Textfreigabe. Bildplan

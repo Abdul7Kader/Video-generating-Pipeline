@@ -1,7 +1,8 @@
 # Frame · lange Sprechertexte und inhaltliche Bildplanung
 
 Stand: 16.10.2026. **B05/B06 implementiert und mit Fixtures geprüft.**
-Echte Bildgenerierung (B03/B08), Tonspur/Bildzeiten (B07), Bildinhaltsprüfung
+Nachtrag 17.10.: [Separate Bildanbieter und Einzelbildtest](frame-image-access.md)
+eingebaut; Google-Livebild erfolgreich. Bildserien im Auftrag (B08), Tonspur/Bildzeiten (B07), Bildinhaltsprüfung
 (B09), Zusammensetzen (B10) und reale Langvideo-Abnahme (B12) bleiben offen.
 
 ## Bedienung

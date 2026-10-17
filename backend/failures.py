@@ -33,6 +33,7 @@ CODES = {
     'not_ready':('Frame ist noch nicht zur Produktion freigegeben.','Zuerst den vorgesehenen KI-Bildweg einrichten und abnehmen. Die bestehende Animation bleibt nutzbar.',False),
     'unexpected':('Dieser Schritt konnte nicht abgeschlossen werden.','Fehlerdetails kopieren und mit der Fehler-ID melden. Gespeicherte Dateien bleiben erhalten.',False),
     'unsupported_action':('Unbekannter Produktionsschritt.','Nur die festgelegten Produktionsaktionen sind erlaubt.',False),
+    'image_policy':('Der Bildlauf konnte die Werkzeug- oder Kostenbegrenzung nicht bestätigen.','Bildzugang und ausgeschaltete Zusatzcredits prüfen; allgemeine Werkzeugrechte bleiben gesperrt.',False),
 }
 
 
@@ -86,7 +87,10 @@ def describe(error, stage='request', **context):
     while cause and all(cause is not item for item in chain) and len(chain)<4:
         chain.append(cause);cause=cause.__cause__ or cause.__context__
     text = ' '.join(str(item)[:2048].lower() for item in chain)  # Classification only, never persisted or returned.
-    if 'stumme ersatzvideos sind deaktiviert' in text: code = 'voice_missing'
+    from .images import ImageError
+    if isinstance(error,ImageError):
+        code={'policy':'image_policy','not_configured':'credentials','tools_missing':'missing_file','unavailable':'process_failed'}.get(error.code,error.code)
+    elif 'stumme ersatzvideos sind deaktiviert' in text: code = 'voice_missing'
     elif 'ausgewählten anbieter' in text or 'ersatzstimme' in text: code = 'provider_mismatch'
     elif any(isinstance(item,(TimeoutError,subprocess.TimeoutExpired)) for item in chain) or any(word in text for word in ('timeout','zeitlimit','timed out','time limit')):
         code = 'timeout'

@@ -78,14 +78,20 @@ Fall Backend → Ereignis → UI, dann die weiteren Schrittgrenzen anbinden.
 
 ### B03 · Einen tatsächlich nutzbaren KI-Bildweg nachweisen
 
-**Teilstand:** Vorhandener Skriptzugang bestätigt, Bild-/Visionbereitschaft ausdrücklich nicht.
+**Teilstand 17.10.:** Cloudflare-FLUX-REST-Adapter und Google-Abo-CLI-Adapter eingebaut,
+einschließlich Einstellungen/Tresor, Einzelbildprobe, Fortschritt und eigenem Abbruch.
+Strikte Bild-/Pfadprüfung und Google-Werkzeug-/Credit-Schutz; keine Extra-API-Abrechnung.
+Google-Einzelbild über vorhandenes Abo erfolgreich erzeugt, sicher exportiert und
+entwicklungsseitig angesehen. Serien-/Visionabnahme und Cloudflare-Liveaufruf offen;
+Cloudflare-Konto/Token nicht eingerichtet.
+Vorhandener Skriptzugang bestätigt, vollständige Bild-/Visionbereitschaft ausdrücklich nicht.
 Nutzerentscheidung: keine zusätzlichen Kosten, bevorzugt vorhandenes Abo;
 Antigravity/CLI/Browser dürfen untersucht werden. Offizieller eingeschränkter SDK-Bildweg
 als Kandidat dokumentiert; kostenlose Cloudflare-REST-Alternative und lokale Modelle
 recherchiert. Kein unbegrenzter Gratiszugang oder Live-Bildweg nachgewiesen.
 Direkte Gemini-Bild-API separat kostenpflichtig und ohne vorhandenen Schlüssel.
-Sichere Nur-Status-Prüfung unter Einstellungen eingebaut; kein Adapter/Livebild
-als fertig behauptet. [Nachweis und Quellen](../docs/frame-image-access.md).
+Statusprüfung bleibt von echter Bilderzeugung und Vision getrennt.
+[Bedienung, Grenzen und Quellen](../docs/frame-image-access.md).
 
 **Ergebnis:** Fester Bildadapter mit Anbieterauswahl ausschließlich in Einstellungen,
 echter Verfügbarkeitsprüfung und begrenzter Verarbeitung.

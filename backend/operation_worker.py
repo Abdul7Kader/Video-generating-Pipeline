@@ -14,7 +14,12 @@ def main():
     try:
         value = json.loads(request.read_text(encoding='utf-8'))
         payload = value['payload']
-        if value['kind'] in {'frame_draft','frame_plan','frame_revise'}:
+        if value['kind'] == 'image_preview':
+            from backend import images
+            from backend.image_settings import preview_path
+            with failures.failure_stage('image'):
+                output=images.generate(payload['prompt'],preview_path(payload['id']),images.Preferences.model_validate(payload['preferences']))
+        elif value['kind'] in {'frame_draft','frame_plan','frame_revise'}:
             from backend import frame
             from backend.schemas import JobCreate
             with failures.failure_stage('planning' if value['kind']=='frame_plan' else 'script'):

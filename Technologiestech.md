@@ -4,6 +4,7 @@ Werkzeuge der Strichmännchen-Pipeline. Alternativen werden ausdrücklich ausgew
 
 | Tool / Technologie | Wofür wir es nutzen | Anmeldung / Abo |
 |---|---|---|
+| Cloudflare Workers AI + FLUX.1 schnell | KI-Bilder für Frame; Adapter und Einzelbildtest eingebaut. | Workers-Free-Konto, Account-ID und API-Token; Tageskontingent, Live-Einrichtung noch nötig. |
 | Electron + native Prozessverwaltung | Eigenes Programmfenster; gemeinsamer Start/Stopp. Windows: Job Objects, Linux: systemd + Subreaper, macOS: launchd + Prozessregistrierung (Mac-Abnahme offen). | Kein Konto, kein Abo; lokale Desktop-Laufzeit herunterladen. |
 | Antigravity + Gemini | Skripte überarbeiten und Szenarien planen; beim letzten Katzenvideo verwendet. | Eigenes berechtigtes Google-Konto nötig. Kostenloses begrenztes Basiskontingent, Pro-Abo optional; Zusatzcredits werden vor jedem Aufruf geprüft und müssen aus sein; Modelle und Limits hängen vom Konto ab. [Tarife](https://www.antigravity.google/docs/plans) |
 | Web-KI (z. B. Gemini-Webversion) | Manueller Prompt-/Antwortimport für Text, Überarbeitung und Zeichenplan. | Anmeldung beim gewählten Anbieter; dessen Gratislimits/Tarife gelten. Kein automatischer Weblogin. |
@@ -24,6 +25,10 @@ Werkzeuge der Strichmännchen-Pipeline. Alternativen werden ausdrücklich ausgew
 | TikTok Content Posting API | Video als Entwurf in die TikTok-Inbox übertragen, Status prüfen. | Entwickleranwendung, OAuth-Zugang mit video.upload; endgültig in TikTok posten. |
 | HTML + CSS + JavaScript | Benutzeroberfläche mit Einstellungen und Videobedienung. | Kein Konto, kein Abo. |
 
-Frame-Bildgenerator: noch nicht eingerichtet; Antigravity-Skriptanmeldung ist kein Bildzugang.
+Frame-Bilder: Cloudflare Workers AI / FLUX.1 schnell (Free-Konto, Account-ID und
+API-Token nötig) oder vorhandenes Google-Abo über eingeschränkten Antigravity-CLI-
+Bildadapter (Google-Einzelbild erfolgreich getestet). Keine separate Gemini-Bild-API.
+Cloudflare-Live-/Serien-/Visionabnahme offen;
+Skriptanmeldung allein bestätigt keine erfolgreiche Bilderzeugung.
 
 ElevenLabs wird aktuell nicht verwendet. Codex wird für die Entwicklung genutzt; die fertige Pipeline benötigt keinen Coding-Agenten.

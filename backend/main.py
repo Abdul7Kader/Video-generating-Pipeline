@@ -68,6 +68,7 @@ def failed_http(error,stage,job_id=None,status=502):
 
 def request_stage(request):
     path = request.url.path
+    if '/settings/images' in path or '/settings/image-access' in path: return 'image'
     if 'voice' in path: return 'voice'
     if 'approve-and-render' in path or 'web-board' in path or 'approve-frame-plan' in path: return 'planning'
     if 'discord' in path: return 'discord'
@@ -245,6 +246,8 @@ async def lifespan(_: FastAPI):
     stop.set()
     await asyncio.to_thread(discord_service.close)
     await worker
+    from .image_settings import close as close_image_preview
+    await asyncio.to_thread(close_image_preview)
     setup.manager.close()
 
 
@@ -254,6 +257,8 @@ app.state.worker_claim_lock = threading.Lock()
 app.include_router(setup.router)
 from .integrations import router as integrations_router
 app.include_router(integrations_router)
+from .image_settings import router as image_settings_router
+app.include_router(image_settings_router)
 
 
 @app.exception_handler(PipelineFailure)

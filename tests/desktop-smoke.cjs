@@ -82,6 +82,23 @@ function status(origin, headers) {
   assert.equal(await window.webContents.executeJavaScript('Boolean(document.getElementById("integration-save"))'), true);
   assert.equal(await window.webContents.executeJavaScript('Boolean(document.getElementById("image-access-check"))'), true);
   assert.equal(await window.webContents.executeJavaScript('document.getElementById("image-access-result").innerText'), '');
+  for(let i=0;i<50;i++) {
+    if(await window.webContents.executeJavaScript('document.getElementById("image-vault").innerText.length>0'))break;
+    await delay(100);
+  }
+  const images=await window.webContents.executeJavaScript(`(()=>{
+    const provider=document.getElementById('image-provider');
+    const labels=[...provider.options].map(option=>option.textContent);
+    const initial={provider:provider.value,free:document.getElementById('image-free').checked,secret:document.getElementById('image-token').value,password:document.getElementById('image-token').type};
+    provider.value='antigravity';provider.dispatchEvent(new Event('change'));
+    const googleVisible=!document.getElementById('image-google').hidden&&document.getElementById('image-cloudflare').hidden;
+    provider.value=initial.provider;provider.dispatchEvent(new Event('change'));
+    return {labels,initial,googleVisible,testVisible:!document.getElementById('image-test').hidden};
+  })()`);
+  assert.equal(images.labels.length,2);assert.equal(images.initial.provider,'cloudflare');
+  assert.equal(images.initial.free,false);assert.equal(images.initial.secret,'');assert.equal(images.initial.password,'password');
+  assert.equal(images.googleVisible,true);assert.equal(images.testVisible,true);
+  trace('Image provider controls, native vault hint and safe free defaults passed; no image generated');
   const creation = await window.webContents.executeJavaScript(`(()=>{
     const hidden=document.getElementById('new-production-profile').closest('[hidden]');
     return {hidden:Boolean(hidden),profileLabels:[...document.querySelectorAll('#create-form label')].filter(node=>node.innerText.includes('Produktionsprofil')).length};

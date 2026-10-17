@@ -1,9 +1,15 @@
 # Lokale Video Pipeline
 
+**Bildanbieter einrichten:** Einstellungen → **Frame · KI-Bilder** bietet Cloudflare
+mit FLUX (Workers-Free-Konto und Token nötig) oder dein vorhandenes Google-Abo
+über Antigravity. Einzelnes Testmotiv, Fortschritt und Abbruch; kein Video wird
+dabei gestartet. Google-Einzelbild über das vorhandene Abo erfolgreich geprüft;
+Cloudflare benötigt noch eigene Zugangsdaten. [Einrichtung und Nachweise](docs/frame-image-access.md).
+
 **Frame: Skript und Bildplan jetzt vorbereiten.** Reiter Frame → Frame-Skript:
 Idee oder eigenen Sprechertext wählen, Minuten/Sekunden festlegen (bis 30 Minuten),
 Text von der KI verbessern lassen und freigeben. Der Bildplan folgt dem jeweiligen
-Inhalt. Bilder, Tonspur und Frame-Video folgen in den nächsten Schritten;
+Inhalt. Bildserien im Auftrag, Tonspur und Frame-Video folgen in den nächsten Schritten;
 [Bedienung und aktueller Umfang](docs/frame-text-and-planning.md).
 
 

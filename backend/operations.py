@@ -43,7 +43,7 @@ class Operation:
                         return PipelineFailure.from_wire(json.loads(progress.read_text(encoding='utf-8')))
                 except (OSError,ValueError,TypeError):
                     pass
-                return PipelineFailure({'plan':'planning','render':'render','revise':'script','frame_plan':'planning','frame_revise':'script','frame_draft':'script'}.get(kind,'request'))
+                return PipelineFailure({'image_preview':'image','plan':'planning','render':'render','revise':'script','frame_plan':'planning','frame_revise':'script','frame_draft':'script'}.get(kind,'request'))
             request.write_text(json.dumps({'kind': kind, 'payload': payload}), encoding='utf-8')
             request.chmod(0o600)
             environment = dict(os.environ)

@@ -1,5 +1,10 @@
 # Entwicklungsplan für die Strichmännchen-Pipeline
 
+Nachtrag 17.10.2026: B03 hat jetzt Cloudflare-FLUX und Google-Abo-CLI als
+eingebaute Bildadapter mit Einstellungen, Tresor, Einzelbildtest und Abbruch.
+Vollständige Live-/Stil-/Visionabnahme offen; Cloudflare braucht Nutzereinrichtung.
+Frame-Videoproduktion und B07–B12 bleiben offen. [Details](docs/frame-image-access.md).
+
 Neuester Stand 16.10.2026: **B05/B06 umgesetzt und geprüft**. Frame-Skriptplanung
 in der UI nutzbar: Idee/eigener unveränderter Sprechertext, 15 Sekunden bis 30 Minuten
 Zieldauer, langer Fließtext, KI-Überarbeitung und einmalige Textfreigabe. Bildplan
