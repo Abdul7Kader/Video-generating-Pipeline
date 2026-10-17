@@ -21,7 +21,7 @@ def main():
     command=[_executable()]
     if value['mode']=='inspect':
         command += ['--print','/hooks','--output-format','json']
-    elif value['mode']=='generate' and re.fullmatch(r'gemini-[a-z0-9.-]{1,80}',value['model']) and value['effort'] in {'low','medium','high','xhigh','max'}:
+    elif value['mode'] in {'generate','review'} and re.fullmatch(r'gemini-[a-z0-9.-]{1,80}',value['model']) and value['effort'] in {'low','medium','high','xhigh','max'}:
         command += ['--input-format','stream-json','--output-format','stream-json',
             '--agent','video-pipeline-image','--model',value['model'],'--effort',value['effort'],'--mode','accept-edits','--disable-slash-commands','--sandbox','--print-timeout','600s']
     else:

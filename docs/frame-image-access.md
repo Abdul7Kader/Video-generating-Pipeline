@@ -1,5 +1,11 @@
 # Frame: Bildzugang und Oberfläche · B03/B04
 
+Aktualisierung 17.10.2026: Frame-Medienpipeline B07–B11 ist inzwischen eingebaut.
+Echte Bildansicht, positiver/negativer Inhaltskontrast, lokaler Ton und Schnitt
+in 16:9/9:16 nachgewiesen. B12 bleibt wegen Google-Bildkontingent und ausstehender
+Serien-/Langvideoabnahme teilweise offen. [Aktueller Betriebsumfang](frame-production.md).
+Frühere Angaben „gesperrt/folgt später“ darunter beschreiben ältere Entwicklungsstände.
+
 Nachtrag B05/B06: Frame kann inzwischen Texte und Bildpläne vorbereiten.
 [Betriebsumfang und Nachweise](frame-text-and-planning.md). Einzelbilder lassen sich
 nun separat in den Einstellungen testen; Frame-Videoproduktion bleibt gesperrt.

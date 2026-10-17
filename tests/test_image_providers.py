@@ -12,6 +12,19 @@ from backend import images, image_guard
 
 
 class ImageProviderTests(unittest.TestCase):
+    def test_only_own_bounded_runtime_errors_are_classified_not_model_text(self):
+        from backend import antigravity_images as google
+        with tempfile.TemporaryDirectory() as name:
+            root=Path(name);artifact=root/'.gemini/antigravity-cli/brain/11111111-1111-1111-1111-111111111111'
+            logs=artifact/'.system_generated/logs';logs.mkdir(parents=True)
+            transcript=logs/'transcript.jsonl'
+            with patch.object(google.Path,'home',return_value=root):
+                transcript.write_text(json.dumps({'type':'USER','status':'ERROR','error':'429 private-fixture'}))
+                self.assertIsNone(google.session_failure(artifact))
+                transcript.write_text(json.dumps({'type':'GENERIC','status':'ERROR','error':'429 RESOURCE_EXHAUSTED private-fixture'}))
+                self.assertEqual(google.session_failure(artifact),'rate_limit')
+                self.assertIsNone(google.session_failure(root/'foreign-session'))
+
     def test_google_exports_only_this_runs_image_and_never_accepts_external_paths(self):
         from backend import antigravity_images as google
         with tempfile.TemporaryDirectory() as directory:
@@ -26,6 +39,7 @@ class ImageProviderTests(unittest.TestCase):
                 source.write_bytes(b'fixture-png')
                 (workspace/'guard-ready.json').write_text(json.dumps({'artifact':str(artifact)}))
                 (workspace/'image-called').touch()
+                (workspace/'image-completed').touch()
                 return json.dumps({'event':'result','result':{'status':'SUCCESS',**({'structured_output':{'image_path':str(source)}} if escape else {})}})
             with patch.object(google,'settings',SimpleNamespace(data_dir=root,antigravity_model='gemini-fixture',antigravity_effort='high')),patch.object(google,'_executable',return_value='agy'),patch.object(google,'credit_guard'),patch.object(google,'invoke',side_effect=invoke),patch.object(google,'normalize_image',return_value={'width':1024,'height':1024}) as normalize:
                 result=google.generate('A unique new idea',root/'output.png')
@@ -59,10 +73,11 @@ class ImageProviderTests(unittest.TestCase):
                 result=image_guard.handle('tool',{**payload,'toolCall':{'name':'generate_image','args':{}}},workspace)
                 self.assertEqual(result['decision'],'deny')
             with patch.object(image_guard.Path,'exists',return_value=False):
-                request={**payload,'toolCall':{'name':'generate_image','args':json.dumps({'Prompt':'model changed prompt','toolAction':'Generate image','toolSummary':'Only UI metadata'})}}
+                request={**payload,'toolCall':{'name':'generate_image','args':json.dumps({'Prompt':'model changed prompt','AspectRatio':'16:9','toolAction':'Generate image','toolSummary':'Only UI metadata'})}}
                 result=image_guard.handle('tool',request,workspace)
                 self.assertEqual(result['decision'],'auto_approve')
                 self.assertEqual(result['overwrite']['Prompt'],'fixed image prompt')
+                self.assertEqual(result['overwrite']['AspectRatio'],'1:1')
                 self.assertEqual(image_guard.handle('tool',request,workspace)['decision'],'deny')
 
     def test_raster_validation_decodes_real_pixels_rejects_svg_and_preserves_existing_files(self):

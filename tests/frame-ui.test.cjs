@@ -38,11 +38,21 @@ test('Frame preview escapes script and plan, distinguishes measured duration and
   const html=ui.editor({duration_seconds:1800,script:{metadata:{story_quality:{estimated_speech_seconds:1400}},scenes:[{narration:'<img src=x>\nNächster Absatz.'}]},frame_plan:{images:[{setting:'<script>',action:'Ein Gegenstand verändert sich.',visible_change:'Die Folge wird sichtbar.'}]}});
   assert.match(html,/&lt;img src=x&gt;/);assert.doesNotMatch(html,/<img|<script>/);
   assert.match(html,/Tatsächliche Dauer: noch nicht gemessen/);assert.match(html,/Eine Einzelbildfreigabe ist nicht nötig/);
-  assert.doesNotMatch(html,/id="approve-story"/);
+  assert.match(html,/id="approve-story"/);assert.match(html,/Frame-Produktion fortsetzen/);
+  assert.equal((html.match(/id="approve-story"/g)||[]).length,1);
 });
 
 test('resume fingerprint stores no narration and changes for a different idea or mode',async()=>{
   const {ui}=fixture(),first=await ui.fingerprint({topic:'Katze',narration:'Privater eigener Text',generation_mode:'frame'});
   assert.match(first,/^[a-f0-9]{64}$/);assert.doesNotMatch(first,/Privater/);
   assert.notEqual(first,await ui.fingerprint({topic:'Feuer',generation_mode:'frame'}));
+});
+
+test('measured runtime and concrete failed-image findings remain escaped and resumable',()=>{
+  const {ui}=fixture();
+  const html=ui.editor({duration_seconds:60,script:{metadata:{},scenes:[{narration:'Eine Katze kommt nach Hause.'}]},
+    frame_production:{actual_seconds:18,completed_images:2,image_total:4,issues:['<script>Das Tier fehlt.</script>']},frame_plan:{images:[]}});
+  assert.match(html,/Tatsächliche Dauer: 0 Min. 18 Sek/);assert.match(html,/2 von 4 Bildern angenommen/);
+  assert.match(html,/&lt;script&gt;Das Tier fehlt/);assert.doesNotMatch(html,/<script>/);
+  assert.match(html,/Frame-Produktion fortsetzen/);
 });

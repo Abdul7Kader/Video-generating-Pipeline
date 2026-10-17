@@ -13,7 +13,7 @@ from .plan import file_sha256
 from .video_storage import output_file, separate_finished_video
 
 BUSY = {'render_queued','rendering','render_planning','cancelling','publish_queued','publishing','publish_pending','script_approved','script_review'}
-GENERATED = {'narration.wav','captions.srt','subtitles.srt','render-props.json','voice-manifest.json','asset-manifest.json'}
+GENERATED = {'narration.wav','captions.srt','subtitles.srt','render-props.json','voice-manifest.json','asset-manifest.json','frame-timeline.json','frame-concat.txt'}
 
 
 def linked(path):
@@ -32,7 +32,8 @@ def work_files(root):
             relative = file.relative_to(root)
             if not re.fullmatch(r'v[0-9]+',relative.parts[0]):
                 continue
-            if name in GENERATED or ('audio' in relative.parts and file.suffix.lower() == '.wav') or ('assets' in relative.parts and file.suffix.lower() in {'.svg','.png','.jpg','.jpeg','.webp'}):
+            frame_sidecar=('audio' in relative.parts or 'assets' in relative.parts) and bool(re.fullmatch(r'[a-f0-9]{64}(\.rejected|\.pending)?\.json',name))
+            if name in GENERATED or frame_sidecar or ('audio' in relative.parts and file.suffix.lower() == '.wav') or ('assets' in relative.parts and file.suffix.lower() in {'.svg','.png','.jpg','.jpeg','.webp'}):
                 yield file
 
 

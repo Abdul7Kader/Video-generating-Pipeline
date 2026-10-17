@@ -171,7 +171,7 @@ class FrameWorkflowTests(unittest.TestCase):
         self.patch=patch.object(main,'db',self.db);self.patch.start();self.addCleanup(self.patch.stop)
         self.payload=request(input_kind='narration',narration='Eine Katze wird adoptiert und erkundet ihr neues Zuhause.')
 
-    def test_text_to_approval_to_plan_is_persistent_and_never_renders(self):
+    def test_one_approval_persists_plan_queues_video_and_resumes_cancelled_version(self):
         with patch('backend.rendering.render_job') as render,patch.object(frame,'call') as provider:
             job=main.create_job(self.payload)
         provider.assert_not_called();render.assert_not_called()
@@ -179,14 +179,45 @@ class FrameWorkflowTests(unittest.TestCase):
         plan=None
         with patch.object(frame,'call',side_effect=plan_answer(batch_for(self.payload.narration))):
             plan=frame.plan_images(self.payload,job['script'])
-        with patch('backend.operations.Operation.run',return_value=plan) as worker:
+        with patch('backend.operations.Operation.run',return_value=plan) as worker,patch('backend.frame_media.production_readiness'):
             planned=main.approve_frame_plan(job['id'],VersionAction(expected_version=1,expected_hash=job['script']['content_hash']))
         self.assertEqual(worker.call_args.args[0],'frame_plan')
-        self.assertEqual(planned['script_version'],1);self.assertEqual(planned['status'],'script_approved')
+        self.assertEqual(planned['script_version'],1);self.assertEqual(planned['status'],'render_queued')
         self.assertEqual(Database(self.db.path).get_job(job['id'])['frame_plan']['plan_hash'],plan['plan_hash'])
         self.assertEqual(frame.narration(planned['script']),self.payload.narration)
-        with self.assertRaises(PipelineFailure):self.db.queue_render(job['id'],1,job['script']['content_hash'])
-        with self.assertRaises(PipelineFailure):main.approve_story_and_render(job['id'],VersionAction(expected_version=1,expected_hash=job['script']['content_hash']))
+        self.assertEqual(self.db.queue_render(job['id'],1,job['script']['content_hash'])['status'],'render_queued')
+        main.operations.cancel(job['id'],self.db)
+        with patch('backend.frame_media.production_readiness'),patch('backend.operations.Operation.run') as provider:
+            resumed=main.approve_story_and_render(job['id'],VersionAction(expected_version=1,expected_hash=job['script']['content_hash']))
+        self.assertEqual(resumed['status'],'render_queued');provider.assert_not_called()
+
+    def test_no_plan_means_no_render_and_missing_access_starts_no_inference(self):
+        job=main.create_job(self.payload)
+        self.db.approve_script(job['id'],1,job['script']['content_hash'],allow_frame=True)
+        with self.assertRaisesRegex(ValueError,'frame_plan_missing'):
+            self.db.queue_render(job['id'],1,job['script']['content_hash'])
+        from backend.images import ImageError
+        with patch('backend.frame_media.production_readiness',side_effect=ImageError('not_configured')),patch('backend.operations.Operation.run') as provider:
+            with self.assertRaises(Exception):main.approve_frame_plan(job['id'],VersionAction(expected_version=1,expected_hash=job['script']['content_hash']))
+        provider.assert_not_called()
+
+    def test_discord_video_ticket_binds_frame_version_and_old_approval_expires(self):
+        from backend.reviews import Reviews
+        from backend.integrations import Preferences
+        job=main.create_job(self.payload)
+        with patch.object(frame,'call',side_effect=plan_answer(batch_for(self.payload.narration))):
+            plan=frame.plan_images(self.payload,job['script'])
+        with patch('backend.operations.Operation.run',return_value=plan),patch('backend.frame_media.production_readiness'):
+            planned=main.approve_story_and_render(job['id'],VersionAction(expected_version=1,expected_hash=job['script']['content_hash']))
+        self.db.finish_render(job['id'],1,f"{job['id']}/v1/video.mp4",'a'*64,'fixture')
+        reviews=Reviews(self.db)
+        preference=Preferences(discord_enabled=True,discord_guild_id='111111111111111111',discord_channel_id='222222222222222222',discord_approver_ids=['333333333333333333'])
+        ticket=reviews.enqueue(job['id'],preference)
+        self.assertEqual(ticket['version'],1);self.assertEqual(ticket['fingerprint'],'a'*64)
+        revised=frame.build_script(self.payload,self.payload.narration+' Die Katze schläft ein.',revision=True)
+        self.db.update_script(job['id'],1,revised)
+        with self.assertRaises(ValueError):self.db.approve_video(job['id'],1,'a'*64,{'download'},['download'])
+        self.assertIsNone(self.db.get_job(job['id'])['approved_output_sha256'])
 
     def test_revision_invalidates_plan_and_requires_new_approval(self):
         job=main.create_job(self.payload)

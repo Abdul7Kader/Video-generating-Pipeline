@@ -8,7 +8,7 @@ window.FrameUI=(()=>{
     $('#duration-minutes').max=mode==='frame'?'30':'10';
     document.querySelectorAll('[data-duration]').forEach(button=>button.hidden=mode!=='frame'&&Number(button.dataset.duration)>600);
     $('#create-title').textContent=mode==='frame'?'Frame · Was möchtest du erzählen?':'Was möchtest du erzählen?';
-    $('#create-dialog .dialog-intro').textContent=mode==='frame'?'Idee oder eigenen Sprechertext eingeben. Du liest einen zusammenhängenden Entwurf und gibst Änderungswünsche an die KI. Nach deiner Freigabe entsteht der passende Bildplan. Bilder, Audio und Video werden in den nächsten Entwicklungsschritten ergänzt.':'Zuerst erhältst du einen durchgehenden Sprechertext und eine Bildidee. Nach deiner Freigabe plant die KI die Zeichnungen und erzeugt das Video.';
+    $('#create-dialog .dialog-intro').textContent=mode==='frame'?'Idee oder eigenen Sprechertext eingeben, Entwurf lesen und bei Bedarf von der KI verbessern lassen. Mit einer Freigabe starten passende Bilder, Bildprüfung, lokale Stimme und Videoschnitt. Danach prüfst du das fertige Video.':'Zuerst erhältst du einen durchgehenden Sprechertext und eine Bildidee. Nach deiner Freigabe plant die KI die Zeichnungen und erzeugt das Video.';
     updateInput();
   }
   function updateInput(){
@@ -46,14 +46,15 @@ window.FrameUI=(()=>{
   }
   const format=seconds=>`${Math.floor(Number(seconds)/60)} Min. ${Math.round(Number(seconds)%60)} Sek.`;
   function editor(job){
-    const metadata=job.script.metadata||{},quality=metadata.story_quality||{},plan=job.frame_plan;
-    return `<div class="panel story-editor"><h2>${plan?'Text freigegeben · Bildplan vorbereitet':'Deinen Sprechertext prüfen'}</h2><p class="panel-sub">Zieldauer: ${format(job.duration_seconds)} · Geschätzte Sprechzeit: ${format(quality.estimated_speech_seconds||0)} · Tatsächliche Dauer: noch nicht gemessen.</p><p class="field-hint">Die Zieldauer ist ein Wunsch. Dein eigener Text wird dafür nicht automatisch gekürzt oder gestreckt.</p><div class="story-narration frame-narration">${esc(job.script.scenes[0].narration)}</div>
+    const metadata=job.script.metadata||{},quality=metadata.story_quality||{},plan=job.frame_plan,production=job.frame_production||{};
+    return `<div class="panel story-editor"><h2>${plan?'Text freigegeben · Bildplan vorbereitet':'Deinen Sprechertext prüfen'}</h2><p class="panel-sub">Zieldauer: ${format(job.duration_seconds)} · Geschätzte Sprechzeit: ${format(quality.estimated_speech_seconds||0)} · Tatsächliche Dauer: ${production.actual_seconds?format(production.actual_seconds):'noch nicht gemessen'}.</p><p class="field-hint">Die Zieldauer ist ein Wunsch. Dein eigener Text wird dafür nicht automatisch gekürzt oder gestreckt.</p><div class="story-narration frame-narration">${esc(job.script.scenes[0].narration)}</div>
+      ${production.issues?.length?`<section class="notice error"><strong>Letzte Bildprüfung · ${production.completed_images||0} von ${production.image_total||0} Bildern angenommen</strong><ul>${production.issues.map(issue=>`<li>${esc(issue)}</li>`).join('')}</ul><p>Gültige Bilder bleiben erhalten. Fortsetzen prüft bzw. erzeugt die fehlenden Ergebnisse erneut.</p></section>`:''}
       ${metadata.fact_check_notes?.length?`<details><summary>Sachliche Hinweise</summary><ul>${metadata.fact_check_notes.map(note=>`<li>${esc(note)}</li>`).join('')}</ul></details>`:''}
       ${plan?`<section class="notice"><strong>${plan.images.length} inhaltliche Bildabschnitte vorbereitet</strong><p>Alle Textstellen sind zugeordnet. Bildzeiten folgen später aus der gemessenen Tonspur. Eine Einzelbildfreigabe ist nicht nötig.</p><details><summary>So ist die Geschichte bebildert · optional</summary>${plan.images.map(image=>`<p><strong>${esc(image.setting)}</strong> · ${esc(image.action)} ${esc(image.visible_change)}</p>`).join('')}</details></section>`:`${metadata.visual_summary?`<section class="story-preview"><h3>Bildidee zu deinem Inhalt</h3><p>${esc(metadata.visual_summary)}</p></section>`:''}`}
-      <p class="notice">Die Frame-Produktion wird weitergebaut. Hier kannst du bereits Text und passenden Bildplan vorbereiten; es werden noch keine Bilder, Tonspur oder Videos erzeugt.</p>
+      <p class="notice">Nach deiner Textfreigabe entstehen passende KI-Bilder und eine lokale Erzählspur. Die Pipeline prüft den tatsächlichen Bildinhalt und setzt das Video zusammen. Abbrechen ist jederzeit möglich; bei erneuter Freigabe werden gültige Dateien wiederverwendet. Bildzugang und Google-Anmeldung für die Bildprüfung unter ⚙ Einstellungen einrichten.</p>
       <div class="editor-status"><span id="script-metrics"></span><strong id="editor-dirty"></strong></div>
       <label>Was soll die KI am Text verbessern?<textarea id="revision-instructions" rows="3" maxlength="4000" placeholder="Beschreibe, was bei genau diesem Thema anders erklärt werden soll."></textarea></label>
-      <div class="actions"><button id="revise-script" type="button" class="secondary">KI verbessert das Skript</button>${plan?'':'<button id="approve-story" type="button" class="primary">Text freigeben & Bildplan vorbereiten</button>'}</div>
+      <div class="actions"><button id="revise-script" type="button" class="secondary">KI verbessert das Skript</button><button id="approve-story" type="button" class="primary">${plan?'Frame-Produktion fortsetzen':'Text freigeben & Video erstellen'}</button></div>
       <details><summary>Erzählerstimme ändern</summary>${window.FrameProductionEditor(job)}</details></div>`;
   }
   async function fingerprint(value){

@@ -1,5 +1,11 @@
 # Frame · lange Sprechertexte und inhaltliche Bildplanung
 
+Aktualisierung 17.10.2026: Frame-Medienpipeline B07–B11 ist inzwischen eingebaut.
+Echte Bildansicht, positiver/negativer Inhaltskontrast, lokaler Ton und Schnitt
+in 16:9/9:16 nachgewiesen. B12 bleibt wegen Google-Bildkontingent und ausstehender
+Serien-/Langvideoabnahme teilweise offen. [Aktueller Betriebsumfang](frame-production.md).
+Frühere Angaben „gesperrt/folgt später“ darunter beschreiben ältere Entwicklungsstände.
+
 Stand: 16.10.2026. **B05/B06 implementiert und mit Fixtures geprüft.**
 Nachtrag 17.10.: [Separate Bildanbieter und Einzelbildtest](frame-image-access.md)
 eingebaut; Google-Livebild erfolgreich. Bildserien im Auftrag (B08), Tonspur/Bildzeiten (B07), Bildinhaltsprüfung

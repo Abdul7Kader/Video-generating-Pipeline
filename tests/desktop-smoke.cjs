@@ -68,7 +68,7 @@ function status(origin, headers) {
   })()`);
   assert.deepEqual(modes.tabs,['Animierte Strichmännchen','Frame']);
   assert.equal(modes.frame.newHidden,false);assert.equal(modes.frame.selected,'true');assert.equal(modes.animated,'true');
-  assert.match(modes.frame.text,/erst nach dem vollständigen Funktionstest/);
+  assert.match(modes.frame.text,/Nach deiner Textfreigabe läuft die Produktion/);
   await window.setSize(590,820);
   const narrow = await window.webContents.executeJavaScript('document.documentElement.scrollWidth <= window.innerWidth');
   assert.equal(narrow,true);
@@ -134,7 +134,7 @@ function status(origin, headers) {
   }
   const frameDraft=await window.webContents.executeJavaScript('({text:document.querySelector(".frame-narration")?.textContent,body:document.getElementById("workspace").innerText})');
   assert.equal(frameDraft.text,ownedText);assert.match(frameDraft.body,/Zieldauer: 30 Min/);
-  assert.match(frameDraft.body,/Text freigeben & Bildplan vorbereiten/);
+  assert.match(frameDraft.body,/Text freigeben & Video erstellen/);
   trace('Frame own-text UI round trip, 30-minute target, exact paragraphs and approval action passed; no inference or media generated');
   trace('Integration settings and private native-folder round trip passed; no credentials/settings saved');
   const reviewPanel = await window.webContents.executeJavaScript(`(async()=>{

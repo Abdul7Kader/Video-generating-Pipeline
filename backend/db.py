@@ -422,7 +422,7 @@ class Database:
             conn.execute('INSERT OR REPLACE INTO frame_plans VALUES(?,?,?,?,?)',
                          (job_id,expected,actual,json.dumps(plan,ensure_ascii=False),utcnow()))
             conn.execute("UPDATE jobs SET status='script_approved',error=NULL,updated_at=? WHERE id=?",(utcnow(),job_id))
-            self._event(conn,job_id,'frame_plan_ready',f"Bildplan mit {len(plan['images'])} inhaltlichen Abschnitten vorbereitet; Bilder und Video folgen später.",{'plan_hash':plan['plan_hash']})
+            self._event(conn,job_id,'frame_plan_ready',f"Bildplan mit {len(plan['images'])} inhaltlichen Abschnitten vorbereitet.",{'plan_hash':plan['plan_hash']})
             conn.commit()
         return self.get_job(job_id)
 
@@ -558,6 +558,16 @@ class Database:
                 or row["approved_script_hash"] != actual_hash
             ):
                 raise ValueError("script_not_approved")
+            if row['status'] in {'cancelling','publish_queued','publishing','publish_pending'}:
+                raise ValueError('job_busy')
+            if row['generation_mode']=='frame':
+                from .frame import validate_plan
+                record=conn.execute('SELECT plan_json FROM frame_plans WHERE job_id=? AND script_version=?',(job_id,expected)).fetchone()
+                script=conn.execute('SELECT title,description,scenes_json FROM script_versions WHERE job_id=? AND version=?',(job_id,expected)).fetchone()
+                if not record:
+                    raise ValueError('frame_plan_missing')
+                validate_plan(json.loads(record['plan_json']),{'version':expected,'content_hash':actual_hash,
+                    'title':script['title'],'description':script['description'],'scenes':json.loads(script['scenes_json'])})
             if (
                 row["status"] in {"render_queued", "rendering", "video_review"}
                 and row["render_version"] == expected

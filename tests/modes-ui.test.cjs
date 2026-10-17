@@ -22,9 +22,9 @@ test('mode navigation filters legacy and Frame jobs without changing stored jobs
   state.drawJobList();assert.match(nodes.get('#jobs').innerHTML,/Legacy/);assert.doesNotMatch(nodes.get('#jobs').innerHTML,/data-id="new"/);
   assert.equal(state.switchMode('frame'),true);
   assert.equal(state.selected,null);assert.equal(nodes.get('#new-button').hidden,false);
-  assert.equal(nodes.get('#new-button').textContent,'＋ Frame-Skript');
+  assert.equal(nodes.get('#new-button').textContent,'＋ Frame-Video');
   assert.match(nodes.get('#jobs').innerHTML,/&lt;img&gt;/);assert.doesNotMatch(nodes.get('#jobs').innerHTML,/Legacy/);
-  assert.match(nodes.get('#workspace').innerHTML,/erst nach dem vollständigen Funktionstest/);
+  assert.match(nodes.get('#workspace').innerHTML,/Nach deiner Textfreigabe läuft die Produktion/);
   assert.equal(buttons[1]['aria-selected'],'true');assert.equal(buttons[0].tabIndex,-1);
   assert.equal(state.jobs.length,2);
   state.switchMode('animated');assert.equal(nodes.get('#new-button').hidden,false);assert.equal(nodes.get('#workspace').innerHTML,'existing home');

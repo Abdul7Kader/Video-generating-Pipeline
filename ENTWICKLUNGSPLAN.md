@@ -1,5 +1,14 @@
 # Entwicklungsplan für die Strichmännchen-Pipeline
 
+Aktuell 17.10.2026: **B07–B11 implementiert**, einschließlich samplegenauer
+Erzählspur, serieller KI-Bilder, echter Pixelprüfung, Cache/Wiederaufnahme,
+FFmpeg-Schnitt und bestehender Ablage-/Discord-Anbindung. B03 über vorhandenes
+Google-Abo belegt. **B12 teilweise offen:** neue Bildserie wegen erschöpftem
+Google-Bildkontingent nicht abgenommen; Langvideo-/Nutzerabnahme folgt danach.
+Realer Schnitt mit vorhandenem geprüftem Bild in beiden Formaten bestanden.
+[Maßgeblicher Stand und Bedienung](docs/frame-production.md).
+Alle älteren Stände darunter sind historisch; offene Alt-Abnahmen bleiben erhalten.
+
 Nachtrag 17.10.2026: B03 hat jetzt Cloudflare-FLUX und Google-Abo-CLI als
 eingebaute Bildadapter mit Einstellungen, Tresor, Einzelbildtest und Abbruch.
 Vollständige Live-/Stil-/Visionabnahme offen; Cloudflare braucht Nutzereinrichtung.

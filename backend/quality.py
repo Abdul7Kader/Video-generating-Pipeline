@@ -103,7 +103,7 @@ def run_quality_gate(
     checks: list[dict[str, Any]] = []
     try:
         with wave.open(str(audio_path), "rb") as wav_file:
-            frames = wav_file.readframes(wav_file.getnframes())
+            frames = wav_file.readframes(min(wav_file.getnframes(),wav_file.getframerate()*30))
             audio_duration = wav_file.getnframes() / wav_file.getframerate()
             samples = array("h", frames[: min(len(frames), wav_file.getframerate() * wav_file.getsampwidth() * 30)])
             peak = max((abs(sample) for sample in samples), default=0)

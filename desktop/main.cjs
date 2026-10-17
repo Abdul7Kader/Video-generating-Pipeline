@@ -108,6 +108,8 @@ async function startDesktop() {
   });
   await app.whenReady();
   await session.defaultSession.setProxy({mode: 'direct'});
+  // This dedicated local UI must load the current pipeline after an application update.
+  await session.defaultSession.clearCache();
   session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
     callback(contents === window?.webContents && clipboardWriteAllowed(permission, details.requestingUrl, origin, details.isMainFrame));
   });

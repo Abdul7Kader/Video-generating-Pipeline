@@ -1,17 +1,18 @@
 # Lokale Video Pipeline
 
-**Bildanbieter einrichten:** Einstellungen → **Frame · KI-Bilder** bietet Cloudflare
-mit FLUX (Workers-Free-Konto und Token nötig) oder dein vorhandenes Google-Abo
-über Antigravity. Einzelnes Testmotiv, Fortschritt und Abbruch; kein Video wird
-dabei gestartet. Google-Einzelbild über das vorhandene Abo erfolgreich geprüft;
-Cloudflare benötigt noch eigene Zugangsdaten. [Einrichtung und Nachweise](docs/frame-image-access.md).
+**Frame ist jetzt als durchgehende Pipeline eingebaut:** Idee oder eigenen Text
+anlegen, von der KI verbessern lassen und einmal freigeben. Danach folgen
+textgebundener Bildplan, lokale Erzählspur, KI-Bilder, tatsächliche Pixelprüfung
+und synchroner FFmpeg-Schnitt. Abbruch, Wiederaufnahme, getrennte Endvideoablage
+und bestehende Discord-Abnahme sind angebunden. Animation bleibt im anderen Reiter.
+[Bedienung und Nachweise](docs/frame-production.md).
 
-**Frame: Skript und Bildplan jetzt vorbereiten.** Reiter Frame → Frame-Skript:
-Idee oder eigenen Sprechertext wählen, Minuten/Sekunden festlegen (bis 30 Minuten),
-Text von der KI verbessern lassen und freigeben. Der Bildplan folgt dem jeweiligen
-Inhalt. Bildserien im Auftrag, Tonspur und Frame-Video folgen in den nächsten Schritten;
-[Bedienung und aktueller Umfang](docs/frame-text-and-planning.md).
-
+**Abnahme noch teilweise offen:** Google-Bildkontingent beim Test erschöpft;
+die neue Bildserie und ein echtes Langvideo sind noch nicht live abgenommen.
+Bestehendes echtes Bild, positive/negative Visionprüfung und tatsächlicher Schnitt
+in 16:9/9:16 sind geprüft. Der eigene Google-Abo-Zugang ist lokal voreingestellt;
+keine Zusatzcredits oder kostenpflichtige Gemini-API. Cloudflare-Free bleibt als
+Alternative unter Einstellungen verfügbar und benötigt eigene Zugangsdaten.
 
 Neue Fehler zeigen den betroffenen Verarbeitungsschritt, eine Fehler-ID und eine
 Handlungsempfehlung. **Fehlerdetails kopieren** hilft beim Melden; vergangene Fehler

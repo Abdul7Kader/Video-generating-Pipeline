@@ -4,9 +4,9 @@ Werkzeuge der Strichmännchen-Pipeline. Alternativen werden ausdrücklich ausgew
 
 | Tool / Technologie | Wofür wir es nutzen | Anmeldung / Abo |
 |---|---|---|
-| Cloudflare Workers AI + FLUX.1 schnell | KI-Bilder für Frame; Adapter und Einzelbildtest eingebaut. | Workers-Free-Konto, Account-ID und API-Token; Tageskontingent, Live-Einrichtung noch nötig. |
+| Cloudflare Workers AI + FLUX.1 schnell | KI-Bilder für Frame-Bildserien; lokale Dateien und Cache. | Workers-Free-Konto, Account-ID und API-Token; Tageskontingent, Live-Einrichtung noch nötig. |
 | Electron + native Prozessverwaltung | Eigenes Programmfenster; gemeinsamer Start/Stopp. Windows: Job Objects, Linux: systemd + Subreaper, macOS: launchd + Prozessregistrierung (Mac-Abnahme offen). | Kein Konto, kein Abo; lokale Desktop-Laufzeit herunterladen. |
-| Antigravity + Gemini | Skripte überarbeiten und Szenarien planen; beim letzten Katzenvideo verwendet. | Eigenes berechtigtes Google-Konto nötig. Kostenloses begrenztes Basiskontingent, Pro-Abo optional; Zusatzcredits werden vor jedem Aufruf geprüft und müssen aus sein; Modelle und Limits hängen vom Konto ab. [Tarife](https://www.antigravity.google/docs/plans) |
+| Antigravity + Gemini | Skripte/Bildplan, Google-Abo-Bilder und tatsächliche Pixelprüfung für Frame. | Eigenes berechtigtes Google-Konto nötig. Kostenloses begrenztes Basiskontingent, Pro-Abo optional; Zusatzcredits werden vor jedem Aufruf geprüft und müssen aus sein; Modelle und Limits hängen vom Konto ab. [Tarife](https://www.antigravity.google/docs/plans) |
 | Web-KI (z. B. Gemini-Webversion) | Manueller Prompt-/Antwortimport für Text, Überarbeitung und Zeichenplan. | Anmeldung beim gewählten Anbieter; dessen Gratislimits/Tarife gelten. Kein automatischer Weblogin. |
 | Ollama + Qwen 3.5 | Alternative für lokale Skripte und Szenarien. | Kein Konto, kein Abo; Modell herunterladen. |
 | Qwen3-TTS + PyTorch | Natürlichere Erzählerstimme auf dem eigenen Rechner. | Kein Konto, kein Abo; Modell herunterladen. |
@@ -15,7 +15,7 @@ Werkzeuge der Strichmännchen-Pipeline. Alternativen werden ausdrücklich ausgew
 | Remotion + React + TypeScript | Zeichnungen, Animation und Ton zum Video zusammensetzen. | Kein Konto für lokales Rendern. Remotion ist für Einzelpersonen und Firmen bis 3 Personen kostenlos; größere Firmen benötigen eine kostenpflichtige Lizenz. [Lizenz](https://github.com/remotion-dev/remotion/blob/main/packages/core/LICENSE.md) |
 | Node.js | Führt die Video-Renderwerkzeuge aus. | Kein Konto, kein Abo. |
 | Chrome / Edge / Chromium | Berechnet die einzelnen Videobilder. | Kein Konto, kein Abo. |
-| FFmpeg / FFprobe | Audio verarbeiten, Videos kodieren und Mediendateien prüfen. | Kein Konto, kein Abo. |
+| FFmpeg / FFprobe | Frame: gehaltene KI-Bilder und eine Tonspur synchron schneiden; Audio-/Videoprüfung. | Kein Konto, kein Abo. |
 | Python + FastAPI + Uvicorn | Steuert Aufträge und stellt die lokale Webseite bereit. | Kein Konto, kein Abo. |
 | SQLite | Speichert Aufträge, Skriptversionen, Freigaben und dauerhafte Endvideoorte. | Kein Konto, kein Abo. |
 | keyring + Betriebssystem-Tresor | Neue API-Schlüssel und Anmeldetokens geschützt speichern. | Kein Abo; Windows-Tresor, Mac-Schlüsselbund oder Linux Secret Service nötig. |

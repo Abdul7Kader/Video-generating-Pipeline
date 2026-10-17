@@ -1,32 +1,33 @@
 # Aktueller Auftrag: Strichmenschen-Videos
 
-## Neue aktive Etappe B · Frame (B01/B02/B04/B05/B06 umgesetzt)
+## Aktive Etappe B · Frame (B01–B11 implementiert, B12 teilweise offen)
 
 Nummern und Abnahmekriterien: [tasks/plan.md](plan.md). Alte offene Abnahmen bleiben erhalten.
 
 - [x] B01 Bestand einfrieren und versionsgebundene Herstellungsmodi festlegen.
 - [x] B02 Nachvollziehbare Fehler vom Worker bis zur Oberfläche, sichere Diagnose-ID.
-- [ ] B03 Tatsächlich nutzbaren KI-Bild-/Visionweg mit vorhandenen Zugängen prüfen.
-- [ ] Prüfpunkt B01–B03: Bestand stabil, Fehler sichtbar, Bildzugang belegt.
+- [x] B03 Tatsächlich nutzbaren KI-Bild-/Visionweg mit vorhandenen Zugängen prüfen.
+- [x] Prüfpunkt B01–B03: Bestand stabil, Fehler sichtbar, Bildzugang belegt.
 - [x] B04 Zwei klare Reiter; überflüssige/nicht implementierte Erstellungsoptionen entfernen.
 - [x] B05 Idee oder eigenes Skript, freier Dauerwunsch und längere Fließtexte.
 - [x] B06 Vollständig textgebundene, inhaltlich konkrete Bildplanung.
-- [ ] B07 Eine Erzählspur und gemessene Bildzeiten ohne kumulativen Versatz.
-- [ ] Prüfpunkt B04–B07: Skriptfreigabe, Bildaussagen und lange Audiotimeline geprüft.
-- [ ] B08 Lokale KI-Illustrationen, Fortschritt, Cache und gezielte Wiederaufnahme.
-- [ ] B09 Tatsächlichen Bildinhalt/Stil prüfen, begrenzt korrigieren.
-- [ ] B10 Bildsequenzen mit vorhandenem Schnitt synchron zum Video zusammensetzen.
-- [ ] B11 Bearbeitung, Abbruch, Ablage und Discord-/Zielverteilung integrieren.
+- [x] B07 Eine Erzählspur und gemessene Bildzeiten ohne kumulativen Versatz.
+- [x] Prüfpunkt B04–B07: Skriptfreigabe, Bildaussagen und lange Audiotimeline geprüft.
+- [x] B08 Lokale KI-Illustrationen, Fortschritt, Cache und gezielte Wiederaufnahme.
+- [x] B09 Tatsächlichen Bildinhalt/Stil prüfen, begrenzt korrigieren.
+- [x] B10 Bildsequenzen mit vorhandenem Schnitt synchron zum Video zusammensetzen.
+- [x] B11 Bearbeitung, Abbruch, Ablage und Discord-/Zielverteilung integrieren.
 - [ ] B12 Wenige notwendige echte Beispiele einschließlich Langvideo mit Nutzer abnehmen.
 
-B01/B02 implementiert und geprüft: [Diagnose und Modi](../docs/pipeline-diagnostics.md).
-B04 und Bildzugangsprüfung: [Nachweis](../docs/frame-image-access.md).
-B03: Kostenentscheidung getroffen (keine Zusatzkosten, vorhandenes Abo bevorzugen).
-Cloudflare-FLUX und Google-Abo-CLI mit Einstellungen, Tresor, Testbild und Abbruch
-eingebaut. Google-Livebild erzeugt und lokal angesehen. Cloudflare-Einrichtung,
-Live-Aufruf, Serienqualität und Vision-Nachweis in der App weiterhin offen.
-B05/B06: [Text und Bildplanung](../docs/frame-text-and-planning.md).
-Frame-Produktion und B07–B12 bleiben offen. Keine Testfilme.
+B07–B11: [Umsetzung, Bedienung und Nachweise](../docs/frame-production.md).
+367 Backend-Tests (10 Skips), 75 JS-Tests; native Windows-UI/Start/Stopp geprüft.
+Google-Pixelprüfung positiv/negativ und mit erfolgreichem PostToolUse nachgewiesen.
+Realer Schnitt mit vorhandenem geprüftem Bild in 16:9 und 9:16 bestanden.
+**B12 offen:** Neue Bildserie nach Ende des Google-Bildkontingents fortsetzen
+(`tests/check_frame_runtime.py`, vorhandener Plan/Ton bleiben erhalten), danach
+reales Langvideo und Nutzerbewertung. Cloudflare-Liveprüfung benötigt Account-ID
+und Token; keine Zusatzkosten aktiviert. Frühere offene Plattform-/Geräteabnahmen
+bleiben unten erhalten.
 
 ## Erhaltene bisherige Aufgaben und Nachweise
 

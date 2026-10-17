@@ -49,8 +49,9 @@ class PipelineDiagnosticsTests(unittest.TestCase):
         frame_id=self.db.create_job({**VALUES,'generation_mode':'frame'},SCRIPT)
         frame=self.db.get_job(frame_id)
         self.assertEqual(frame['script']['generation_mode'],'frame')
-        with self.assertRaises(PipelineFailure):
-            self.db.approve_script(frame_id,1,frame['script']['content_hash'])
+        self.db.approve_script(frame_id,1,frame['script']['content_hash'])
+        with self.assertRaisesRegex(ValueError,'frame_plan_missing'):
+            self.db.queue_render(frame_id,1,frame['script']['content_hash'])
 
     def test_mode_tampering_invalidates_integrity_without_changing_the_old_hash(self):
         before=self.db.get_job(self.job_id)['script']['content_hash']
@@ -135,8 +136,9 @@ class PipelineDiagnosticsTests(unittest.TestCase):
         self.assertIsNotNone(found)
 
     def test_frame_api_refuses_before_any_paid_or_local_generation(self):
-        with patch.object(main,'db',self.db),patch('backend.operations.Operation.run') as worker:
+        from backend.images import Preferences
+        with patch.object(main,'db',self.db),patch('backend.operations.Operation.run') as worker,patch('backend.images.load',return_value=Preferences()):
             status,value=asyncio.run(request('POST','/api/jobs',{**VALUES,'generation_mode':'frame','input_kind':'narration','narration':'Ein eigener zusammenhängender Sprechertext bleibt erhalten.'}))
             self.assertEqual(status,201);worker.assert_not_called()
             status,failure=asyncio.run(request('POST',f"/api/jobs/{value['id']}/render",{'expected_version':1,'expected_hash':value['script']['content_hash']}))
-        self.assertEqual(status,409);self.assertEqual(failure['failure']['code'],'not_ready');worker.assert_not_called()
+        self.assertEqual(status,502);self.assertEqual(failure['failure']['code'],'credentials');worker.assert_not_called()

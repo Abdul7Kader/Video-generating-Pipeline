@@ -104,6 +104,9 @@ def require_job(job_id: str):
     job = db.get_job(job_id)
     if not job:
         raise HTTPException(404, "Auftrag nicht gefunden")
+    if job.get('generation_mode')=='frame':
+        from .frame_media import production_status
+        job['frame_production']=production_status(job)
     output_path = job.get("output_path")
     if output_path:
         report_path = (settings.jobs_dir / str(output_path)).parent / "render-comparison.json"
@@ -127,7 +130,10 @@ async def render_worker(stop: asyncio.Event) -> None:
         with app.state.worker_claim_lock:
             if app.state.shutdown_requested.is_set():
                 return
-            job = db.claim_render()
+            with operations.lock:
+                # A planning operation may atomically queue its result before its
+                # own context exits. Do not race it or lose a simultaneous cancel.
+                job = None if operations.active else db.claim_render()
         if job:
             try:
                 with operations.start(job['id'], db) as operation:
@@ -320,6 +326,8 @@ async def security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "no-referrer"
     if request.url.path.startswith('/api/settings'):
         response.headers['Cache-Control'] = 'no-store'
+    elif not request.url.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-cache'
     # FastAPI's Swagger UI intentionally loads its own documented CDN assets.
     # Keep the production UI strict without silently breaking /api/docs.
     if request.url.path != "/api/docs":
@@ -733,19 +741,25 @@ def approve_frame_plan(job_id: str, payload: VersionAction):
         raise HTTPException(409,'Der Sprechertext wurde geändert. Aktuelle Fassung lesen und erneut freigeben.')
     if current.get('frame_plan') and current['approved_script_hash']==payload.expected_hash:
         frame.validate_plan(current['frame_plan'],current['script'])
-        return current
+        return queue_render(job_id,payload)
     if not _story_plan_slot.acquire(blocking=False):
         raise HTTPException(429,'Eine Text-/Bildplanung läuft bereits.')
     try:
-        with operations.start(job_id,db,allow_frame=True) as operation:
+        from .frame_media import production_readiness
+        production_readiness(current)
+        with operations.lock:
+            if current['status']=='cancelling' or job_id in operations.active:
+                raise ValueError('job_busy')
             db.approve_script(job_id,payload.expected_version,payload.expected_hash,allow_frame=True)
+        with operations.start(job_id,db,allow_frame=True) as operation:
             db.begin_planning(job_id,payload.expected_version)
             request=frame_request(current)
             plan=operation.run('frame_plan',{'request':request.model_dump(),'script':current['script']},
                                timeout=frame.operation_timeout(request,frame.narration(current['script'])))
             with operations.lock:
                 operation.check()
-                return db.save_frame_plan(job_id,payload.expected_version,payload.expected_hash,plan)
+                db.save_frame_plan(job_id,payload.expected_version,payload.expected_hash,plan)
+                return db.queue_render(job_id,payload.expected_version,payload.expected_hash)
     except OperationCancelled as error:
         raise HTTPException(409,str(error)) from None
     except Exception as error:
@@ -1013,6 +1027,13 @@ def update_production_config(job_id: str, payload: ProductionConfigUpdate):
 def queue_render(job_id: str, payload: VersionAction):
     job = require_job(job_id)
     require_mode(job.get('generation_mode','animated'))
+    if job.get('generation_mode')=='frame':
+        try:
+            from .frame_media import production_readiness
+            production_readiness(job)
+            return db.queue_render(job_id,payload.expected_version,payload.expected_hash)
+        except ValueError:
+            raise HTTPException(409,'Aktuellen Frame-Text und Bildplan erneut freigeben; laufende Vorgänge zuerst beenden.') from None
     try:
         require_active_production(job["production_config"])
     except ValueError as exc:
@@ -1046,6 +1067,8 @@ def queue_render(job_id: str, payload: VersionAction):
 @app.post('/api/jobs/{job_id}/approve-and-render')
 def approve_story_and_render(job_id: str, payload: VersionAction):
     current = require_job(job_id)
+    if current.get('generation_mode')=='frame':
+        return approve_frame_plan(job_id,payload)
     require_mode(current.get('generation_mode','animated'))
     script = current['script']
     if not script['integrity_verified']:

@@ -2,7 +2,7 @@
 
 ## Neue aktive Etappe B: Bildsequenz-Videos und nachvollziehbare Fehler
 
-Stand 16.10.2026: **B01/B02/B04/B05/B06 umgesetzt; B03 teilweise geprüft und noch offen; B07–B12 offen**. Nutzer wünscht zwei
+Stand 17.10.2026: **B01–B11 implementiert; B03 über Google mit echten Bild-/Visionnachweisen belegt. B12 teilweise offen: neue Bildserie durch Google-Bildkontingent gestoppt, echte Langvideo-/Nutzerabnahme ausstehend.** [Aktuelle Bedienung, Prüfungen und Grenzen](../docs/frame-production.md). Nutzer wünscht zwei
 Reiter: **Animierte Strichmännchen** (bestehenden Herstellungsweg einfrieren) und
 **Frame** (Nutzerbenennung; KI-Illustrationen + eine zusammenhängende
 Erzählspur). Die frühere Aufgabenfolge darunter bleibt erhalten; ihre offenen

@@ -324,6 +324,9 @@ def render_job(job: dict[str, Any], *, job_dir_override: Path | None = None) -> 
     version = int(job["render_version"])
     job_dir = job_dir_override or settings.jobs_dir / job["id"] / f"v{version}"
     job_dir.mkdir(parents=True, exist_ok=True)
+    if job.get('generation_mode')=='frame':
+        from .frame_rendering import render
+        return render(job,job_dir)
     production_config = job.get("production_config") or job["script"].get("production_config") or {}
     editor = production_config.get("editor", "remotion")
     if editor not in {"remotion", "moneyprinter"}:

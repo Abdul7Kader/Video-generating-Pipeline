@@ -58,6 +58,20 @@ class RetentionTests(unittest.TestCase):
         for file in (self.wav,self.asset):
             os.utime(file,(old.timestamp(),old.timestamp()))
 
+    def test_frame_cache_is_manual_work_and_final_video_proof_and_notes_survive(self):
+        cached=self.work/'assets'/('a'*64+'.png');cached.write_bytes(b'fixture-image')
+        sidecar=cached.with_suffix('.json');sidecar.write_text('{}')
+        rejected=self.work/'assets'/('b'*64+'.rejected.json');rejected.write_text('{}')
+        pending=self.work/'assets'/('c'*64+'.pending.json');pending.write_text('{}')
+        timeline=self.work/'frame-timeline.json';timeline.write_text('{}')
+        self.assertEqual(retention.clean_expired_work(self.db),0)
+        self.assertTrue(cached.exists())
+        self.clean()
+        for path in (cached,sidecar,rejected,pending,timeline):self.assertFalse(path.exists())
+        self.assertTrue(self.proof.exists());self.assertTrue(self.unknown.exists())
+        final=self.db.get_job(self.job_id)['render_outputs']['9:16']['final_path']
+        self.assertEqual(file_sha256(Path(final)),self.digest)
+
     def clean(self,**options):
         return retention.clean_expired_work(self.db,job_id=self.job_id,expected=(1,self.digest),**options)
 

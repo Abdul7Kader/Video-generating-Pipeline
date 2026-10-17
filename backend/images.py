@@ -99,7 +99,8 @@ def status(*, inspect_account=False):
         'message':'Cloudflare-Konfiguration vorhanden.' if configured and preferences.provider == 'cloudflare' else
                   'Google-Skriptzugang bereit; Bildfunktion separat testen.' if account.get('ready') else
                   'Google-Abobildweg ausgewählt. Anmeldung und Bildfunktion getrennt prüfen.' if preferences.provider=='antigravity' and not inspect_account else 'Bildzugang in den Einstellungen einrichten.',
-        'next_step':'Ein Testbild bestätigt den Bildaufruf. Ein Stil-/Inhaltsnachweis und die Frame-Videoproduktion folgen separat. Es wurde kein Bild erzeugt und kein Tarif geändert.'}
+        'pipeline_available':True,
+        'next_step':'Die Frame-Produktion prüft jedes echte Bild über die bestehende Google-/Antigravity-Anmeldung. Ein Testbild hier prüft nur den Bildaufruf. Öffnen oder Speichern erzeugt keine Bilder und ändert keinen Tarif.'}
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):

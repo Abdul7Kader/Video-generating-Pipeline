@@ -24,11 +24,11 @@ window.ImageSettings = {
       <button type="button" class="ghost" id="image-access-check">Gespeicherten Zugang prüfen · ohne Bilderzeugung</button>
       <p id="image-access-result" role="status" aria-live="polite"></p>
       <label>Motiv für ein Testbild<textarea id="image-prompt" rows="3" maxlength="1400" placeholder="Zum Beispiel: Ein Strichmännchen adoptiert eine Katze. Zeige die Katze deutlich, während sie aus ihrer Transportbox tritt. Weißer Hintergrund, keine Schrift."></textarea></label>
-      <p class="field-hint">Das Motiv wird an den gewählten Anbieter gesendet. Keine privaten Dokumente einfügen. Die automatische Prüfung von Bildinhalt und Stil folgt separat.</p>
+      <p class="field-hint">Das Motiv wird an den gewählten Anbieter gesendet. In der Frame-Produktion prüft die bestehende Google-/Antigravity-Anmeldung den tatsächlichen Bildinhalt und Stil – auch bei Cloudflare-Bildern. Dieser einzelne Test prüft nur den Bildaufruf.</p>
       <button type="button" class="secondary" id="image-test">Speichern und ein Testbild erzeugen</button><button type="button" class="ghost" id="image-cancel" hidden>Testbild abbrechen</button>
       <progress id="image-progress" aria-label="Testbild erzeugen" hidden></progress><p id="image-task" role="status" aria-live="polite"></p>
       <img id="image-preview" alt="Erzeugtes Testbild zum eingegebenen Motiv" hidden style="max-width:100%;max-height:480px;object-fit:contain">
-      <p class="field-hint">Testbilder: data/image-previews. Kein Video wird gestartet. Frame-Videoproduktion folgt nach Audio, Bildprüfung und Schnitt.</p>`;
+      <p class="field-hint">Testbilder: data/image-previews. Ein Video startest du im Reiter Frame nach deiner Textfreigabe. Endvideos findest du im unter „Ablage“ gewählten Ordner; Arbeitsdateien werden standardmäßig nur manuell aufgeräumt.</p>`;
     root.append(section);
     const $=id=>section.querySelector('#'+id),result=$('image-access-result');
     async function api(path='',method='GET',value) {
